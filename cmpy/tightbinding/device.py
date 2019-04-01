@@ -35,9 +35,9 @@ class TbDevice(TightBinding):
         self.w_eps = 0
 
     @classmethod
-    def square(cls, shape, eps=0., t=1., name="A", a=1., wideband=False):
+    def square(cls, shape=(2, 1), eps=0., t=1., name="A", a=1., wideband=False):
         self = cls(a * np.eye(2))
-        self.add_atom(name, eps)
+        self.add_atom(name, energy=eps)
         self.set_hopping(t)
         self.build(shape)
         self.load_lead(wideband)

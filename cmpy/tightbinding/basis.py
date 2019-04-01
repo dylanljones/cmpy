@@ -23,16 +23,6 @@ SOC = np.array([[s_0,     -1j*s_z, +1j*s_y],
                 [+1j*s_z,     s_0, -1j*s_x],
                 [-1j*s_y, +1j*s_x,     s_0]])
 
-# SOC hamiltonian for p-orbitals:
-#                     pin up   |  spin down
-#                 px,  py,  pz,  px,  py,  pz
-SOC_P = np.array([[0, -1j,   0,   0,   0,   1],   # px
-                  [1j,  0,   0,   0,   0, -1j],   # py  spin up
-                  [0,   0,   0,  -1,  1j,   0],   # pz
-                  [0,   0,  -1,   0,  1j,   0],   # px
-                  [0,   0, -1j, -1j,   0,   0],   # py  spin down
-                  [1,  1j,   0,   0,   0,   0]])  # pz
-
 
 def get_soc(orb1, orb2, s1, s2):
     if isinstance(orb1, str) and isinstance(orb2, str):

@@ -137,7 +137,6 @@ def plot_transmission(omegas, *transmission, show=True):
 def plot_transmission_loss(lengths, trans, norm=1, mode="lin", show=True):
     fig, ax = plt.subplots()
 
-    ax.set_title(data.info_str())
     if mode == "exp":
         ax.set_yscale("log")
         ylabel = r"$T/T_0$"
@@ -150,7 +149,6 @@ def plot_transmission_loss(lengths, trans, norm=1, mode="lin", show=True):
     ax.set_xlim(0, lengths[-1] + 10)
     ax.set_xlabel("N")
     ax.set_ylabel(ylabel)
-    ax.legend()
     if show:
         plt.show()
     return fig, ax
