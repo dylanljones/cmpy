@@ -43,6 +43,7 @@ class Matrix(np.ndarray):
 
     @property
     def is_blocked(self):
+        """ bool: True if blocks are configured """
         return self.block_sizes is not None
 
     def iter_indices(self, skip_diag=False):
@@ -67,7 +68,8 @@ class Matrix(np.ndarray):
     # ==============================================================================================
 
     def inv(self):
-        return la.inv(self)
+        """ Matrix: Inverse of the Matrix """
+        return Matrix(la.inv(self))
 
     def diag(self, matrix=False):
         """ Get the diagonal matrix-elements
@@ -90,7 +92,7 @@ class Matrix(np.ndarray):
             return diag
 
     def off_diag(self):
-        """ np.ndarray: get the non-diagonal matrix-elements """
+        """ Matrix: get the non-diagonal matrix-elements """
         n = min(self.shape)
         off_diag = Matrix(self)
         off_diag.fill_diag(np.zeros(n))
@@ -120,7 +122,6 @@ class Matrix(np.ndarray):
 
     def eigvals(self, num_range=None):
         """ np.ndarray: eigenvalues of the matrix """
-
         return la.eigvalsh(self, eigvals=num_range)
 
     # ==============================================================================================
@@ -207,3 +208,75 @@ class Matrix(np.ndarray):
                 line += f"{s:^{x}} "
             string += line[:-1] + "]\n"
         return string[:-1]
+
+
+
+class SparseMatrix:
+
+    def __init__(self, shape, dtype=None):
+        self.shape = shape
+        self.dtype = dtype
+        self.data = dict()
+
+    @property
+    def n_elements(self):
+        return len(list(self.data.keys()))
+
+    def _assert_index_in_range(self, idx, axis):
+        if (idx < 0) or (idx >= self.shape[axis]):
+            msg = f"Index {idx} is out of bounds for axis 0 with size {self.shape[axis]}"
+            raise IndexError(msg)
+
+    @staticmethod
+    def _flatten_indices(i, j, shape):
+        indices = np.indices(shape).reshape(2, np.prod(shape))
+        indices += np.array([i, j])[:, np.newaxis]
+        return indices.T
+
+    def __getitem__(self, item):
+        self._assert_index_in_range(item[0], 0)
+        self._assert_index_in_range(item[1], 1)
+        return self.data.get(item, 0)
+
+    def __setitem__(self, item, value):
+        self._assert_index_in_range(item[0], 0)
+        self._assert_index_in_range(item[1], 1)
+        self.data.update({item: value})
+
+    def get_block(self, i, j, shape):
+        indices = self._flatten_indices(i, j, shape)
+        sub_arr = np.zeros(shape, dtype=self.dtype)
+        for idx in range(indices.shape[0]):
+            i, j = indices[idx]
+            sub_arr[i, j] = self.__getitem__((i, j))
+        return sub_arr
+
+    def set_block(self, i, j, data):
+        if not data.shape:
+            data = np.array([[data]])
+        indices = self._flatten_indices(i, j, data.shape)
+        data = data.flatten()
+        for idx in range(indices.shape[0]):
+            i, j = indices[idx]
+            self.__setitem__((i, j), data[idx])
+
+    def __repr__(self):
+        return f"SparseMatrix({self.shape}), {self.n_elements} elements)"
+
+    def toarray(self):
+        arr = np.zeros(self.shape, dtype=self.dtype)
+        for idx, value in self.data.items():
+            i, j = idx
+            arr[i, j] = value
+        return arr
+
+    def tomatrix(self):
+        return Matrix(self.toarray())
+
+    def show(self):
+        print("converting to matrix")
+        mat = self.tomatrix()
+        mat.show()
+
+    def __str__(self):
+        return str(self.toarray())

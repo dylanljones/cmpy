@@ -221,16 +221,18 @@ def neighor_n_vecs(n_vec, num=1):
 
 
 def shuffle(obj, disorder):
-    """
+    """ Shuffle elements of object
 
     Parameters
     ----------
-    obj
-    disorder
+    obj: array_like or int
+        object to shuffle
+    disorder: float
+        disorder amount
 
     Returns
     -------
-
+    shuffled: array_like
     """
     if len(obj.shape) == 0:
         return obj + np.random.uniform(-disorder, +disorder)

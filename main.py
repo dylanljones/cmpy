@@ -12,7 +12,7 @@ import psutil
 import matplotlib.pyplot as plt
 from cmpy import square_lattice, eta, plot_transmission
 from cmpy.core import *
-from cmpy.tightbinding import square_device, TbDevice, s_basis, sp3_basis
+from cmpy.tightbinding import TbDevice, s_basis, sp3_basis
 from scipy.sparse import coo_matrix
 
 POINTS = [0, 0], [np.pi, 0], [np.pi, np.pi]
@@ -33,50 +33,68 @@ def print_mem():
     total = format_num(vmem.total)
     print(f"Free: {free}, Used: {used}, Total: {total}")
 
-def ham_data(tb):
+
+def sparse_ham(tb):
+    ham = SparseHamiltonian(tb.lattice.n, tb.n_orbs, "complex")
     for i in prange(tb.lattice.n, header="Building hamiltonian"):
         # Site energies
-        yield i, i, tb.get_energy(i)
+        ham.set_energy(i, tb.get_energy(i))
+
         # Hopping energies
         neighbours = tb.lattice.neighbours[i]
         for dist in range(len(neighbours)):
             t = tb.hoppings[dist]
             for j in neighbours[dist]:
                 if j > i:
-                    yield i, j, t
-                    yield j, i, np.conj(t).T
-
-def flatten(i, j, data):
-    shape = data.shape
-    indices = np.indices(shape).reshape(2, np.prod(shape))
-    indices += np.array([i, j])[:, np.newaxis]
-    rows, cols = indices
-    return rows, cols, data.flatten()
-
-
-def coo_hamiltonian(device):
-    rows, cols, data = list(), list(), list()
-    for i, j, t_full in ham_data(device):
-        r, c, t = flatten(i, j, t_full)
-        rows += list(r)
-        cols += list(c)
-        data += list(t)
-    n = device.lattice.n * device.n_orbs
-    ham = coo_matrix((data, (rows, cols)), shape=(n, n))
-
+                    ham.set_hopping(i, j, t)
     return ham
 
+def rgf(ham, omega, chunksize=None):
+    """ Recursive green's function
 
+    Calculate green's function using the recursive green's function formalism.
 
+    Parameters
+    ----------
+    ham: Hamiltonian
+        hamiltonian of model, must allready be blocked
+    omega: float
+        energy-value to calculate the Green's functions
+    chunksize: int, optional
+        chunk size to use in recursion.
+        If None, use full pre defined blocks of hamiltonian
+
+    Returns
+    -------
+    gf_1n: array_like
+        lower left block of greens function
+    """
+    if chunksize is None and not ham.is_blocked:
+        raise ValueError("Block sizes of hamiltonian not set up and no chunksize specified!")
+
+    if chunksize is not None:
+        ham.config_uniform_blocks(chunksize)
+
+    n_blocks = ham.block_shape[0]
+    g_nn = greens(ham.get_block(0, 0), omega)
+    g_1n = g_nn
+    for i in range(1, n_blocks):
+        h = ham.get_block(i, i) + ham.get_block(i, i-1) @ g_nn @ ham.get_block(i-1, i)
+        g_nn = greens(h, omega)
+        g_1n = g_1n @ ham.get_block(i-1, i) @ g_nn
+    return g_1n
 
 
 def main():
     print("Building lattice...")
     b = sp3_basis()
-    dev = TbDevice.square((200, 16), eps=b.eps, t=b.hop)
-    print("done")
-    coo_ham = coo_hamiltonian(dev)
-    print_mem()
+    dev = TbDevice.square((10, 4), b.eps, b.hop)
+    ham = sparse_ham(dev)
+    print(ham.shape)
+    print(ham.get_block(0, 0))
+
+
+
 
 if __name__ == "__main__":
     main()

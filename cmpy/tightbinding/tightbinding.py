@@ -113,7 +113,7 @@ class TightBinding:
                 band_sections.append(e_vals)
         return band_sections
 
-    def hamiltonian(self, w_eps=0.):
+    def hamiltonian(self, w_eps=0., sparse=False):
         n = self.lattice.n
         ham = Hamiltonian.zeros(n, self.n_orbs, "complex")
         for i in range(n):
@@ -131,7 +131,8 @@ class TightBinding:
                 t = self.hoppings[dist]
                 indices = neighbours[dist]
                 for j in indices:
-                    ham.set_hopping(i, j, t)
+                    if j > i:
+                        ham.set_hopping(i, j, t)
         return ham
 
     def slice_hamiltonian(self):

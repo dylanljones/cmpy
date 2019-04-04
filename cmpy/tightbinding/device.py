@@ -12,6 +12,103 @@ from cmpy.core import prange, Progress
 from .tightbinding import TightBinding
 
 
+class Lead:
+    """ Semi-infinite Lead object """
+
+    def __init__(self, ham_slice, hop_interslice, dec_thresh=1e-100):
+        self.omega = 0
+        self.ham = ham_slice
+        self.hop = hop_interslice
+
+        self._thresh = dec_thresh
+        n = ham_slice.shape[0]
+        self._gfs = np.zeros((3, n, n), dtype="complex")
+
+    @property
+    def gf_l(self):
+        """ np.ndarray: left surface greens function of the semi-infinite lead"""
+        return self._gfs[0]
+
+    @property
+    def gf_b(self):
+        """ np.ndarray: bulk greens function of the semi-infinite lead"""
+        return self._gfs[1]
+
+    @property
+    def gf_r(self):
+        """ np.ndarray: right surface greens function of the semi-infinite lead"""
+        return self._gfs[2]
+
+    def calculate(self, omega):
+        """ calculate surface and bulk green functions of semiinfinite lead
+
+        Parameters
+        ----------
+        omega: float
+            energy of the system
+        """
+        if np.imag(omega) == 0:
+            raise ValueError("Omega must have imagninary part")
+        if omega != self.omega:
+            self.omega = omega
+            self._gfs = greens.rda(self.ham, self.hop, omega, self._thresh)
+
+    def sigmas(self, omega):
+        """ calculate self energies of the semiinfinite lead
+
+        Parameters
+        ----------
+        omega: float
+            energy of the system
+
+        Returns
+        -------
+        sigma_l: np.ndarray
+            self energy of left surface
+        sigma_r: np.ndarray
+            self energy of right surface
+        """
+        self.calculate(omega)
+        t_lc = self.hop
+        t_cl = self.hop.conj().T
+        t_rc = t_lc
+        t_cr = t_cl
+        sigma_l = t_cl @ self.gf_l @ t_lc
+        sigma_r = t_cr @ self.gf_r @ t_rc
+        return sigma_l, sigma_r
+
+    def dos(self, omegas, mode="s", verbose=True):
+        """ calculate the density of states of the lead in the specified region
+
+        Parameters
+        ----------
+        omegas: array_like
+            energy values for the density of states
+        mode: str, optional
+            region specification: "s" for surface and "b" for bulk
+            the defauolt is the surface dos
+        verbose: bool, optional
+            if True, print progress, default: True
+        Returns
+        -------
+        dos: np.ndarray
+        """
+        omegas = np.asarray(omegas)
+        n = omegas.shape[0]
+        dos = np.zeros(n)
+        name = "surface" if mode == "s" else "center"
+        for i in prange(n, header=f"Calculating {name}-dos", enabled=verbose):
+            self.calculate(omegas[i])
+            if mode == "s":
+                g = self.gf_l
+            elif mode == "c":
+                g = self.gf_b
+            else:
+                raise ValueError(f"Mode not supported: {mode}")
+            dos[i] = np.trace(g.imag)
+        return -1/np.pi * dos
+
+
 def gamma(sigma_s):
     """ Calculate the broadening matrix of the lead on side s
 
@@ -36,11 +133,34 @@ class TbDevice(TightBinding):
 
     @classmethod
     def square(cls, shape=(2, 1), eps=0., t=1., name="A", a=1., wideband=False):
+        """ square device prefab with one atom at the origin of the unit cell
+
+        Parameters
+        ----------
+        shape: tuple, optional
+            shape to build lattice, the default is (1, 1)
+            if None, the lattice won't be built on initialization
+        eps: float, optional
+            energy of the atom, the default is 0
+        t: float, otional
+            hopping parameter, the default is 1.
+        name: str, optional
+            name of the atom, the default is "A"
+        a: float, optional
+            lattice constant, default: 1
+        wideband: bool, optional
+            if True, use wide band approximation, the default is False
+
+        Returns
+        -------
+        latt: Lattice
+        """
         self = cls(a * np.eye(2))
         self.add_atom(name, energy=eps)
         self.set_hopping(t)
-        self.build(shape)
-        self.load_lead(wideband)
+        if shape is not None:
+            self.build(shape)
+            self.load_lead(wideband)
         return self
 
     @property
@@ -133,91 +253,3 @@ class TbDevice(TightBinding):
         if flatten:
             trans = np.mean(trans, axis=1)
         return trans
-
-
-class Lead:
-
-    def __init__(self, ham_slice, hop_interslice, dec_thresh=1e-100):
-        self.omega = 0
-        self.ham = ham_slice
-        self.hop = hop_interslice
-
-        self._thresh = dec_thresh
-        n = ham_slice.shape[0]
-        self._gfs = np.zeros((3, n, n), dtype="complex")
-
-    @property
-    def gf_l(self):
-        return self._gfs[0]
-
-    @property
-    def gf_b(self):
-        return self._gfs[1]
-
-    @property
-    def gf_r(self):
-        return self._gfs[2]
-
-    def calculate(self, omega):
-        if np.imag(omega) == 0:
-            raise ValueError("Omega must have imagninary part")
-        if omega != self.omega:
-            self.omega = omega
-            self._gfs = greens.rda(self.ham, self.hop, omega, self._thresh)
-
-    def sigmas(self, omega):
-        self.calculate(omega)
-        t_lc = self.hop
-        t_cl = self.hop.conj().T
-        t_rc = t_lc
-        t_cr = t_cl
-        sigma_l = t_cl @ self.gf_l @ t_lc
-        sigma_r = t_cr @ self.gf_r @ t_rc
-        return sigma_l, sigma_r
-
-    def dos(self, omegas, mode="s", verbose=True):
-        omegas = np.asarray(omegas)
-        n = omegas.shape[0]
-        dos = np.zeros(n)
-        name = "surface" if mode == "s" else "center"
-        for i in prange(n, header=f"Calculating {name}-dos", enabled=verbose):
-            self.calculate(omegas[i])
-            if mode == "s":
-                g = self.gf_l
-            elif mode == "c":
-                g = self.gf_b
-            else:
-                raise ValueError(f"Mode not supported: {mode}")
-            dos[i] = np.trace(g.imag)
-        return -1/np.pi * dos
-
-
-def square_device(eps=0., t=1., shape=(2, 1), name="A", a=1., wideband=False):
-    """ square device prefab with one atom at the origin of the unit cell
-
-    Parameters
-    ----------
-    eps: float, optional
-        energy of the atom, the default is 0
-    t: float, otional
-        hopping parameter, the default is 1.
-    shape: tuple, optional
-        shape to build lattice, the default is (1, 1)
-        if None, the lattice won't be built on initialization
-    name: str, optional
-        name of the atom, the default is "A"
-    a: float, optional
-        lattice constant, default: 1
-    wideband: bool, optional
-        if True, use wide band approximation, the default is False
-
-    Returns
-    -------
-    latt: Lattice
-    """
-    device = TbDevice(a * np.eye(2))
-    device.add_atom(name=name, energy=eps)
-    device.set_hopping(t)
-    device.build(shape)
-    device.load_lead(wideband)
-    return device

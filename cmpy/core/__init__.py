@@ -9,7 +9,7 @@ version: 1.0
 from .utils import *
 from .plotting import *
 from .printing import *
-from .matrix import Matrix
-from .lattice import *
+from .matrix import *
 from .hamiltonian import *
+from .lattice import Lattice, square_lattice, cubic_lattice
 from . import greens

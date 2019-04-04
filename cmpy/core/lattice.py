@@ -346,7 +346,7 @@ class Lattice:
                 site += self.n
             else:
                 all_sites = indices
-            
+
             # Get relevant index range to only look for neighbours
             # in proximity of site (larger then highest distance)
             n_dist = len(self.distances)
@@ -354,7 +354,7 @@ class Lattice:
             offset = int((n_dist + 1) * self.slice_sites)
             i0 = max(site - offset, 0)
             i1 = min(site + offset, self.n + len(indices))
-            
+
             # Get neighbour indices of site in proximity
             neighbour_indices = list()
             for i_dist in range(n_dist):
@@ -367,15 +367,15 @@ class Lattice:
                     if hop_idx:
                         dist_neighbours.append(hop_idx[0] + i0)
                 neighbour_indices.append(dist_neighbours)
-                        
+
             # Add all cached neighbours to neighbourlist of site
             neighbours.append(neighbour_indices)
-            
+
         return indices, neighbours
 
     def build(self, shape=None):
         """ Build cache of finite size lattice with given shape
-        
+
         Parameters
         ----------
         shape: array_like
@@ -419,7 +419,7 @@ class Lattice:
 
     def add_slices(self, n):
         """ Add n slices of allready built lattice cache
-        
+
         Parameters
         ----------
         n: int
@@ -531,7 +531,7 @@ def square_lattice(shape=(1, 1), name="A", a=1.):
     return latt
 
 # =========================================================================
-# 2D lattice prefabs
+# 3D lattice prefabs
 # =========================================================================
 
 

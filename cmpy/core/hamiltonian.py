@@ -7,7 +7,7 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
-from .matrix import Matrix
+from .matrix import Matrix, SparseMatrix
 
 
 def arr_shape(array):
@@ -96,17 +96,61 @@ class Hamiltonian(Matrix):
 
     # ==============================================================================================
 
-    def show(self, show=True, ticklabels=None):
+    def show(self, show=True, ticklabels=None, show_blocks=False):
         mp = super().show(False)
-        # if self.n_orbs > 1:
-        #     row_idx = [i * self.n_orbs for i in range(1, self.n_sites)]
-        #     col_idx = [i * self.n_orbs for i in range(1, self.n_sites)]
-        #     for r in row_idx:
-        #         mp.line(row=r, color="0.6")
-        #     for c in col_idx:
-        #         mp.line(col=c, color="0.6")
+        if show_blocks and self.n_orbs > 1:
+            row_idx = [i * self.n_orbs for i in range(1, self.n_sites)]
+            col_idx = [i * self.n_orbs for i in range(1, self.n_sites)]
+            for r in row_idx:
+                mp.line(row=r, color="0.6")
+            for c in col_idx:
+                mp.line(col=c, color="0.6")
         if ticklabels is not None:
             mp.set_ticklabels(ticklabels, ticklabels)
         if show:
             mp.show()
         return mp
+
+
+class SparseHamiltonian(SparseMatrix):
+
+    def __init__(self, n_sites, n_orbitals=1, dtype=None):
+        n = n_sites * n_orbitals
+        super().__init__((n, n), dtype)
+        self.n_sites = n_sites
+        self.n_orbs = n_orbitals
+        self.block_size = n_orbitals
+
+    def config_uniform_blocks(self, size):
+        self.block_size = size
+
+    @property
+    def n(self):
+        return self.shape[0]
+
+    @property
+    def n_blocks(self):
+        return int(self.n / self.block_size)
+
+    def set_energy(self, i, e):
+        e = np.asarray(e)
+        self.set(i, i, e)
+
+    def set_all_energies(self, e):
+        for i in range(self.n_sites):
+            self.set_energy(i, e)
+
+    def set_hopping(self, i, j, t):
+        i, j, = min(i, j), max(i, j)
+        t = np.asarray(t)
+        self.set(i, j, t)
+        self.set(j, i, t.conj().T)
+
+    def set(self, i, j, array):
+        i0, j0 = i * self.n_orbs, j * self.n_orbs
+        self.set_block(i0, j0, array)
+
+    def get_block(self, i, j):
+        i0, j0 = i * self.block_size, j * self.block_size
+        print(i0, j0)
+        return super().get_block(i0, j0, (self.block_size, self.block_size))
