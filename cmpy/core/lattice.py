@@ -326,7 +326,7 @@ class Lattice:
         indices: list
             lattice indices (n, alpha) of all built sites
         neighbours: list
-            index of neighbours in chaed site list
+            index of neighbours in cached site list
         """
         num_sites = len(n_vecs) * self.n_base
 
@@ -350,7 +350,6 @@ class Lattice:
             # Get relevant index range to only look for neighbours
             # in proximity of site (larger then highest distance)
             n_dist = len(self.distances)
-
             offset = int((n_dist + 1) * self.slice_sites)
             i0 = max(site - offset, 0)
             i1 = min(site + offset, self.n + len(indices))
@@ -368,7 +367,7 @@ class Lattice:
                         dist_neighbours.append(hop_idx[0] + i0)
                 neighbour_indices.append(dist_neighbours)
 
-            # Add all cached neighbours to neighbourlist of site
+            # Add all cached neighbours to neighbour-list of site
             neighbours.append(neighbour_indices)
 
         return indices, neighbours

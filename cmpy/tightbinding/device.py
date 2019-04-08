@@ -207,7 +207,7 @@ class TbDevice(TightBinding):
         n = self.n_elements
         n_s = self.slice_elements
         ham = Matrix(self.hamiltonian(self.w_eps))
-
+        
         if sigmas is None:
             sigmas, gammas = self.prepare(omega)
 
@@ -247,9 +247,13 @@ class TbDevice(TightBinding):
                 length = lengths[i]
                 p.set_description(f"Length: {length}")
                 self.reshape(length)
+                sigmas, gammas = self.prepare(omega)
                 for j in range(n_avrg):
                     p.update()
                     trans[i, j] = self.transmission(omega, sigmas, gammas)
         if flatten:
             trans = np.mean(trans, axis=1)
         return trans
+
+    def show(self):
+        self.lattice.show()

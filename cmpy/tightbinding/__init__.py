@@ -9,3 +9,4 @@ version: 1.0
 from .tightbinding import TightBinding
 from .device import *
 from .basis import *
+from .loclength import *
