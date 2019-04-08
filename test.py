@@ -15,18 +15,8 @@ from cmpy.core.greens import greens
 from cmpy.tightbinding import TbDevice, s_basis, sp3_basis
 from scipy.sparse import coo_matrix
 
-
 POINTS = [0, 0], [np.pi, 0], [np.pi, np.pi]
 PNAMES = r"$\Gamma$", r"$X$", r"$M$"
-
-
-
-def print_mem():
-    vmem = psutil.virtual_memory()
-    used = format_num(vmem.used)
-    free = format_num(vmem.free)
-    total = format_num(vmem.total)
-    print(f"Free: {free}, Used: {used}, Total: {total}")
 
 
 def main():
