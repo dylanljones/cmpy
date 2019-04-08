@@ -11,7 +11,8 @@ import numpy as np
 import psutil
 import matplotlib.pyplot as plt
 from cmpy import square_lattice, eta, plot_transmission
-from cmpy.core import *
+from cmpy import prange, SparseHamiltonian
+from cmpy.core.greens import greens
 from cmpy.tightbinding import TbDevice, s_basis, sp3_basis
 from scipy.sparse import coo_matrix
 
@@ -49,6 +50,7 @@ def sparse_ham(tb):
                     ham.set_hopping(i, j, t)
     return ham
 
+
 def rgf(ham, omega, chunksize=None):
     """ Recursive green's function
 
@@ -62,7 +64,7 @@ def rgf(ham, omega, chunksize=None):
         energy-value to calculate the Green's functions
     chunksize: int, optional
         chunk size to use in recursion.
-        If None, use full pre defined blocks of hamiltonian
+        If None, use full pre-defined blocks of hamiltonian
 
     Returns
     -------

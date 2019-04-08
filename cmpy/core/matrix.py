@@ -210,7 +210,6 @@ class Matrix(np.ndarray):
         return string[:-1]
 
 
-
 class SparseMatrix:
 
     def __init__(self, shape, dtype=None):
