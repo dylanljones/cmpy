@@ -75,11 +75,13 @@ def plot_lt(data, n_fit=1., mode="lin", show=True):
 
 
 def main():
-    path = folder.find("width-", "w=2")[0]
-    data = LT_Data(path)
-    plot_lt(data)
+    for path in folder.find("width-"):
+        data = LT_Data(path)
+        plot_lt(data, show=False)
+    plt.show()
     #plot_lt(data, n_fit=1, show=False, norm=1)
 
+    return
     path = folder.find("disord-", "h=1")[0]
     data = LT_Data(path)
     plot_lt(data, n_fit=0.5)

@@ -123,7 +123,7 @@ def rgf(ham, omega, chunksize=None):
         raise ValueError("Block sizes of hamiltonian not set up and no chunksize specified!")
 
     if chunksize is not None:
-        ham.config_uniform_blocks(chunksize)
+        ham.config_blocks(chunksize)
 
     n_blocks = ham.block_shape[0]
     g_nn = greens(ham.get_block(0, 0), omega)

@@ -62,10 +62,8 @@ class Hamiltonian(Matrix):
         self.set(j, i, t.conj().T)
 
     def set(self, i_s, j_s, array):
-        i0, j0 = i_s*self.n_orbs, j_s*self.n_orbs
-        shape = arr_shape(array)
-        i1, j1 = i0 + shape[0], j0 + shape[1]
-        self[i0:i1, j0:j1] = array
+        i, j = i_s*self.n_orbs, j_s*self.n_orbs
+        self.insert(i, j, array)
 
     # ==============================================================================================
 
@@ -79,20 +77,21 @@ class Hamiltonian(Matrix):
         ham.set_all_energies(np.zeros((self.n_orbs, self.n_orbs)))
         return ham
 
-    def dos(self, omegas):
-        greens = self.greens(omegas, only_diag=True)
-        dos = -1/np.pi * np.sum(greens.imag, axis=1)
-        return dos
-
     def greens(self, omega, only_diag=True):
         omega = np.asarray(omega)
         # Calculate eigenvalues and -vectors of hamiltonian
-        eigenvectors_adj, eigenvalues, eigenvectors = self.eig()
+        eigenvalues, eigenvectors = self.eig()
+        eigenvectors_adj = np.conj(eigenvectors).T
 
         # Calculate greens-function
         subscript_str = "ij,...j,ji->...i" if only_diag else "ik,...k,kj->...ij"
         arg = np.subtract.outer(omega, eigenvalues)
         return np.einsum(subscript_str, eigenvectors_adj, 1 / arg, eigenvectors)
+
+    def dos(self, omegas):
+        greens = self.greens(omegas, only_diag=True)
+        dos = -1/np.pi * np.sum(greens.imag, axis=1)
+        return dos
 
     # ==============================================================================================
 
@@ -114,23 +113,30 @@ class Hamiltonian(Matrix):
 
 class SparseHamiltonian(SparseMatrix):
 
-    def __init__(self, n_sites, n_orbitals=1, dtype=None):
+    def __init__(self, inputarr=None, shape=None, n_orbitals=1, dtype=None):
+        super().__init__(inputarr, shape, dtype)
+        self.n_sites = None
+        self.n_orbs = n_orbitals
+
+        if inputarr is not None:
+            self.n_sites = int(inputarr.shape[0]/n_orbs)
+
+    @classmethod
+    def zeros(cls, n_sites, n_orbitals=1, dtype=None):
         n = n_sites * n_orbitals
-        super().__init__((n, n), dtype)
+        self = cls(shape=(n, n), dtype=dtype)
         self.n_sites = n_sites
         self.n_orbs = n_orbitals
-        self.block_size = n_orbitals
+        return self
 
-    def config_uniform_blocks(self, size):
-        self.block_size = size
+    # ==============================================================================================
 
     @property
     def n(self):
         return self.shape[0]
 
-    @property
-    def n_blocks(self):
-        return int(self.n / self.block_size)
+    def set(self, i, j, array):
+        self.insert(i*self.n_orbs, j*self.n_orbs, array)
 
     def set_energy(self, i, e):
         e = np.asarray(e)
@@ -146,11 +152,47 @@ class SparseHamiltonian(SparseMatrix):
         self.set(i, j, t)
         self.set(j, i, t.conj().T)
 
-    def set(self, i, j, array):
-        i0, j0 = i * self.n_orbs, j * self.n_orbs
-        self.set_block(i0, j0, array)
+    # ==============================================================================================
 
-    def get_block(self, i, j):
-        i0, j0 = i * self.block_size, j * self.block_size
-        print(i0, j0)
-        return super().get_block(i0, j0, (self.block_size, self.block_size))
+    def ground_state(self):
+        eigvals, eigvectors = self.eig()
+        i = np.argmin(eigvals)
+        return eigvals[i], eigvectors[i]
+
+    def undressed(self):
+        ham = self.copy()
+        ham.set_all_energies(np.zeros((self.n_orbs, self.n_orbs)))
+        return ham
+
+    def greens(self, omega, only_diag=True):
+        omega = np.asarray(omega)
+        # Calculate eigenvalues and -vectors of hamiltonian
+        eigenvalues, eigenvectors = self.eig()
+        eigenvectors_adj = np.conj(eigenvectors).T
+
+        # Calculate greens-function
+        subscript_str = "ij,...j,ji->...i" if only_diag else "ik,...k,kj->...ij"
+        arg = np.subtract.outer(omega, eigenvalues)
+        return np.einsum(subscript_str, eigenvectors_adj, 1 / arg, eigenvectors)
+
+    def dos(self, omegas):
+        greens = self.greens(omegas, only_diag=True)
+        dos = -1/np.pi * np.sum(greens.imag, axis=1)
+        return dos
+
+    # ==============================================================================================
+
+    def show(self, show=True, ticklabels=None, show_blocks=False):
+        mp = super().show(False)
+        if show_blocks and self.n_orbs > 1:
+            row_idx = [i * self.n_orbs for i in range(1, self.n_sites)]
+            col_idx = [i * self.n_orbs for i in range(1, self.n_sites)]
+            for r in row_idx:
+                mp.line(row=r, color="0.6")
+            for c in col_idx:
+                mp.line(col=c, color="0.6")
+        if ticklabels is not None:
+            mp.set_ticklabels(ticklabels, ticklabels)
+        if show:
+            mp.show()
+        return mp

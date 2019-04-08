@@ -17,6 +17,14 @@ from threading import Thread
 import numpy as np
 
 
+def format_num(num, unit="b", div=1024):
+    for scale in ['','k','M','G','T','P','E','Z']:
+        if abs(num) < div:
+            return f"{num:.1f} {scale}{unit}"
+        num /= div
+    return f"{num:.1f} Z{unit}"
+
+
 def short_time_str(secs):
     if secs > 0:
         mins, secs = divmod(secs, 60)
@@ -193,10 +201,6 @@ class Timer:
         return f"\n{result}\n{line}"
 
 
-def prange(*args, **kwargs):
-    return Progress(range(*args), **kwargs)
-
-
 class Progress(ConsoleLine):
 
     def __init__(self, iterable=None, total=None, header=None, unit="it", f=10, enabled=True):
@@ -331,3 +335,7 @@ class Progress(ConsoleLine):
         else:
             unit = self._unit + "/s"
         return f"{n/scale:.{dec}f}{scalestr} {unit}"
+
+
+def prange(*args, **kwargs):
+    return Progress(range(*args), **kwargs)

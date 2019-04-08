@@ -7,7 +7,7 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
-from cmpy.core import Lattice, Hamiltonian
+from cmpy.core import Lattice, Hamiltonian, SparseHamiltonian
 from cmpy.core import distance, shuffle, chain, vlinspace
 from cmpy.core import Progress
 
@@ -113,9 +113,12 @@ class TightBinding:
                 band_sections.append(e_vals)
         return band_sections
 
-    def hamiltonian(self, w_eps=0., sparse=False):
+    def hamiltonian(self, w_eps=0., sparse=True):
         n = self.lattice.n
-        ham = Hamiltonian.zeros(n, self.n_orbs, "complex")
+        if sparse:
+            ham = SparseHamiltonian.zeros(n, self.n_orbs, "complex")
+        else:
+            ham = Hamiltonian.zeros(n, self.n_orbs, "complex")
         for i in range(n):
             n, alpha = self.lattice.get(i)
 
@@ -137,6 +140,7 @@ class TightBinding:
 
     def slice_hamiltonian(self):
         n = self.lattice.slice_sites
+        print(n)
         ham = Hamiltonian.zeros(n, self.n_orbs, "complex")
         for i in range(n):
             n, alpha = self.lattice.get(i)

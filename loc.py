@@ -166,14 +166,14 @@ def plot_loc_length(n_fit=20):
 
 def main():
     e = 0
-    w = 2
+    w = 1
     soc = 0
     h = 4
     heights = [1, 4, 8, 16]
     soc_vals = [0, 0.5, 1, 2]
     lengths = np.arange(0, 200, 5) + 5
 
-    calculate_width_lt(e, w, None, heights, n_avrg=500)
+    calculate_width_lt(e, w, soc, heights, n_avrg=500)
 
     # calculate_disorder_lt(e, h=1, w_values=[0.5, 1, 2], lengths=np.arange(0, 400, 5) + 5, n_avrg=500)
     # calculate_soc_lt(e, h, 0.5, lengths, soc_vals, n_avrg=250)
