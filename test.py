@@ -52,14 +52,14 @@ def calculate(basis, lengths, disorder, n_avrg):
             threads.append(t)
             out.write(f"Starting Thread {t.idx}")
             t.start()
-            
+
         done = False
         while not done:
             time.sleep(1)
             indices = [t.i + 1 for t in threads]
             prog = sum(indices) / (n * n_avrg)
             done = prog == 1.
-            out.write(f"Progress: {100*prog:.1f}%q")
+            out.write(f"Progress: {100*prog:.1f}%")
 
     for t in threads:
         t.join()
