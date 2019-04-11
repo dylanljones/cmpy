@@ -34,6 +34,8 @@ class Lattice:
         """
         self.vectors = np.asarray(vectors)
         self.dim = len(vectors)
+
+        # Cell data
         self.distances = list()
         self.atoms = list()
         self.atom_positions = list()
@@ -57,11 +59,14 @@ class Lattice:
         latt: Lattice
         """
         latt = Lattice(self.vectors)
-        for i in range(self.n_base):
-            latt.add_atom(self.atoms[i], self.atom_positions[i])
-        latt.calculate_distances(len(self.distances))
-        if self.n:
-            latt.build(self.shape)
+        latt.distances = self.distances
+        latt.atoms = self.atoms
+        latt.atom_positions = self.atom_positions
+
+        latt.n = self.n
+        latt.shape = self.shape
+        latt.indices = self.indices
+        latt.neighbours = self.neighbours
         return latt
 
     def add_atom(self, name="A", pos=None):

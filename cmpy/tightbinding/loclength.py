@@ -207,7 +207,7 @@ def update_lt(model, omega, existing, n_avrg, new_lengths=None, pre_txt="", post
     return arr
 
 
-def calculate_lt(model, omega, lengths, disorder, n_avrg, existing=None, pre_txt="", post_txt=""):
+def calculate_lt(model, lengths, disorder, n_avrg, omega=eta, existing=None, pre_txt="", post_txt=""):
     model.set_disorder(disorder)
     if existing is None:
         header = pre_txt + "Calculating new" + post_txt

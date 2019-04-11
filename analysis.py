@@ -89,7 +89,7 @@ def sort_keys(data):
     data.save()
 
 
-def loclen_plotter(ax, i, data):
+def loclen_plotter(ax, i, data, log=False):
     height = data.info()["h"]
 
     disorder = list()
@@ -106,6 +106,10 @@ def loclen_plotter(ax, i, data):
 
     loclen = np.array(loclen) / height
     errs = np.array(errs) / height
+    if log:
+        loclen = np.log10(loclen)
+        errs = np.log10(errs)
+
     ax.errorbar(disorder, loclen, yerr=errs, label=f"$M={height}$")
     # ax.semilogy(disorder, loclen, label=f"$M={height}$")
 

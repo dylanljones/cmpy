@@ -7,7 +7,7 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
-from cmpy.core import greens, prange, Progress
+from cmpy.core import greens, prange, Progress, eta
 from .tightbinding import TightBinding
 
 
@@ -125,13 +125,13 @@ def gamma(sigma_s):
 
 class TbDevice(TightBinding):
 
-    def __init__(self, vectors=np.eye(2)):
-        super().__init__(vectors)
+    def __init__(self, vectors=np.eye(2), lattice=None):
+        super().__init__(vectors, lattice)
         self.lead = None
         self.w_eps = 0
 
     @classmethod
-    def square(cls, shape=(2, 1), eps=0., t=1., name="A", a=1., wideband=False):
+    def square(cls, shape=(2, 1), eps=0., t=1., basis=None, name="A", a=1., wideband=False):
         """ square device prefab with one atom at the origin of the unit cell
 
         Parameters
@@ -155,6 +155,11 @@ class TbDevice(TightBinding):
         latt: Lattice
         """
         self = cls(a * np.eye(2))
+
+        if basis is not None:
+            eps = basis.eps
+            t = basis.hop
+
         self.add_atom(name, energy=eps)
         self.set_hopping(t)
         if shape is not None:
@@ -174,6 +179,18 @@ class TbDevice(TightBinding):
             hop = self.slice_hopping()
             self.lead = Lead(ham_slice, hop)
 
+    def copy(self):
+        latt = self.lattice.copy()
+        dev = TbDevice(lattice=latt)
+        dev.n_orbs = self.n_orbs
+        dev.energies = self.energies
+        dev.hoppings = self.hoppings
+        dev.sparse_mode = self.sparse_mode
+
+        dev.lead = self.lead
+        dev.w_eps = self.w_eps
+        return dev
+
     def reshape(self, x=None, y=None, z=None):
         self.lattice.reshape(x, y, z)
         self.load_lead(self.wideband)
@@ -181,7 +198,7 @@ class TbDevice(TightBinding):
     def set_disorder(self, w_eps):
         self.w_eps = w_eps
 
-    def prepare(self, omega):
+    def prepare(self, omega=eta):
         if self.wideband:
             sig = 1j * np.eye(self.slice_elements)
             sigmas = [sig, sig]
@@ -202,7 +219,7 @@ class TbDevice(TightBinding):
             gammas = gamma_l, gamma_r
         return gammas
 
-    def transmission(self, omega, sigmas=None, gammas=None):
+    def transmission(self, omega=eta, sigmas=None, gammas=None):
         n = self.n_elements
         n_s = self.slice_elements
         ham = self.hamiltonian(self.w_eps)
@@ -225,7 +242,8 @@ class TbDevice(TightBinding):
         g_1n = greens.rgf(ham, omega, chunksize)
         return np.trace(gammas[1] @ g_1n @ gammas[0] @ g_1n.conj().T).real
 
-    def mean_transmission(self, omega, sigmas=None, gammas=None, n=100, flatten=True, prog=None, header=None):
+    def mean_transmission(self, omega=eta, sigmas=None, gammas=None, n=100, flatten=True,
+                          prog=None, header=None):
         p = Progress(total=n, header=header) if prog is None else prog
 
         if sigmas is None:
@@ -243,7 +261,8 @@ class TbDevice(TightBinding):
             trans[i] = self.transmission(omegas[i])
         return trans
 
-    def transmission_loss(self, omega, lengths, n_avrg=100, flatten=False, prog=None, header=None):
+    def transmission_loss(self, lengths, omega=eta, n_avrg=100, flatten=False, prog=None,
+                          header=None):
         n = lengths.shape[0]
         p = Progress(total=n * n_avrg, header=header) if prog is None else prog
 

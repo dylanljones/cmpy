@@ -13,18 +13,19 @@ from scipy import linalg as la
 from scipy.integrate import quad
 import matplotlib.pyplot as plt
 from cmpy import Progress, prange, ConsoleLine, eta
-from cmpy.tightbinding import TbDevice, sp3_basis, loc_length
+from cmpy.tightbinding import TbDevice, sp3_basis, loc_length, TightBinding
 
 
 class MeanThread(Thread):
 
     INDEX = 0
 
-    def __init__(self, shape, basis, disorder, omega=eta, n=1000):
+    def __init__(self, model, length, omega=eta, n=1000):
         self.idx = MeanThread.INDEX
         MeanThread.INDEX += 1
-        self.model = TbDevice.square(shape, basis.eps, basis.hop)
-        self.model.set_disorder(disorder)
+
+        self.model = model
+        self.model.reshape(length)
 
         self.i, self.n = 0, n
         self.omega = omega
@@ -44,11 +45,15 @@ class MeanThread(Thread):
 
 
 def calculate(basis, lengths, disorder, n_avrg):
+
+    model = TbDevice.square((2, 1), eps=basis.eps, t=basis.hop)
+    model.set_disorder(disorder)
+
     n = len(lengths)
     with ConsoleLine() as out:
         threads = list()
         for l in lengths:
-            t = MeanThread((l, 1), basis, disorder, n=n_avrg)
+            t = MeanThread(model.copy(), l, n=n_avrg)
             threads.append(t)
             out.write(f"Starting Thread {t.idx}")
             t.start()
@@ -69,8 +74,9 @@ def calculate(basis, lengths, disorder, n_avrg):
     return np.array(trans)
 
 
-def main():
+def thread_test():
     basis = sp3_basis()
+
     lengths = np.arange(100, 200, 5)
     disorder = 1
     n = 1000
@@ -78,6 +84,38 @@ def main():
 
     plt.plot(lengths, np.log10(np.mean(trans, axis=1)))
     plt.show()
+
+    tb = TightBinding()
+    tb.add_atom()
+    tb.set_hopping(1)
+    tb.build((5, 1))
+    print(tb.energies)
+    print(tb.hoppings)
+    print(tb.lattice)
+
+    tb2 = tb.copy()
+
+
+def main():
+    basis = sp3_basis()
+    model = TbDevice.square(basis=basis)
+
+    lengths = np.arange(100, 500, 20)
+    trans = model.transmission_loss(lengths, n_avrg=200)
+    plt.plot(lengths, np.log10(trans))
+    plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":

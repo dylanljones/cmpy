@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from cmpy import eta
 from cmpy.tightbinding import TbDevice, sp3_basis, s_basis
 from cmpy.tightbinding.loclength import Folder, LT_Data, SOC, NO_SOC, ROOT
-from cmpy.tightbinding.loclength import update_lt, calculate_lt, fit, get_lengths
+from cmpy.tightbinding.loclength import calculate_lt, fit, get_lengths
 
 folder = Folder(ROOT)
 soc_f = Folder(SOC)
@@ -39,7 +39,7 @@ def init_lengths(lengths, existing, model, e, w, n_avrg=200):
     return out
 
 
-def calculate_width_lt(e, w, soc, heights, lengths=None, n_avrg=250):
+def calculate_width_lt(heights, w, soc, lengths=None, e=0, n_avrg=250):
     omega = e + eta
     if soc is None:
         fn = f"width-e={e}-w={w}.npz"
@@ -62,7 +62,7 @@ def calculate_width_lt(e, w, soc, heights, lengths=None, n_avrg=250):
         existing = data.get(key, None)
         sys_lengths = init_lengths(lengths, existing, model, e, w)
 
-        arr = calculate_lt(model, omega, sys_lengths, w, n_avrg, existing=existing)
+        arr = calculate_lt(model, sys_lengths, w, n_avrg, omega, existing=existing)
         data.update({key: arr})
         data.save()
         print()
@@ -70,7 +70,8 @@ def calculate_width_lt(e, w, soc, heights, lengths=None, n_avrg=250):
     return data
 
 
-def calculate_disorder_lt(e, h, soc,  w_values, lengths=None, n_avrg=250):
+def calculate_disorder_lt(w_values, h, soc, lengths=None, e=0, n_avrg=250):
+    omega = e + eta
     # initialize basis and data
     if soc is None:
         fn = f"disord-e={e}-h={h}.npz"
@@ -85,7 +86,7 @@ def calculate_disorder_lt(e, h, soc,  w_values, lengths=None, n_avrg=250):
     header = f"Calculating L-T-Dataset (e={e}, h={h}, soc={soc})"
     print_header(header)
     model = TbDevice.square((2, h), basis.eps, basis.hop)
-    omega = e + eta
+
     n = len(w_values)
     for i in range(n):
         w = w_values[i]
@@ -95,14 +96,14 @@ def calculate_disorder_lt(e, h, soc,  w_values, lengths=None, n_avrg=250):
         existing = data.get(key, None)
         sys_lengths = init_lengths(lengths, existing, model, e, w, n_avrg=500)
 
-        arr = calculate_lt(model, omega, sys_lengths, w, n_avrg, existing=existing)
+        arr = calculate_lt(model, sys_lengths, w, n_avrg, omega, existing=existing)
         data.update({key: arr})
         data.save()
         print()
     return data
 
 
-# =============================================================================
+# ====================False=========================================================
 
 
 def plot_loc_length(n_fit=20):
@@ -129,16 +130,16 @@ def plot_loc_length(n_fit=20):
 
 
 def main():
-    e = 0
     w = 1
     h = 1
-    soc = 1
+    soc = 0
+
     w_values = [0.5, 0.75, 1, 1.5, 2, 2.5, 3]
     heights = [1, 2, 4]
 
     # calculate_width_lt(e, w, soc, heights, n_avrg=500)
     for h in heights:
-        calculate_disorder_lt(e, h, soc, w_values, n_avrg=1000)
+        calculate_disorder_lt(w_values, h, soc, n_avrg=500)
 
 
 if __name__ == "__main__":

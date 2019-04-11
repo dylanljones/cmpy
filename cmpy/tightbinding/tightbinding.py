@@ -14,8 +14,8 @@ from cmpy.core import Progress
 
 class TightBinding:
 
-    def __init__(self, vectors=np.eye(2)):
-        self.lattice = Lattice(vectors)
+    def __init__(self, vectors=np.eye(2), lattice=None):
+        self.lattice = Lattice(vectors) if lattice is None else lattice
         self.n_orbs = None
         self.energies = list()
         self.hoppings = list()
@@ -37,6 +37,15 @@ class TightBinding:
     @property
     def channels(self):
         return np.prod(self.lattice.shape)
+
+    def copy(self):
+        latt = self.lattice.copy()
+        tb = TightBinding(lattice=latt)
+        tb.n_orbs = self.n_orbs
+        tb.energies = self.energies
+        tb.hoppings = self.hoppings
+        tb.sparse_mode = self.sparse_mode
+        return tb
 
     def set_sparse_mode(self, enabled=False):
         self.sparse_mode = enabled
