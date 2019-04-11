@@ -20,6 +20,8 @@ class TightBinding:
         self.energies = list()
         self.hoppings = list()
 
+        self.sparse_mode = False
+
     @property
     def n_base(self):
         return self.lattice.n_base
@@ -31,6 +33,13 @@ class TightBinding:
     @property
     def slice_elements(self):
         return self.lattice.slice_sites * self.n_orbs
+
+    @property
+    def channels(self):
+        return np.prod(self.lattice.shape)
+
+    def set_sparse_mode(self, enabled=False):
+        self.sparse_mode = enabled
 
     def add_atom(self, name="A", pos=None, energy=0.):
         self.lattice.add_atom(name, pos)
@@ -113,12 +122,14 @@ class TightBinding:
                 band_sections.append(e_vals)
         return band_sections
 
-    def hamiltonian(self, w_eps=0., sparse=True):
+    def hamiltonian(self, w_eps=0.):
         n = self.lattice.n
-        if sparse:
+        if self.sparse_mode:
             ham = SparseHamiltonian.zeros(n, self.n_orbs, "complex")
         else:
             ham = Hamiltonian.zeros(n, self.n_orbs, "complex")
+
+        # Set values
         for i in range(n):
             n, alpha = self.lattice.get(i)
 
@@ -140,7 +151,6 @@ class TightBinding:
 
     def slice_hamiltonian(self):
         n = self.lattice.slice_sites
-        print(n)
         ham = Hamiltonian.zeros(n, self.n_orbs, "complex")
         for i in range(n):
             n, alpha = self.lattice.get(i)
@@ -155,7 +165,7 @@ class TightBinding:
                 for j in indices:
                     try:
                         ham.set_hopping(i, j, t)
-                    except:
+                    except ValueError:
                         pass
         return ham
 

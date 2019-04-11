@@ -12,7 +12,6 @@ from scipy import sparse
 from .plotting import MatrixPlot
 
 
-
 class Matrix(np.ndarray):
 
     def __init__(self, *args, **kwargs):
@@ -98,6 +97,14 @@ class Matrix(np.ndarray):
             self[i:i1, j:j1] = array
         else:
             self[i, j] = array
+
+    def add(self, i, j, array):
+        shape = array.shape
+        if shape:
+            i1, j1 = i + shape[0], j + shape[1]
+            self[i:i1, j:j1] += array
+        else:
+            self[i, j] += array
 
     # ==============================================================================================
 
@@ -354,6 +361,14 @@ class SparseMatrix:
             i, j = indices[idx]
             self.__setitem__((i, j), array[idx])
 
+    def add(self, i, j, array):
+        indices = self._flatten_indices(i, j, array.shape)
+        array = array.flatten()
+        for idx in range(indices.shape[0]):
+            _i, _j = indices[idx]
+            val = self.__getitem__((_i, _j)) + array[idx]
+            self.__setitem__((_i, _j), val)
+
     # ==============================================================================================
 
     def toarray(self):
@@ -439,20 +454,22 @@ class SparseMatrix:
 
     @staticmethod
     def _flatten_indices(i, j, shape):
-        indices = np.indices(shape).reshape(2, np.prod(shape))
-        indices += np.array([i, j])[:, np.newaxis]
-        return indices.T
+        if shape:
+            indices = np.indices(shape).reshape(2, np.prod(shape))
+            indices += np.array([i, j])[:, np.newaxis]
+            return indices.T
+        else:
+            return np.asarray([[i, j]])
 
     def get_block(self, i, j):
         """ np.ndarray: Return block with block index i, j"""
         self._assert_blocks()
-        (r0, c0), (r1, c1) = self.block_indices[i, j]
+        (r0, c0), _ = self.block_indices[i, j]
         array = np.zeros(self.block_size, dtype=self.dtype)
-
         indices = self._flatten_indices(r0, c0, self.block_size)
         for idx in range(indices.shape[0]):
             i, j = indices[idx]
-            array[i, j] = self.__getitem__((i, j))
+            array[i-r0, j-c0] = self.__getitem__((i, j))
         return array
 
     def set_block(self, i, j, array):
@@ -468,7 +485,7 @@ class SparseMatrix:
             Data to fill
         """
         self._assert_blocks()
-        (r0, c0), (r1, c1) = self.block_indices[i, j]
+        (r0, c0), _ = self.block_indices[i, j]
 
         if not array.shape:
             array = np.array([[array]])

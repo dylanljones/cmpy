@@ -7,11 +7,9 @@ project: tightbinding
 version: 1.0
 """
 import os
-from time import time
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.optimize import curve_fit
-from cmpy import eta, time_str
+from cmpy import eta
 from cmpy.tightbinding import TbDevice, sp3_basis, s_basis
 from cmpy.tightbinding.loclength import Folder, LT_Data, SOC, NO_SOC, ROOT
 from cmpy.tightbinding.loclength import update_lt, calculate_lt, fit, get_lengths
@@ -21,68 +19,28 @@ soc_f = Folder(SOC)
 f = Folder(NO_SOC)
 
 
-def init_lengths(lengths, existing, model, e, w):
+def print_header(txt):
+    print()
+    print("-" * len(txt))
+    print(txt)
+    print("-" * len(txt))
+
+
+def init_lengths(lengths, existing, model, e, w, n_avrg=200):
     if lengths is None:
         if existing is None:
-            l = get_lengths(model, e, w)
+            print("Initializing lengths")
+            out = get_lengths(model, e, w, n_avrg=n_avrg)
+            print(f"Configured range: {out[0]}-{out[-1]}")
         else:
-            l = existing[:, 0]
+            out = existing[:, 0]
     else:
-        l = lengths
-    return l
-
-
-
-def calculate_soc_lt(e, h, w, lengths, soc_vals, n_avrg=250):
-    omega = e + eta
-    data = LT_Data.new(SOC, e, w, h)
-    print(f"Calculating L-T-Dataset (e={e}, w={w}, h={h})")
-    print("-"*40)
-    n = len(soc_vals)
-    for i in range(n):
-        soc = soc_vals[i]
-        key = f"soc={soc}"
-        pre_txt = f"{i+1}/{n} (Soc: {soc}) "
-
-        basis = sp3_basis(soc=soc)
-        model = TbDevice.square((2, h), basis.eps, basis.hop)
-
-        existing = data.get(key, None)
-        lengths = init_lengths(lengths, existing, model, e, w)
-
-        arr = calculate_lt(model, omega, lengths, w, n_avrg, existing=existing, pre_txt=pre_txt)
-        data.update({key: arr})
-        data.save()
-    print()
-    return data
-
-
-def calculate_disorder_lt(e, h, w_values, lengths, n_avrg=250):
-    omega = e + eta
-    print(f"Calculating L-T-Dataset (e={e}, h={h})")
-    print("-"*40)
-    model = TbDevice.square((2, h))
-    data = LT_Data(os.path.join(NO_SOC, f"disord-e={e}-h={h}.npz"))
-    n = len(w_values)
-    for i in range(n):
-        w = w_values[i]
-        key = f"w={w}"
-        pre_txt = f"{i + 1}/{n} (w: {w}) "
-
-        existing = data.get(key, None)
-        lengths = init_lengths(lengths, existing, model, e, w)
-
-        arr = calculate_lt(model, omega, lengths, w, n_avrg, existing=existing, pre_txt=pre_txt)
-        data.update({key: arr})
-        data.save()
-    return data
-
+        out = lengths
+    return out
 
 
 def calculate_width_lt(e, w, soc, heights, lengths=None, n_avrg=250):
     omega = e + eta
-
-
     if soc is None:
         fn = f"width-e={e}-w={w}.npz"
         data = LT_Data(os.path.join(NO_SOC, fn))
@@ -93,8 +51,7 @@ def calculate_width_lt(e, w, soc, heights, lengths=None, n_avrg=250):
         basis = sp3_basis(soc=soc)
 
     header = f"Calculating L-T-Dataset (e={e}, w={w}, soc={soc})"
-    print(header)
-    print("-" * len(header))
+    print_header(header)
     n = len(heights)
     for i in range(n):
         h = heights[i]
@@ -103,9 +60,9 @@ def calculate_width_lt(e, w, soc, heights, lengths=None, n_avrg=250):
         model = TbDevice.square((2, h), basis.eps, basis.hop)
 
         existing = data.get(key, None)
-        l = init_lengths(lengths, existing, model, e, w)
+        sys_lengths = init_lengths(lengths, existing, model, e, w)
 
-        arr = calculate_lt(model, omega, l, w, n_avrg, existing=existing)
+        arr = calculate_lt(model, omega, sys_lengths, w, n_avrg, existing=existing)
         data.update({key: arr})
         data.save()
         print()
@@ -113,28 +70,36 @@ def calculate_width_lt(e, w, soc, heights, lengths=None, n_avrg=250):
     return data
 
 
-def update(data, n_avrg=500, new_lengths=None):
-    info = data.info()
-    e = float(info["e"])
-    w = float(info["w"])
-    h = int(info["h"])
-    n_keys = len(data)
-    print(f"Updating L-T-Dataset (e={e}, w={w}, h={h})")
-    print("-"*40)
-    for i, key in enumerate(data):
-        soc = data.key_value(key)
-        pre_txt = f"{i+1}/{n_keys} {data.filename} "
+def calculate_disorder_lt(e, h, soc,  w_values, lengths=None, n_avrg=250):
+    # initialize basis and data
+    if soc is None:
+        fn = f"disord-e={e}-h={h}.npz"
+        data = LT_Data(os.path.join(NO_SOC, fn))
+        basis = s_basis()
+    else:
+        fn = f"disord-e={e}-h={h}-soc={soc}.npz"
+        data = LT_Data(os.path.join(SOC, fn))
         basis = sp3_basis(soc=soc)
-        model = TbDevice.square((1, h), basis.eps, basis.hop)
-        arr = update_lt(model, e + eta, w, data[key], n_avrg, new_lengths, pre_txt)
-        data[key] = arr
+
+    # calculate dataset
+    header = f"Calculating L-T-Dataset (e={e}, h={h}, soc={soc})"
+    print_header(header)
+    model = TbDevice.square((2, h), basis.eps, basis.hop)
+    omega = e + eta
+    n = len(w_values)
+    for i in range(n):
+        w = w_values[i]
+        key = f"w={w}"
+        print(f"{i+1}/{n} (disorder: {w}) ")
+
+        existing = data.get(key, None)
+        sys_lengths = init_lengths(lengths, existing, model, e, w, n_avrg=500)
+
+        arr = calculate_lt(model, omega, sys_lengths, w, n_avrg, existing=existing)
+        data.update({key: arr})
         data.save()
-    print()
-
-
-def update_all(n_avrg=500):
-    for file in folder.files:
-        update(LT_Data(file), n_avrg=n_avrg)
+        print()
+    return data
 
 
 # =============================================================================
@@ -163,23 +128,17 @@ def plot_loc_length(n_fit=20):
     plt.show()
 
 
-
 def main():
     e = 0
     w = 1
-    soc = 0
-    h = 4
-    heights = [1, 4, 8, 16]
-    soc_vals = [0, 0.5, 1, 2]
-    lengths = np.arange(0, 200, 5) + 5
+    h = 1
+    soc = 1
+    w_values = [0.5, 0.75, 1, 1.5, 2, 2.5, 3]
+    heights = [1, 2, 4]
 
-    calculate_width_lt(e, w, soc, heights, n_avrg=500)
-
-    # calculate_disorder_lt(e, h=1, w_values=[0.5, 1, 2], lengths=np.arange(0, 400, 5) + 5, n_avrg=500)
-    # calculate_soc_lt(e, h, 0.5, lengths, soc_vals, n_avrg=250)
-    # calculate_soc_lt(e, h, 1, lengths, soc_vals, n_avrg=250)
-    # plot_datasets(folder, ["soc-", "h=4"], n_fit=10)
-    # plot_loc_length(20)
+    # calculate_width_lt(e, w, soc, heights, n_avrg=500)
+    for h in heights:
+        calculate_disorder_lt(e, h, soc, w_values, n_avrg=1000)
 
 
 if __name__ == "__main__":

@@ -9,7 +9,6 @@ import os
 from os.path import abspath, dirname, join
 import numpy as np
 from scipy.optimize import curve_fit
-import matplotlib.pyplot as plt
 from ..core import eta, Progress
 
 DEFAULT_MODE = "lin"
@@ -109,14 +108,15 @@ class LT_Data(Data):
         filename = f"soc-e={energy}-w={disorder}-h={height}.npz"
         return cls(os.path.join(root, filename))
 
-    def key_value(self, key):
+    @staticmethod
+    def key_value(key):
         return float(key.split("=")[1])
 
     def info(self):
         parts = self.filename.split("-")[1:]
         info = dict()
         for string in parts:
-            key, val = string.split("=")
+            key, val = str(string).split("=")
             info.update({key: float(val)})
         return info
 
@@ -155,60 +155,51 @@ class LT_Data(Data):
 # =============================================================================
 
 
-def trans_data(model, omega, disorder, n_avrg, prog):
-    trans = np.zeros(n_avrg)
-    model.set_disorder(disorder)
-    sigmas, gammas = model.prepare(omega)
-    for i in range(n_avrg):
-        prog.update()
-        trans[i] = model.transmission(omega, sigmas=sigmas, gammas=gammas)
-    return trans
-
-
-def lt_array(model, omega, lengths, disorder, n_avrg, header=""):
+def lt_array(model, omega, lengths, n_avrg=100, header=None):
     n = lengths.shape[0]
     arr = np.zeros((n, n_avrg+1))
+    sigmas, gammas = model.prepare(omega)
     with Progress(total=n*n_avrg, header=header) as p:
-        tmp_trans = np.zeros(n_avrg)
         for i in range(n):
             length = int(lengths[i])
             p.set_description(f"Length={length}")
-            model.build((length, *model.lattice.slice_shape))
+            model.reshape(length)
             arr[i, 0] = length
-            arr[i, 1:] = trans_data(model, omega, disorder, n_avrg, p)
+            arr[i, 1:] = model.mean_transmission(omega, sigmas, gammas, n_avrg, False, p)
     return arr
 
 
-def append_trans(model, omega, arr, disorder, n_up, header=""):
+def append_trans(model, omega, arr, n_up, header=""):
     lengths = arr[:, 0]
     n = lengths.shape[0]
     new_arr = np.zeros((n, n_up))
+    sigmas, gammas = model.prepare(omega)
     with Progress(total=n*n_up, header=header) as p:
-        tmp_trans = np.zeros(n_up)
         for i in range(n):
             length = int(lengths[i])
             p.set_description(f"Length={length}")
-            model.build((length, *model.lattice.slice_shape))
-            new_arr[i] = trans_data(model, omega, disorder, n_up, p)
+            model.reshape(length)
+            new_arr[i] = model.mean_transmission(omega, sigmas, gammas, n_up, False, p)
     return np.append(arr, new_arr, axis=1)
 
 
-def update_lt(model, omega, disorder, existing, n_avrg, new_lengths=None, pre_txt="", post_txt=""):
+def update_lt(model, omega, existing, n_avrg, new_lengths=None, pre_txt="", post_txt=""):
     arr = existing
-    ex_lengths = arr[:, 0]
     ex_n_avrg = arr[0, 1:].shape[0]
     updated = False
+
     # Update missing length data-points
     if new_lengths is not None and new_lengths.shape[0]:
         header = pre_txt + "Appending lengths" + post_txt
-        new_arr = lt_array(model, omega, new_lengths, disorder, ex_n_avrg, header)
+        new_arr = lt_array(model, omega, new_lengths, ex_n_avrg, header)
         arr = np.append(arr, new_arr, axis=0)
         updated = True
+
     # Update n_avrg
     n_up = n_avrg - ex_n_avrg
     if n_up > 0:
         header = pre_txt + "Updating avrg-num" + post_txt
-        arr = append_trans(model, omega, arr, disorder, n_up, header)
+        arr = append_trans(model, omega, arr, n_up, header)
         updated = True
 
     if not updated:
@@ -217,14 +208,19 @@ def update_lt(model, omega, disorder, existing, n_avrg, new_lengths=None, pre_tx
 
 
 def calculate_lt(model, omega, lengths, disorder, n_avrg, existing=None, pre_txt="", post_txt=""):
+    model.set_disorder(disorder)
     if existing is None:
         header = pre_txt + "Calculating new" + post_txt
-        return lt_array(model, omega, lengths, disorder, n_avrg, header)
+        return lt_array(model, omega, lengths, n_avrg, header)
     else:
         ex_lengths = existing[:, 0]
         new_lengths = np.array([l for l in lengths if l not in ex_lengths])
-        arr = update_lt(model, omega, disorder, existing, n_avrg, new_lengths, pre_txt, post_txt)
+        arr = update_lt(model, omega, existing, n_avrg, new_lengths, pre_txt, post_txt)
         return arr
+
+# =============================================================================
+# INITIALIZATION
+# =============================================================================
 
 
 def lengtharray(l0, l1, n, scale="lin"):
@@ -241,21 +237,22 @@ def estimate(model, e, w, lmin=100, lmax=1000, n=40, fitmin=5, fitmax=10, scale=
     lengths = lengtharray(lmin, lmax, n, scale)
     trans = np.zeros(n)
     loclen, err = 0, 0
+    estimation = 0
     length = 0
+    model.set_disorder(w)
     sigmas, gammas = model.prepare(omega)
-    with Progress(total=n*n_avrg, header="Estimating loc-length") as p:
+    with Progress(total=n*n_avrg, header="Estimating") as p:
         for i in range(n):
             length = lengths[i]
             info = f"L={length}, Lambda={loclen:.1f}, Err={err:.2f}"
             p.set_description(info)
 
             # Calculate mean transmission
-            model.build((length, *model.lattice.slice_shape))
+            model.reshape(length)
 
             t = np.zeros(n_avrg)
             for j in range(n_avrg):
                 p.update()
-                model.set_disorder(w)
                 t[j] = model.transmission(omega, sigmas=sigmas, gammas=gammas)
             trans[i] = np.log10(np.mean(t))
 
@@ -263,25 +260,26 @@ def estimate(model, e, w, lmin=100, lmax=1000, n=40, fitmin=5, fitmax=10, scale=
             if i >= fitmin:
                 try:
                     loclen, err = loc_length(lengths[:i], trans[:i], n_fit=fitmax)
-                    err = err / loclen
+                    loclen = abs(loclen)
+                    err = abs(err) / loclen
                     if err <= 0.2:
+                        estimation = loclen
                         break
                     if 2 * loclen < length:
-                        loclen = lmin
+                        estimation = lmin
                         break
                 except Exception as e:
                     print(e)
                     loclen, err = 0, 0
         p.set_description(f"L={length}, Lambda={loclen:.1f}, Err={err:.2f}")
 
-    return int(loclen)
+    return int(estimation)
 
 
-def get_lengths(model, e, w, lmin=100, lmax=1000, n_points=20, step=5):
-    loclen_est = estimate(model, e, w, lmin, lmax)
+def get_lengths(model, e, w, lmin=100, lmax=1000, n_points=20, step=5, n_avrg=200):
+    loclen_est = estimate(model, e, w, lmin, lmax, n_avrg=n_avrg)
     l0 = int(max(loclen_est, 100))
     l1 = l0 + n_points * step
-    print(f"-> length-range: {l0} - {l1}")
     lengths = np.arange(l0, l1, step)
     return lengths
 
@@ -306,11 +304,12 @@ def _lin_func(x, l, y0):
     return - 1/l * x + y0
 
 
-def fit(lengths, trans, p0=None, n_fit=20, mode=DEFAULT_MODE):
+def fit(lengths, trans, p0=None, n_fit=None, mode=DEFAULT_MODE):
     if p0 is None:
         p0 = [50, 1]
-    lengths = lengths[-n_fit:]
-    trans = trans[-n_fit:]
+    if n_fit is not None:
+        lengths = lengths[-n_fit:]
+        trans = trans[-n_fit:]
     if mode == "lin":
         func = _lin_func
     else:
@@ -319,7 +318,7 @@ def fit(lengths, trans, p0=None, n_fit=20, mode=DEFAULT_MODE):
     return popt, np.sqrt(np.diag(pcov))
 
 
-def build_fit(lengths, popt, n_fit=20, mode=DEFAULT_MODE):
+def build_fit(lengths, popt, n_fit=None, mode=DEFAULT_MODE):
     lengths = lengths[-n_fit:]
     y = None
     if mode == "exp":
@@ -329,14 +328,14 @@ def build_fit(lengths, popt, n_fit=20, mode=DEFAULT_MODE):
     return lengths, y
 
 
-def loc_length(lengths, trans, p0=None, n_fit=20, mode=DEFAULT_MODE):
+def loc_length(lengths, trans, p0=None, n_fit=None, mode=DEFAULT_MODE):
     # Fit data, starting from "fit_start"
     popt, errs = fit(lengths, trans, p0, n_fit, mode)
     # return localization-length and -error
     return popt[0], errs[0]
 
 
-def loc_length_fit(lengths, trans, p0=None, n_fit=20, mode=DEFAULT_MODE):
+def loc_length_fit(lengths, trans, p0=None, n_fit=None, mode=DEFAULT_MODE):
     # Fit data, starting from "fit_start"
     popt, errs = fit(lengths, trans, p0, n_fit, mode)
     # return localization-length and -error

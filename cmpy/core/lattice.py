@@ -402,12 +402,14 @@ class Lattice:
             new size in z-direction
         """
         # Only length changed
-        if (x is not None) and (y is None) and (z is None):
-            delta_x = x - self.shape[0]
-            # Adding more slices
-            if delta_x > 0:
-                self.add_slices(delta_x)
-                return
+
+        # only_x = (x is not None) and (y is None) and (z is None)
+        # if only_x:
+        #     delta_x = x - self.shape[0]
+        #     # Adding more slices
+        #     if delta_x > 0:
+        #         self.add_slices(delta_x)
+        #         return
 
         # If none of the above cases hold up, build full lattice
         shape = self.shape

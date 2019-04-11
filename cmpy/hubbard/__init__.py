@@ -7,3 +7,4 @@ project: cmpy
 version: 1.0
 """
 from .basis import Basis
+from .hubbard import HubbardModel

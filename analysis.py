@@ -6,11 +6,6 @@ Created on 3 Mar 2018
 project: tightbinding
 version: 1.0
 """
-import os
-import numpy as np
-import scipy as sp
-from scipy.optimize import curve_fit
-from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
 from cmpy import Plot
 from cmpy.tightbinding.loclength import *
@@ -49,8 +44,8 @@ def plot_lt(data, n_fit=1., mode="lin", show=True):
         l, t = data.get_set(k, mean=True)
         if norm is None:
             h = int(k.split("=")[1])
+            print(h)
             t /= h
-
 
         if mode == "lin":
             t = np.log10(t)
@@ -73,22 +68,64 @@ def plot_lt(data, n_fit=1., mode="lin", show=True):
         plot.show()
 
 
-
-def main():
-    for path in folder.find("width-"):
+def plot_all_lt(*args):
+    for path in folder.find(*args):
         data = LT_Data(path)
         plot_lt(data, show=False)
     plt.show()
-    #plot_lt(data, n_fit=1, show=False, norm=1)
 
-    return
-    path = folder.find("disord-", "h=1")[0]
-    data = LT_Data(path)
-    plot_lt(data, n_fit=0.5)
-    # for i in range(3):
-    #     plot_curv(data, i)
 
-    plt.show()
+def sort_keys(data):
+    keys, values = list(), list()
+    for k, v in data.items():
+        keys.append(k)
+        values.append(v)
+    key_vals = [data.key_value(k) for k in keys]
+    idx = np.argsort(key_vals)
+
+    data.clear()
+    for i in idx:
+        data.update({keys[i]: values[i]})
+    data.save()
+
+
+def loclen_plotter(ax, i, data):
+    height = data.info()["h"]
+
+    disorder = list()
+    loclen = list()
+    errs = list()
+    for k in data:
+        l, t = data.get_set(k, mean=True)
+        n_f = int(len(l) * 1)
+        w = data.key_value(k)
+        disorder.append(w)
+        ll, err = loc_length(l, np.log10(t), [20, 1], n_f)
+        loclen.append(ll)
+        errs.append(err)
+
+    loclen = np.array(loclen) / height
+    errs = np.array(errs) / height
+    ax.errorbar(disorder, loclen, yerr=errs, label=f"$M={height}$")
+    # ax.semilogy(disorder, loclen, label=f"$M={height}$")
+
+
+def plot_wl(soc=0, show=True):
+    plot = Plot()
+    plot.set_title(r"$\lambda_{SOC}=$" + f"${soc}$")
+    plot.set_labels("$w$", r"$\xi / M$")
+    for i, path in enumerate(folder.find("disord-", f"soc={soc}")):
+        data = LT_Data(path)
+        loclen_plotter(plot.ax, i, data)
+    plot.legend()
+    if show:
+        plot.show()
+
+
+def main():
+    # plot_all_lt("disord-", "soc=")
+    plot_wl(0, False)
+    plot_wl(1)
 
 
 if __name__ == "__main__":

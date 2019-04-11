@@ -126,6 +126,7 @@ def rgf(ham, omega, chunksize=None):
         ham.config_blocks(chunksize)
 
     n_blocks = ham.block_shape[0]
+
     g_nn = greens(ham.get_block(0, 0), omega)
     g_1n = g_nn
     for i in range(1, n_blocks):

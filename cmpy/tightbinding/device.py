@@ -7,8 +7,7 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
-from cmpy.core import greens, Matrix
-from cmpy.core import prange, Progress
+from cmpy.core import greens, prange, Progress
 from .tightbinding import TightBinding
 
 
@@ -206,30 +205,36 @@ class TbDevice(TightBinding):
     def transmission(self, omega, sigmas=None, gammas=None):
         n = self.n_elements
         n_s = self.slice_elements
-        ham = Matrix(self.hamiltonian(self.w_eps))
-        
+        ham = self.hamiltonian(self.w_eps)
+
         if sigmas is None:
             sigmas, gammas = self.prepare(omega)
 
         # Add sigmas at corners of hamiltonian
-        ham[:n_s, :n_s] += sigmas[0]
-        ham[n - n_s:, n - n_s:] += sigmas[1]
+        ham.add(0, 0, sigmas[0])
+        i = n - n_s
+        ham.add(i, i, sigmas[1])
+
+        # ham[:n_s, :n_s] += sigmas[0]
+        # ham[n - n_s:, n - n_s:] += sigmas[1]
 
         chunksize = 1 * n_s
         if chunksize != n_s:
             gammas = self._expand_gammas(gammas, chunksize)
+
         g_1n = greens.rgf(ham, omega, chunksize)
         return np.trace(gammas[1] @ g_1n @ gammas[0] @ g_1n.conj().T).real
 
-    def mean_transmission(self, omega, sigmas=None, gammas=None, n=100, prog=None):
+    def mean_transmission(self, omega, sigmas=None, gammas=None, n=100, flatten=True, prog=None, header=None):
+        p = Progress(total=n, header=header) if prog is None else prog
+
         if sigmas is None:
             sigmas, gammas = self.prepare(omega)
         trans = np.zeros(n)
         for i in range(n):
-            if prog is not None:
-                prog.update()
+            p.update()
             trans[i] = self.transmission(omega, sigmas, gammas)
-        return np.mean(trans)
+        return np.mean(trans) if flatten else trans
 
     def transmission_curve(self, omegas, verbose=True):
         n = omegas.shape[0]
@@ -238,22 +243,23 @@ class TbDevice(TightBinding):
             trans[i] = self.transmission(omegas[i])
         return trans
 
-    def transmission_loss(self, omega, lengths, n_avrg=100, header=None, flatten=False):
+    def transmission_loss(self, omega, lengths, n_avrg=100, flatten=False, prog=None, header=None):
         n = lengths.shape[0]
+        p = Progress(total=n * n_avrg, header=header) if prog is None else prog
+
         trans = np.zeros((n, n_avrg))
         sigmas, gammas = self.prepare(omega)
-        with Progress(total=n * n_avrg, header=header) as p:
-            for i in range(n):
-                length = lengths[i]
-                p.set_description(f"Length: {length}")
-                self.reshape(length)
-                sigmas, gammas = self.prepare(omega)
-                for j in range(n_avrg):
-                    p.update()
-                    trans[i, j] = self.transmission(omega, sigmas, gammas)
-        if flatten:
-            trans = np.mean(trans, axis=1)
-        return trans
+        for i in range(n):
+            length = lengths[i]
+            p.set_description(f"Length: {length}")
+            self.reshape(length)
+            for j in range(n_avrg):
+                p.update()
+                trans[i, j] = self.transmission(omega, sigmas, gammas)
+
+        if prog is None:
+            p.end()
+        return np.mean(trans, axis=1) if flatten else trans
 
     def show(self):
         self.lattice.show()

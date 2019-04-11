@@ -7,99 +7,90 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
+from scipy import linalg as la
+from scipy.integrate import quad
 import matplotlib.pyplot as plt
-from cmpy import Hamiltonian, Matrix, greens
-from cmpy import square_lattice, eta
-from cmpy.hubbard import Basis
+from cmpy import eta
 
 t = 1
-u = 10 * t
-w = np.sqrt(u**2/4 + 4*t**2)
+u = t * 10
+mu = u / 2
+
+w = np.sqrt((u/2)**2 + 4 * t**2)
 e0 = u/2 - w
-
-
-class HubbardModel:
-
-    def __init__(self, eps=0., t=1., u=None, mu=None):
-        self.lattice = square_lattice()
-        self.basis = None
-        self.states = list()
-
-        self.eps = eps
-        self.t = t
-        self.u = 10 * t if u is None else u
-        self.mu = self.u / 2 if mu is None else mu
-
-        self.build(x=2)
-
-    def build(self, x=2, y=1):
-        self.lattice.build((x, y))
-        self.basis = Basis(int(x * y))
-
-    def hamiltonian(self, n=None, spin=None):
-        states = self.basis.get_states(n, spin)
-        ham = Hamiltonian.zeros(len(states))
-        for i, j in ham.iter_indices():
-            state = states[i]
-            if i == j:
-                ham.set_energy(i, self.eps)
-            if j < i:
-                hops = state.check_hopping(states[j])
-                if hops is not None:
-                    i1, i2 = hops
-                    if abs(i1 - i2) == 1:
-                        ham.set_hopping(i, j, self.t)
-        for i in range(ham.n):
-            state = states[i]
-            ham.set_energy(i, self.u * state.n_interaction())
-        self.states = states
-        return ham
-
-    def __repr__(self):
-        return f"Hubbard(\u03b5={self.eps}, t={self.t}, U={self.u}, \u03bc={self.mu})"
-
-
-def eigvecs_1(u, t):
-    return -np.sqrt((w + u/2)/(2*w)), -2*t/np.sqrt(2*w*(w + u/2))
-
-
-def gf_test(omega, mu, par=1):
-    x1 = 0.5 + par * t/w
-    x2 = 0.5 - par * t/w
-    d = omega + mu
-    return x1/(d - (e0 + par * t)) + x2/(d - (u + par * t - e0))
-
-
-def gf_lehman(model, eigvals, psi, omega):
-    gf = 0
-    n = len(eigvals)
-    for i in range(n):
-        for j in range(n):
-            if i != j:
-                gf += 1/(omega + model.mu - (eigvals[i] - eigvals[j]))
-    return gf
 
 
 def spectral(g):
     return -1/np.pi * g.imag
 
 
-def main():
-    model = HubbardModel()
-    ham = model.hamiltonian(2, 0)
-    ham.show(ticklabels=[x.repr for x in model.states])
+def self_energy(omega, g, sign=1):
+    return omega + mu + sign * t - (1/g)  # la.inv(g)
 
-    energy0, psi0 = ham.ground_state()
-    print(energy0, psi0)
 
-    eigvals, eigvecs = ham.eig()
+def gf(omega, sign=1):
+    t1 = (0.5 + sign * (t / w)) / (omega + mu - (e0 + sign * t))
+    t2 = (0.5 - sign * (t / w)) / (omega + mu - (u + sign * t - e0))
+    return t1 + t2
+
+
+def test_gf():
     n = 1000
     omegas = np.linspace(-10, 10, n) + eta
-    gf = np.zeros(n, "complex")
+
+    gf_p = np.zeros(n, dtype="complex")
+    gf_n = np.zeros(n, dtype="complex")
     for i in range(n):
-        gf[i] = gf_lehman(model, eigvals, eigvecs, omegas[i])
-    plt.plot(omegas.real, spectral(gf))
+        gf_p[i] = gf(omegas[i], +1)
+        gf_n[i] = gf(omegas[i], -1)
+
+    fig, ax = plt.subplots()
+
+    col = "C0"
+    spec = spectral(gf_p)
+    ax.plot(omegas.real, spec / np.max(spec), label=r"$A (P=+1, k=0)$", color=col)
+    sigma = - self_energy(omegas, gf_p, 1).imag
+    ax.plot(omegas.real, sigma / np.max(sigma), label=r"$\Sigma$", color=col, ls="--")
+
+    col = "C1"
+    spec = spectral(gf_n)
+    ax.plot(omegas.real, spec / np.max(spec), label=r"$A (P=-1, k=\pi)$", color=col)
+    sigma = - self_energy(omegas, gf_n, -1).imag
+    ax.plot(omegas.real, sigma / np.max(sigma), label=r"$\Sigma$", color=col, ls="--")
+
+    plt.legend()
     plt.show()
+
+# ================================================================
+
+
+def rho(e):
+    return np.sqrt(4 * t**2 - e**2) / (2 * np.pi * t**2)
+
+
+def int_func(e, omega, sigma_latt):
+    return rho(e) / (omega + mu - e - sigma_latt)
+
+
+def gf_lattice(omega, sigma, a=-np.inf, b=np.inf):
+    res = quad(int_func, a, b, args=(omega, sigma))
+    return res[0]
+
+
+def test_int():
+    n = 100
+    sigma = 0
+    omegas = np.linspace(-10, 10, n)
+    gf_latt = np.zeros(n)
+    for i in range(n):
+        gf_latt[i] = gf_lattice(omegas[i], sigma)
+    plt.plot(omegas.real, gf_latt)
+    plt.show()
+
+
+def main():
+    print(gf_lattice(0, 1))
+    test_int()
 
 
 if __name__ == "__main__":
