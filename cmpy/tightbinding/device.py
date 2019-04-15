@@ -8,6 +8,7 @@ version: 1.0
 """
 import numpy as np
 from cmpy.core import greens, prange, Progress, eta
+from .basis import sp3_basis
 from .tightbinding import TightBinding
 
 
@@ -143,6 +144,9 @@ class TbDevice(TightBinding):
             energy of the atom, the default is 0
         t: float, otional
             hopping parameter, the default is 1.
+        basis: Basis, optional
+            energy basis of one atom, if not None, use this instead
+            of eps and t
         name: str, optional
             name of the atom, the default is "A"
         a: float, optional
@@ -166,6 +170,30 @@ class TbDevice(TightBinding):
             self.build(shape)
             self.load_lead(wideband)
         return self
+
+    @classmethod
+    def square_sp3(cls, shape=(2, 1), basis=sp3_basis(), name="A", a=1., wideband=False):
+        """ square device prefab with one atom at the origin of the unit cell with s and p orbitals
+
+        Parameters
+        ----------
+        shape: tuple, optional
+            shape to build lattice, the default is (1, 1)
+            if None, the lattice won't be built on initialization
+        basis: Basis, optional
+            energy basis of one atom, if None, use default sp3-configuration
+        name: str, optional
+            name of the atom, the default is "A"
+        a: float, optional
+            lattice constant, default: 1
+        wideband: bool, optional
+            if True, use wide band approximation, the default is False
+
+        Returns
+        -------
+        latt: Lattice
+        """
+        return cls.square(shape, basis=basis, name=name, a=a, wideband=wideband)
 
     @property
     def wideband(self):
@@ -192,7 +220,7 @@ class TbDevice(TightBinding):
         return dev
 
     def reshape(self, x=None, y=None, z=None):
-        self.lattice.reshape(x, y, z)
+        super().reshape(x, y, z)
         self.load_lead(self.wideband)
 
     def set_disorder(self, w_eps):
@@ -219,9 +247,11 @@ class TbDevice(TightBinding):
             gammas = gamma_l, gamma_r
         return gammas
 
-    def transmission(self, omega=eta, sigmas=None, gammas=None):
+    def transmission(self, omega=eta, sigmas=None, gammas=None, blocksize=None):
+        if blocksize is None:
+            blocksize = self.slice_elements
+
         n = self.n_elements
-        n_s = self.slice_elements
         ham = self.hamiltonian(self.w_eps)
 
         if sigmas is None:
@@ -229,29 +259,30 @@ class TbDevice(TightBinding):
 
         # Add sigmas at corners of hamiltonian
         ham.add(0, 0, sigmas[0])
-        i = n - n_s
+        i = n - self.slice_elements
         ham.add(i, i, sigmas[1])
 
-        # ham[:n_s, :n_s] += sigmas[0]
-        # ham[n - n_s:, n - n_s:] += sigmas[1]
+        if ham.n > 1000:
+            if ham.block_shape != (blocksize, blocksize):
+                ham.config_blocks(blocksize)
+            g_1n = greens.rgf(ham, omega)
+        else:
+            g = greens.greens(ham, omega)
+            g_1n = g[-blocksize:, :blocksize]
 
-        chunksize = 1 * n_s
-        if chunksize != n_s:
-            gammas = self._expand_gammas(gammas, chunksize)
-
-        g_1n = greens.rgf(ham, omega, chunksize)
         return np.trace(gammas[1] @ g_1n @ gammas[0] @ g_1n.conj().T).real
 
     def mean_transmission(self, omega=eta, sigmas=None, gammas=None, n=100, flatten=True,
                           prog=None, header=None):
         p = Progress(total=n, header=header) if prog is None else prog
-
         if sigmas is None:
             sigmas, gammas = self.prepare(omega)
         trans = np.zeros(n)
         for i in range(n):
             p.update()
             trans[i] = self.transmission(omega, sigmas, gammas)
+        if prog is None:
+            p.end()
         return np.mean(trans) if flatten else trans
 
     def transmission_curve(self, omegas, verbose=True):
@@ -270,8 +301,8 @@ class TbDevice(TightBinding):
         sigmas, gammas = self.prepare(omega)
         for i in range(n):
             length = lengths[i]
-            p.set_description(f"Length: {length}")
             self.reshape(length)
+            p.set_description(f"Length: {length}, {self.n_elements}")
             for j in range(n_avrg):
                 p.update()
                 trans[i, j] = self.transmission(omega, sigmas, gammas)

@@ -17,6 +17,13 @@ from threading import Thread
 import numpy as np
 
 
+class Symbols:
+
+    pm = "\u00B1"
+    Delta = "\u0394"
+    xi = "\u03BE"
+
+
 def format_num(num, unit="b", div=1024):
     for scale in ['','k','M','G','T','P','E','Z']:
         if abs(num) < div:

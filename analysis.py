@@ -42,22 +42,18 @@ def plot_lt(data, n_fit=1., mode="lin", show=True):
     for k in data:
         col = f"C{i}"
         l, t = data.get_set(k, mean=True)
-        if norm is None:
-            h = int(k.split("=")[1])
-            print(h)
-            t /= h
-
         if mode == "lin":
             t = np.log10(t)
         n_f = int(len(l) * n_fit)
-        loclen, err, fit_data = loc_length_fit(l, t, p0=[20, 1], n_fit=n_f, mode=mode)
-        # loclen /= norm
-        # err /= norm
+        loclen, err, fit_data = loc_length_fit(l, t, p0=[1, 1], n_fit=n_f, mode=mode)
+        if norm is None:
+            norm = int(k.split("=")[1])
+        loclen /= norm
+        err /= norm
         n_avrg = data.n_avrg(k)
         label = _label(k, loclen, err, n_avrg=n_avrg)
         ax.plot(l, t, label=label, color=col)
         ax.plot(*fit_data, color="k", ls="--")
-
         i += 1
         xmax = max(xmax, max(l))
 
@@ -82,16 +78,14 @@ def sort_keys(data):
         values.append(v)
     key_vals = [data.key_value(k) for k in keys]
     idx = np.argsort(key_vals)
-
     data.clear()
     for i in idx:
         data.update({keys[i]: values[i]})
     data.save()
 
 
-def loclen_plotter(ax, i, data, log=False):
-    height = data.info()["h"]
-
+def loclen_plotter(ax, data, log=False):
+    height = int(data.info()["h"])
     disorder = list()
     loclen = list()
     errs = list()
@@ -100,36 +94,39 @@ def loclen_plotter(ax, i, data, log=False):
         n_f = int(len(l) * 1)
         w = data.key_value(k)
         disorder.append(w)
-        ll, err = loc_length(l, np.log10(t), [20, 1], n_f)
+        ll, err = loc_length(l, np.log10(t), [1, 1], n_f)
         loclen.append(ll)
         errs.append(err)
-
     loclen = np.array(loclen) / height
     errs = np.array(errs) / height
     if log:
         loclen = np.log10(loclen)
         errs = np.log10(errs)
 
-    ax.errorbar(disorder, loclen, yerr=errs, label=f"$M={height}$")
-    # ax.semilogy(disorder, loclen, label=f"$M={height}$")
+    # ax.errorbar(disorder, loclen, yerr=errs, label=f"$M={height}$")
+    ax.semilogy(disorder, loclen, label=f"$M={height}$")
 
 
-def plot_wl(soc=0, show=True):
+def plot_wl(soc=None, show=True):
     plot = Plot()
-    plot.set_title(r"$\lambda_{SOC}=$" + f"${soc}$")
+    if soc is None:
+        paths = [x for x in folder.find("disord-") if "soc=" not in x]
+    else:
+        paths = folder.find("disord-", f"soc={soc}")
+        plot.set_title(r"$\lambda_{SOC}=$" + f"${soc}$")
     plot.set_labels("$w$", r"$\xi / M$")
-    for i, path in enumerate(folder.find("disord-", f"soc={soc}")):
+    for i, path in enumerate(paths):
         data = LT_Data(path)
-        loclen_plotter(plot.ax, i, data)
+        loclen_plotter(plot.ax, data)
     plot.legend()
     if show:
         plot.show()
 
 
 def main():
-    # plot_all_lt("disord-", "soc=")
-    plot_wl(0, False)
-    plot_wl(1)
+    # plot_all_lt("disord-")
+    # plot_wl(0, False)
+    plot_wl(None)
 
 
 if __name__ == "__main__":

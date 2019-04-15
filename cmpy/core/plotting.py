@@ -26,6 +26,14 @@ class Plot:
         self.set_labels(xlabel, ylabel)
         self.set_title(title)
 
+    @property
+    def xlim(self):
+        return self.ax.get_xlim()
+
+    @property
+    def ylim(self):
+        return self.ax.get_ylim()
+
     def set_title(self, txt=None):
         if txt:
             self.ax.set_title(txt)

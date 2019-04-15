@@ -1,75 +1,71 @@
 # -*- coding: utf-8 -*-
 """
-Created on 25 Jan 2019
+Created on 6 Dec 2018
 @author: Dylan Jones
 
 project: cmpy
 version: 1.0
 """
 import numpy as np
-from scipy import linalg as la
 from scipy import sparse
-from .plotting import MatrixPlot
+from scipy.sparse import linalg as la_s
+from scipy import linalg as la
+from .matrix import Matrix
 
 
-class Matrix(np.ndarray):
+class SparseMatrix:
 
-    def __init__(self, *args, **kwargs):
-        # in practice you probably will not need or want an __init__
-        # method for your subclass
-        self.block_indices = None
+    def __init__(self, inputarr=None, shape=None, dtype=None):
+        self.shape = shape
+        self.dtype = dtype
+        self.data = dict()
+
         self.block_size = None
+        self.block_indices = None
 
-    def __new__(cls, inputarr, dtype=None):
-        """ Initialize Matrix
-
-        Parameters
-        ----------
-        inputarr: array_like
-            Input array for the Matrix
-        dtype: str or np.dtype, optional
-            Optional datatype of the matrix
-
-        Returns
-        -------
-        matrix: matrix
-        """
-        obj = np.asarray(inputarr, dtype).view(cls)
-        obj.block_indices = None
-        obj.block_size = None
-        return obj
-
-    def __array_finalize__(self, obj):
-        # see InfoArray.__array_finalize__ for comments
-        if obj is None:
-            return
-        self.block_indices = getattr(obj, 'block_indices', None)
-        self.block_size = getattr(obj, 'block_size', None)
+        if shape is None and inputarr is not None:
+            self.shape = inputarr.shape
+            for i in range(self.shape[0]):
+                for j in range(self.shape[1]):
+                    self.__setitem__((i, j), inputarr[i, j])
 
     @classmethod
     def zeros(cls, n, m=None, dtype=None):
-        """ Initialize Matrix filled with zeros
-
-        Parameters
-        ----------
-        n: int
-            number of rows of the matrix
-        m: int, optional
-            number of collumns of the matrix. If not specified,
-            matrix will be square (m=n)
-        dtype: str or np.dtype, optional
-            Optional datatype of the matrix
-
-        Returns
-        -------
-        matrix: matrix
-        """
         m = n if m is None else m
-        return cls(np.zeros((n, m)), dtype)
+        return cls(shape=(n, m), dtype=dtype)
 
     @classmethod
-    def eye(cls, n, dtype=None):
-        return cls(np.eye(n), dtype)
+    def coo_matrix(cls, data, shape, dtype=None):
+        self = cls.zeros(*shape, dtype=dtype)
+        self.data = data
+        return self
+
+    @property
+    def n_elements(self):
+        return len(list(self.data.keys()))
+
+    @property
+    def density(self):
+        return self.n_elements / (np.prod(self.shape))
+
+    def _assert_index_in_range(self, idx, axis):
+        if (idx < 0) or (idx >= self.shape[axis]):
+            msg = f"Index {idx} is out of bounds for axis 0 with size {self.shape[axis]}"
+            raise IndexError(msg)
+
+    def __getitem__(self, item):
+        self._assert_index_in_range(item[0], 0)
+        self._assert_index_in_range(item[1], 1)
+        return self.data.get(item, 0)
+
+    def __setitem__(self, item, value):
+        if not value:
+            if item in self.data:
+                del self.data[item]
+            return
+        self._assert_index_in_range(item[0], 0)
+        self._assert_index_in_range(item[1], 1)
+        self.data.update({item: value})
 
     def iter_indices(self, skip_diag=False):
         """ index generator of the Matrix
@@ -91,20 +87,48 @@ class Matrix(np.ndarray):
                 yield i, j
 
     def insert(self, i, j, array):
-        shape = array.shape
-        if shape:
-            i1, j1 = i + shape[0], j + shape[1]
-            self[i:i1, j:j1] = array
-        else:
-            self[i, j] = array
+        indices = self._flatten_indices(i, j, array.shape)
+        array = array.flatten()
+        for idx in range(indices.shape[0]):
+            i, j = indices[idx]
+            self.__setitem__((i, j), array[idx])
 
     def add(self, i, j, array):
-        shape = array.shape
-        if shape:
-            i1, j1 = i + shape[0], j + shape[1]
-            self[i:i1, j:j1] += array
-        else:
-            self[i, j] += array
+        indices = self._flatten_indices(i, j, array.shape)
+        array = array.flatten()
+        for idx in range(indices.shape[0]):
+            _i, _j = indices[idx]
+            val = self.__getitem__((_i, _j)) + array[idx]
+            self.__setitem__((_i, _j), val)
+
+    # ==============================================================================================
+
+    def toarray(self):
+        arr = np.zeros(self.shape, dtype=self.dtype)
+        for idx, value in self.data.items():
+            i, j = idx
+            arr[i, j] = value
+        return arr
+
+    def tomatrix(self):
+        m = Matrix(self.toarray())
+        if self.is_blocked:
+            m.block_indices = self.block_indices
+            m.block_size = self.block_size
+        return m
+
+    def coo_data(self):
+        rows, cols = list(), list()
+        data = list()
+        for idx, value in self.data.items():
+            rows.append(idx[0])
+            cols.append(idx[1])
+            data.append(value)
+        return rows, cols, data
+
+    def scipy_coo(self):
+        rows, cols, data = self.coo_data()
+        return sparse.coo_matrix((data, (rows, cols)), shape=self.shape)
 
     # ==============================================================================================
 
@@ -160,11 +184,25 @@ class Matrix(np.ndarray):
         self.block_indices = None
         self.block_size = None
 
+    @staticmethod
+    def _flatten_indices(i, j, shape):
+        if shape:
+            indices = np.indices(shape).reshape(2, np.prod(shape))
+            indices += np.array([i, j])[:, np.newaxis]
+            return indices.T
+        else:
+            return np.asarray([[i, j]])
+
     def get_block(self, i, j):
         """ np.ndarray: Return block with block index i, j"""
         self._assert_blocks()
-        (r0, c0), (r1, c1) = self.block_indices[i, j]
-        return self[r0:r1, c0:c1]
+        (r0, c0), _ = self.block_indices[i, j]
+        array = np.zeros(self.block_size, dtype=self.dtype)
+        indices = self._flatten_indices(r0, c0, self.block_size)
+        for idx in range(indices.shape[0]):
+            i, j = indices[idx]
+            array[i-r0, j-c0] = self.__getitem__((i, j))
+        return array
 
     def set_block(self, i, j, array):
         """ Set block with block index i, j
@@ -179,14 +217,22 @@ class Matrix(np.ndarray):
             Data to fill
         """
         self._assert_blocks()
-        (r0, c0), (r1, c1) = self.block_indices[i, j]
-        self[r0:r1, c0:c1] = array
+        (r0, c0), _ = self.block_indices[i, j]
+
+        if not array.shape:
+            array = np.array([[array]])
+
+        indices = self._flatten_indices(r0, c0, self.block_size)
+        array = array.flatten()
+        for idx in range(indices.shape[0]):
+            i, j = indices[idx]
+            self.__setitem__((i, j), array[idx])
 
     # ==============================================================================================
 
     def inv(self):
         """ Matrix: Inverse of the Matrix """
-        return Matrix(la.inv(self))
+        return la_s.inv(self.scipy_coo())
 
     def diag(self, matrix=False):
         """ Get the diagonal matrix-elements
@@ -200,19 +246,21 @@ class Matrix(np.ndarray):
         -------
         np.ndarray
         """
-        diag_elements = np.diag(self)
+        n = min(self.shape)
         if not matrix:
-            return diag_elements
+            diag = np.zeros(n, self.dtype)
+            for i in range(n):
+                diag[i] = self.__getitem__((i, i))
         else:
-            diag = Matrix.zeros(*self.shape, dtype=self.dtype)
-            diag.fill_diag(diag_elements)
-            return diag
+            diag = SparseMatrix.zeros(*self.shape, dtype=self.dtype)
+            for i in range(n):
+                diag[i, i] = self.__getitem__((i, i))
+        return diag
 
     def off_diag(self):
         """ Matrix: get the non-diagonal matrix-elements """
-        n = min(self.shape)
-        off_diag = Matrix(self)
-        off_diag.fill_diag(np.zeros(n))
+        off_diag = SparseMatrix.coo_matrix(self.data, self.shape, dtype=self.dtype)
+        off_diag.fill_diag(0)
         return off_diag
 
     def fill_diag(self, diag_elements):
@@ -223,7 +271,11 @@ class Matrix(np.ndarray):
         diag_elements: scalar or array_like
             elements to be written on the diagonal,
         """
-        np.fill_diagonal(self, diag_elements)
+        n = min(self.shape)
+        if not hasattr(diag_elements, "__len__"):
+            diag_elements = [diag_elements] * n
+        for i in range(n):
+            self[i, i] = diag_elements[i]
 
     def eig(self):
         """ Calculate eigenvalues and -vectors of the matrix
@@ -235,77 +287,42 @@ class Matrix(np.ndarray):
         eigenvectors: np.ndarray
             eigenvectors of the matrix
         """
-        return la.eig(self)
+        return la.eig(self.toarray())
 
     def eigvals(self, num_range=None):
         """ np.ndarray: eigenvalues of the matrix """
-        return la.eigvalsh(self, eigvals=num_range)
+        return la.eigvalsh(self.toarray(), eigvals=num_range)
 
     # ==============================================================================================
 
+    def __repr__(self):
+        return f"SparseMatrix({self.shape}), {self.n_elements} elements)"
+
     def show(self, show=True):
-        """ Plot the matrix
-
-        Parameters
-        ----------
-        show: bool, optional
-            if True, call plt.show(), default: True
-        """
-        mp = MatrixPlot()
-        mp.load(self)
-        if self.block_indices is not None:
-            for r in [idx[0, 0] for idx in self.block_indices[1:, 0]]:
-                mp.line(row=r, color="0.6")
-
-            for c in [idx[0, 1] for idx in self.block_indices[0, 1:]]:
-                mp.line(col=c, color="0.6")
-        if show:
-            mp.show()
-        return mp
+        mat = self.tomatrix()
+        return mat.show(show)
 
     def __str__(self):
-        x = max([len(str(self[i, j])) for i, j in self.iter_indices()])
-        string = ""
-        for i in range(self.shape[0]):
-            line = "["
-            for j in range(self.shape[1]):
-                val = self[i, j]
-                if np.imag(val) == 0:
-                    s = str(np.real(val))
-                elif np.real(val) == 0:
-                    s = str(np.imag(val)) + "j"
-                else:
-                    s = str(val)
-                line += f"{s:^{x}} "
-            string += line[:-1] + "]\n"
-        return string[:-1]
+        return str(self.toarray())
 
 
-class Hamiltonian(Matrix):
+class SparseHamiltonian(SparseMatrix):
 
-    def __new__(cls, inputarr, num_orbitals=1, dtype=None):
-        inputarr = np.asarray(inputarr)
-        obj = super().__new__(cls, inputarr, dtype)
-        n = inputarr.shape[0]
-        obj.n_sites = int(n / num_orbitals)
-        obj.n_orbs = num_orbitals
-        return obj
+    def __init__(self, inputarr=None, shape=None, n_orbitals=1, dtype=None):
+        super().__init__(inputarr, shape, dtype)
+        self.n_sites = None
+        self.n_orbs = n_orbitals
 
-    def __array_finalize__(self, obj):
-        # see InfoArray.__array_finalize__ for comments
-        if obj is None:
-            return
-        self.n_sites = getattr(obj, 'n_sites', None)
-        self.n_orbs = getattr(obj, 'n_orbs', None)
+        if inputarr is not None:
+            self.n_sites = int(inputarr.shape[0]/n_orbitals)
 
     @classmethod
     def zeros(cls, n_sites, n_orbitals=1, dtype=None):
         n = n_sites * n_orbitals
-        return cls(np.zeros((n, n)), n_orbitals, dtype)
-
-    @classmethod
-    def eye(cls, n_sites, n_orbitals=1, dtype=None):
-        return cls(np.eye(n_sites * n_orbitals), n_orbitals, dtype)
+        self = cls(shape=(n, n), dtype=dtype)
+        self.n_sites = n_sites
+        self.n_orbs = n_orbitals
+        return self
 
     # ==============================================================================================
 
@@ -313,9 +330,8 @@ class Hamiltonian(Matrix):
     def n(self):
         return self.shape[0]
 
-    def get(self, i_s, j_s):
-        i, j = i_s*self.n_orbs, j_s*self.n_orbs
-        return self[i:i+self.n_orbs, j:j+self.n_orbs]
+    def set(self, i, j, array):
+        self.insert(i*self.n_orbs, j*self.n_orbs, array)
 
     def set_energy(self, i, e):
         e = np.asarray(e)
@@ -330,10 +346,6 @@ class Hamiltonian(Matrix):
         t = np.asarray(t)
         self.set(i, j, t)
         self.set(j, i, t.conj().T)
-
-    def set(self, i_s, j_s, array):
-        i, j = i_s*self.n_orbs, j_s*self.n_orbs
-        self.insert(i, j, array)
 
     # ==============================================================================================
 

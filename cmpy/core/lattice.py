@@ -37,6 +37,7 @@ class Lattice:
 
         # Cell data
         self.distances = list()
+        self._base_neighbors = list()
         self.atoms = list()
         self.atom_positions = list()
 
@@ -196,7 +197,7 @@ class Lattice:
         n_vecs = vrange(ranges)
         return iter_indices(n_vecs, self.n_base)
 
-    def get_neighbours(self, n=None, alpha=0, dist_idx=0, array=False):
+    def calculate_neighbours(self, n=None, alpha=0, dist_idx=0, array=False):
         """ Find all neighbours of given site and return the lattice indices.
 
         Parameters
@@ -219,12 +220,31 @@ class Lattice:
         idx = n, alpha
         dist = self.distances[dist_idx]
         indices = list()
-        for idx1 in self.neighbour_range(n, dist_idx + 1):
-            if np.isclose(self.distance(idx, idx1), dist, atol=1e-5):
+        for idx1 in self.neighbour_range(n, dist_idx):
+            # if np.isclose(self.distance(idx, idx1), dist, atol=1e-5):
+            if abs(self.distance(idx, idx1) - dist) < 1e-5:
                 if array:
                     idx1 = [*idx1[0], idx1[1]]
                 indices.append(idx1)
         return indices
+
+    def get_neighbours(self, idx, dist_idx=0):
+        """ Transform stored neighbour indices
+
+        Parameters
+        ----------
+        idx: tuple
+            lattice vector (n, alpha) of first site
+        dist_idx: int, default
+            index of distance to neighbours, defauzlt is 0 (nearest neighbours).
+        """
+        n, alpha = idx[:-1], idx[-1]
+        transformed = list()
+        for idx in self._base_neighbors[alpha][dist_idx]:
+            idx_t = idx.copy()
+            idx_t[:-1] += n
+            transformed.append(idx_t)
+        return transformed
 
     def neighbour_vectors(self, n=None, alpha=0, dist_idx=0):
         """ Find all neighbours of given site and return the vectors to them.
@@ -253,10 +273,11 @@ class Lattice:
         return vectors
 
     def calculate_distances(self, n=1):
-        """ Calculate n lowest distances between sites in bravais lattice.
+        """ Calculate n lowest distances between sites in bravais lattice and the neighbors of the cell
 
-        Checks distances between all sites of the bravais lattice and saves n lowest values
-        for later use. This speeds up many calculations like finding nearest neighbours.
+        Checks distances between all sites of the bravais lattice and saves n lowest values.
+        The neighbor lattice-indices of the unit-cell are also stored for later use.
+        This speeds up many calculations like finding nearest neighbours.
 
         Parameters
         ----------
@@ -264,6 +285,7 @@ class Lattice:
             number of distances of lattice structure to calculate.
             The default is 1 (nearest neighbours).
         """
+        # Calculate n lowest distances of lattice structure
         n += 1
         n_vecs = vrange(self.dim * [np.arange(-n, n)])
         r_vecs = [self.get_position(*idx) for idx in iter_indices(n_vecs, self.n_base)]
@@ -271,6 +293,16 @@ class Lattice:
         distances = list({distance(r1, r2) for r1, r2 in pairs})
         distances.sort()
         self.distances = distances[1:n]
+
+        # Calculate cell-neighbors.
+        neighbours = list()
+        for alpha in range(self.n_base):
+            site_neighbours = list()
+            for i_dist in range(len(self.distances)):
+                # Get neighbour indices of site for distance level
+                site_neighbours.append(self.calculate_neighbours(alpha=alpha, dist_idx=i_dist, array=True))
+            neighbours.append(site_neighbours)
+        self._base_neighbors = neighbours
 
     # =========================================================================
 
@@ -314,6 +346,51 @@ class Lattice:
         n, alpha = self.get(i)
         return self.get_position(n, alpha)
 
+    def _cached_neighbours(self, i_site, idx=None, indices=None):
+        """ Get indices of cached neighbors
+
+        Parameters
+        ----------
+        i_site: int
+            index of cached site
+        idx: array_like, optional
+            lattice index of site. Default:
+            Use existing indices stored in instance
+        indices: array_like, optional
+            all chached lattice indices. Default:
+            Use existing indices stored in instance
+
+        Returns
+        -------
+        indices: list
+        """
+        if indices is None:
+            indices = self.indices
+        if idx is None:
+            idx = indices[i_site]
+
+        n, alpha = idx[:-1], idx[-1]
+        # Get relevant index range to only look for neighbours
+        # in proximity of site (larger then highest distance)
+        n_dist = len(self.distances)
+        offset = int((n_dist + 1) * self.slice_sites)
+        i0 = max(i_site - offset, 0)
+        i1 = min(i_site + offset, self.n + len(indices))
+        site_window = indices[i0:i1]
+
+        # Get neighbour indices of site in proximity
+        neighbour_indices = list()
+        for i_dist in range(n_dist):
+            # Get neighbour indices of site for distance level
+            dist_neighbours = list()
+            for idx in self.get_neighbours(idx, i_dist):
+                # Find site of neighbour and store if in cache
+                hop_idx = np.where(np.all(site_window == idx, axis=1))[0]
+                if len(hop_idx):
+                    dist_neighbours.append(hop_idx[0] + i0)
+            neighbour_indices.append(dist_neighbours)
+        return neighbour_indices
+
     def build_section(self, n_vecs):
         """ Calculate lattice indices (n, alpha) and indices of cached neighbours
 
@@ -337,42 +414,20 @@ class Lattice:
 
         # Build lattice indices from translation vectors
         indices = index_array(n_vecs, self.n_base)
+        # get all cached sites (existing and new)
+        if self.indices is not None:
+            all_sites = np.append(self.indices, indices, axis=0)
+        else:
+            all_sites = indices
 
         # Find neighbours of each site in the "indices" list
         neighbours = list()
-        header = f"Analyzing sites ({num_sites})"
-        for i in prange(num_sites, header=header, enabled=num_sites >= 5000):
+        offset = self.n if self.indices is not None else 0
+        for i in range(num_sites):  # prange(num_sites, header=f"Analyzing lattice", enabled=num_sites >= 5000):
             idx = indices[i]
-            n, alpha = idx[:-1], idx[-1]
-            site = i
-            # get all cached sites (existing and new)
-            if self.indices is not None:
-                all_sites = np.append(self.indices, indices, axis=0)
-                site += self.n
-            else:
-                all_sites = indices
-
-            # Get relevant index range to only look for neighbours
-            # in proximity of site (larger then highest distance)
-            n_dist = len(self.distances)
-            offset = int((n_dist + 1) * self.slice_sites)
-            i0 = max(site - offset, 0)
-            i1 = min(site + offset, self.n + len(indices))
-
-            # Get neighbour indices of site in proximity
-            neighbour_indices = list()
-            for i_dist in range(n_dist):
-                # Get neighbour indices of site for distance level
-                dist_neighbours = list()
-                for idx in self.get_neighbours(n, alpha, i_dist, array=True):
-                    site_window = all_sites[i0:i1]
-                    # Find site of neighbour and store if in cache
-                    hop_idx = np.where(np.all(site_window == idx, axis=1))[0]
-                    if hop_idx:
-                        dist_neighbours.append(hop_idx[0] + i0)
-                neighbour_indices.append(dist_neighbours)
-
-            # Add all cached neighbours to neighbour-list of site
+            site = i + offset
+            # Get neighbour indices of site
+            neighbour_indices = self._cached_neighbours(site, idx, all_sites)
             neighbours.append(neighbour_indices)
 
         return indices, neighbours
@@ -385,14 +440,42 @@ class Lattice:
         shape: array_like
             shape of finite size lattice
         """
-        if shape is None:
-            shape = np.ones(self.dim, dtype="int")
         self.indices = None
         self.neighbours = None
-        self.shape = np.asarray(shape)
+        self.shape = np.ones(self.dim, dtype="int") if shape is None else np.asarray(shape)
+
         self.n = np.prod(shape) * self.n_base
         n_vecs = vrange([range(s) for s in shape])
         self.indices, self.neighbours = self.build_section(n_vecs)
+
+    def add_slices(self, n):
+        """ Add n slices of allready built lattice cache
+
+        Parameters
+        ----------
+        n: int
+            number of slices to add
+        """
+        new_xrange = self.shape[0] + np.arange(n)
+        ranges = [new_xrange] + [range(s) for s in self.slice_shape]
+        new_vecs = vrange(ranges)
+        new_indices, new_neighbours, = self.build_section(new_vecs)
+
+        # build new section
+        indices = np.append(self.indices, new_indices,  axis=0)
+        neighbours = self.neighbours + new_neighbours
+
+        # connect new and old section
+        offset = int(len(self.distances) * self.slice_sites)
+        i0, i1 = self.n - offset, self.n + offset
+        for i in range(i0, i1):
+            idx = indices[i]
+            neighbours[i] = self._cached_neighbours(i, idx, indices)
+
+        self.shape[0] += n
+        self.n = np.prod(self.shape) * self.n_base
+        self.indices = indices
+        self.neighbours = neighbours
 
     def reshape(self, x=None, y=None, z=None):
         """ Reshape the cached lattice structure
@@ -407,14 +490,13 @@ class Lattice:
             new size in z-direction
         """
         # Only length changed
-
-        # only_x = (x is not None) and (y is None) and (z is None)
-        # if only_x:
-        #     delta_x = x - self.shape[0]
-        #     # Adding more slices
-        #     if delta_x > 0:
-        #         self.add_slices(delta_x)
-        #         return
+        only_x = (x is not None) and (y is None) and (z is None)
+        if only_x:
+            delta_x = x - self.shape[0]
+            # Adding more slices
+            if delta_x > 0:
+                self.add_slices(delta_x)
+                return
 
         # If none of the above cases hold up, build full lattice
         shape = self.shape
@@ -422,23 +504,6 @@ class Lattice:
             if val is not None:
                 shape[i] = val
         self.build(shape)
-
-    def add_slices(self, n):
-        """ Add n slices of allready built lattice cache
-
-        Parameters
-        ----------
-        n: int
-            number of slices to add
-        """
-        new_xrange = self.shape[0] + np.arange(n)
-        ranges = [new_xrange] + [range(s) for s in self.slice_shape]
-        new_vecs = vrange(ranges)
-        idx, neighbour_idx, = self.build_section(new_vecs)
-        self.indices = np.append(self.indices, idx,  axis=0)
-        self.neighbours += neighbour_idx
-        self.shape[0] += n
-        self.n = np.prod(self.shape) * self.n_base
 
     # =========================================================================
 
@@ -488,6 +553,9 @@ class Lattice:
         """
         if self.n == 0:
             print("[ERROR] Build lattice before plotting!")
+            return None
+        if self.n > 1000 or max(self.shape) > 200:
+            print("[ERROR] Lattice too big!")
             return None
         offset = 1
         hop_cols = ["0.2", "0.4", "0.6"]

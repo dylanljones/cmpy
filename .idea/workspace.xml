@@ -2,22 +2,25 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="4921e4e2-0ab8-4280-ab9e-d16b3150c3ff" name="Default Changelist" comment="testing">
+      <change afterPath="$PROJECT_DIR$/est_test.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/cmpy.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/cmpy.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/localization/soc/width-e=0-w=1-soc=0.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/localization/soc/width-e=0-w=1-soc=0.npz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_data/localization/soc/disord-e=0-h=1-soc=0.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/localization/soc/disord-e=0-h=1-soc=0.npz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_data/localization/soc/disord-e=0-h=1-soc=1.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/localization/soc/disord-e=0-h=1-soc=1.npz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_data/localization/soc/disord-e=0-h=2-soc=0.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/localization/soc/disord-e=0-h=2-soc=0.npz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_data/localization/soc/disord-e=0-h=2-soc=1.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/localization/soc/disord-e=0-h=2-soc=1.npz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_data/localization/soc/disord-e=0-h=4-soc=1.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/localization/soc/disord-e=0-h=4-soc=1.npz" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/analysis.py" beforeDir="false" afterPath="$PROJECT_DIR$/analysis.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cmpy/core/greens.py" beforeDir="false" afterPath="$PROJECT_DIR$/cmpy/core/greens.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmpy/core/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/cmpy/core/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmpy/core/hamiltonian.py" beforeDir="false" afterPath="$PROJECT_DIR$/cmpy/core/sparse.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmpy/core/lattice.py" beforeDir="false" afterPath="$PROJECT_DIR$/cmpy/core/lattice.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmpy/core/matrix.py" beforeDir="false" afterPath="$PROJECT_DIR$/cmpy/core/matrix.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cmpy/hubbard/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/cmpy/hubbard/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cmpy/hubbard/hubbard.py" beforeDir="false" afterPath="$PROJECT_DIR$/cmpy/hubbard/hubbard.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmpy/core/plotting.py" beforeDir="false" afterPath="$PROJECT_DIR$/cmpy/core/plotting.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmpy/core/printing.py" beforeDir="false" afterPath="$PROJECT_DIR$/cmpy/core/printing.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmpy/tightbinding/device.py" beforeDir="false" afterPath="$PROJECT_DIR$/cmpy/tightbinding/device.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmpy/tightbinding/loclength.py" beforeDir="false" afterPath="$PROJECT_DIR$/cmpy/tightbinding/loclength.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmpy/tightbinding/tightbinding.py" beforeDir="false" afterPath="$PROJECT_DIR$/cmpy/tightbinding/tightbinding.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/hubbard.py" beforeDir="false" afterPath="$PROJECT_DIR$/hubbard.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/loc.py" beforeDir="false" afterPath="$PROJECT_DIR$/loc.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/test.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -31,11 +34,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/loc.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="378">
-              <caret line="104" column="36" selection-start-line="104" selection-start-column="36" selection-end-line="104" selection-end-column="36" />
+            <state relative-caret-position="758">
+              <caret line="124" selection-start-line="124" selection-end-line="124" />
               <folding>
                 <element signature="e#111#120#0" expanded="true" />
               </folding>
@@ -46,19 +49,46 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/analysis.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="389">
-              <caret line="107" column="30" selection-start-line="107" selection-start-column="30" selection-end-line="107" selection-end-column="30" />
+            <state relative-caret-position="440">
+              <caret line="125" column="11" selection-start-line="125" selection-start-column="11" selection-end-line="125" selection-end-column="11" />
+              <folding>
+                <element signature="e#111#142#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/cmpy/tightbinding/loclength.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="570">
+              <caret line="347" selection-start-line="347" selection-end-line="347" />
+              <folding>
+                <element signature="e#110#119#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/test.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-97">
-              <caret line="54" column="12" selection-start-line="54" selection-start-column="12" selection-end-line="54" selection-end-column="12" />
+            <state relative-caret-position="522">
+              <caret line="29" column="32" selection-start-line="29" selection-start-column="32" selection-end-line="29" selection-end-column="32" />
               <folding>
-                <element signature="e#97#108#0" expanded="true" />
+                <element signature="e#97#115#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/est_test.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="386">
+              <caret line="198" selection-start-line="198" selection-end-line="198" />
+              <folding>
+                <element signature="e#96#107#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -76,6 +106,7 @@
   <component name="FindInProjectRecents">
     <findStrings>
       <find>print</find>
+      <find>isclose</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -85,28 +116,33 @@
     <option name="CHANGED_PATHS">
       <list>
         <option value="$PROJECT_DIR$/cmpy/core/__init__.py" />
-        <option value="$PROJECT_DIR$/cmpy/core/hamiltonian.py" />
         <option value="$PROJECT_DIR$/sparse_test.py" />
         <option value="$PROJECT_DIR$/cmpy/core/greens.py" />
         <option value="$PROJECT_DIR$/main.py" />
-        <option value="$PROJECT_DIR$/cmpy/core/matrix.py" />
-        <option value="$PROJECT_DIR$/cmpy/core/lattice.py" />
-        <option value="$PROJECT_DIR$/cmpy/tightbinding/device.py" />
         <option value="$PROJECT_DIR$/cmpy/hubbard/hubbard.py" />
         <option value="$PROJECT_DIR$/cmpy/hubbard/__init__.py" />
         <option value="$PROJECT_DIR$/dmft.py" />
         <option value="$PROJECT_DIR$/hubbard.py" />
+        <option value="$PROJECT_DIR$/esttest.py" />
+        <option value="$PROJECT_DIR$/cmpy/core/lattice.py" />
+        <option value="$PROJECT_DIR$/cmpy/core/matrix.py" />
+        <option value="$PROJECT_DIR$/cmpy/core/hamiltonian.py" />
         <option value="$PROJECT_DIR$/cmpy/tightbinding/tightbinding.py" />
+        <option value="$PROJECT_DIR$/cmpy/core/utils.py" />
+        <option value="$PROJECT_DIR$/cmpy/core/plotting.py" />
+        <option value="$PROJECT_DIR$/est_test.py" />
+        <option value="$PROJECT_DIR$/cmpy/tightbinding/device.py" />
+        <option value="$PROJECT_DIR$/test.py" />
+        <option value="$PROJECT_DIR$/cmpy/core/printing.py" />
+        <option value="$PROJECT_DIR$/analysis.py" />
         <option value="$PROJECT_DIR$/cmpy/tightbinding/loclength.py" />
         <option value="$PROJECT_DIR$/loc.py" />
-        <option value="$PROJECT_DIR$/analysis.py" />
-        <option value="$PROJECT_DIR$/test.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
     <option name="x" value="-7" />
-    <option name="width" value="938" />
+    <option name="width" value="974" />
     <option name="height" value="1047" />
   </component>
   <component name="ProjectView">
@@ -114,6 +150,7 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -124,13 +161,18 @@
             <path>
               <item name="cmpy" type="b2602c69:ProjectViewProjectNode" />
               <item name="cmpy" type="462c0819:PsiDirectoryNode" />
+              <item name="_data" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="cmpy" type="b2602c69:ProjectViewProjectNode" />
+              <item name="cmpy" type="462c0819:PsiDirectoryNode" />
               <item name="cmpy" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="cmpy" type="b2602c69:ProjectViewProjectNode" />
               <item name="cmpy" type="462c0819:PsiDirectoryNode" />
               <item name="cmpy" type="462c0819:PsiDirectoryNode" />
-              <item name="hubbard" type="462c0819:PsiDirectoryNode" />
+              <item name="core" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="cmpy" type="b2602c69:ProjectViewProjectNode" />
@@ -142,13 +184,12 @@
           <select />
         </subPane>
       </pane>
-      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$/../../Dev/Python/_packages/soundpy" />
-    <property name="settings.editor.selected.configurable" value="diff.base" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyIntegratedToolsModulesConfigurable" />
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -162,7 +203,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.test">
+  <component name="RunManager" selected="Python.analysis">
     <configuration name="analysis" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="cmpy" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -176,6 +217,27 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/analysis.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="est_test" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="cmpy" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/est_test.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -226,27 +288,6 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="sparse_test" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <module name="cmpy" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/sparse_test.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
     <configuration name="test" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="cmpy" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -270,11 +311,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.test" />
         <item itemvalue="Python.analysis" />
+        <item itemvalue="Python.test" />
+        <item itemvalue="Python.est_test" />
         <item itemvalue="Python.loc" />
         <item itemvalue="Python.hubbard" />
-        <item itemvalue="Python.sparse_test" />
       </list>
     </recent_temporary>
   </component>
@@ -292,15 +333,14 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="-7" y="0" width="938" height="1047" extended-state="0" />
-    <editor active="true" />
+    <frame x="-7" y="0" width="974" height="1047" extended-state="0" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.49837133" visible="true" weight="0.22222222" />
+      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.49837133" visible="true" weight="0.14529915" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" sideWeight="0.5008157" side_tool="true" weight="0.18921477" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.32932165" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.19037199" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -314,12 +354,12 @@
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
     </layout>
     <layout-to-restore>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.21111111" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.49837133" visible="true" weight="0.22649573" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
-      <window_info id="Favorites" order="2" side_tool="true" />
+      <window_info id="Favorites" order="2" sideWeight="0.5008157" side_tool="true" weight="0.18921477" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" visible="true" weight="0.17774086" />
+      <window_info anchor="bottom" id="Run" order="2" visible="true" weight="0.19037199" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -338,56 +378,8 @@
     <option name="LAST_COMMIT_MESSAGE" value="testing" />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/cmpy/core/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="270">
-          <caret line="15" lean-forward="true" selection-start-line="15" selection-end-line="15" />
-          <folding>
-            <element signature="e#104#124#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/sparse_test.py" />
-    <entry file="file://$PROJECT_DIR$/cmpy/core/hamiltonian.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1170">
-          <caret line="66" selection-start-line="66" selection-end-line="66" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/cmpy/core/greens.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2178">
-          <caret line="122" column="69" selection-start-line="122" selection-start-column="69" selection-end-line="122" selection-end-column="69" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/cmpy/core/matrix.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="157">
-          <caret line="369" column="37" selection-start-line="369" selection-start-column="37" selection-end-line="369" selection-end-column="37" />
-          <folding>
-            <element signature="e#104#122#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/cmpy/core/printing.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="207">
-          <caret line="100" selection-start-line="100" selection-end-line="100" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/main.py" />
-    <entry file="file://$PROJECT_DIR$/cmpy/core/lattice.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="432">
-          <caret line="422" lean-forward="true" selection-start-line="422" selection-end-line="422" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/cmpy/hubbard/hubbard.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="62">
@@ -422,33 +414,126 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/dmft.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
+    <entry file="file://$PROJECT_DIR$/dmft.py" />
+    <entry file="file://$PROJECT_DIR$/esttest.py" />
     <entry file="file://$PROJECT_DIR$/hubbard.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="299">
-          <caret line="89" selection-start-line="89" selection-end-line="89" />
+        <state relative-caret-position="756">
+          <caret line="63" column="66" selection-start-line="63" selection-start-column="66" selection-end-line="63" selection-end-column="66" />
           <folding>
             <element signature="e#97#115#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/cmpy/core/matrix.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="162">
+          <caret line="9" column="24" lean-forward="true" selection-start-line="9" selection-end-line="9" selection-end-column="30" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/cmpy/core/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="270">
+          <caret line="15" lean-forward="true" selection-start-line="15" selection-end-line="15" />
+          <folding>
+            <element signature="e#104#124#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/cmpy/core/sparse.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1578">
+          <caret line="356" column="24" selection-start-line="356" selection-start-column="24" selection-end-line="356" selection-end-column="24" />
+          <folding>
+            <element signature="e#103#121#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/cmpy/tightbinding/tightbinding.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1793">
-          <caret line="24" column="13" lean-forward="true" selection-start-line="24" selection-start-column="13" selection-end-line="24" selection-end-column="13" />
+        <state relative-caret-position="2106">
+          <caret line="120" column="24" selection-start-line="120" selection-start-column="24" selection-end-line="120" selection-end-column="24" />
           <folding>
             <element signature="e#97#115#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/cmpy/core/utils.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="4644">
+          <caret line="258" selection-start-line="258" selection-end-line="258" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/cmpy/core/lattice.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="396">
+          <caret line="322" column="18" selection-start-line="322" selection-start-column="18" selection-end-line="322" selection-end-column="18" />
+          <folding>
+            <element signature="e#97#113#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/cmpy/core/plotting.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="270">
+          <caret line="33" column="9" selection-start-line="33" selection-start-column="9" selection-end-line="33" selection-end-column="9" />
+          <folding>
+            <element signature="e#151#169#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/cmpy/core/printing.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="486">
+          <caret line="27" column="28" selection-start-line="27" selection-start-column="28" selection-end-line="27" selection-end-column="28" />
+          <folding>
+            <element signature="e#144#155#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/cmpy/tightbinding/device.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="458">
-          <caret line="255" column="35" lean-forward="true" selection-start-line="255" selection-start-column="35" selection-end-line="255" selection-end-column="35" />
+        <state relative-caret-position="1848">
+          <caret line="278" column="15" selection-start-line="278" selection-start-column="15" selection-end-line="278" selection-end-column="15" />
+          <folding>
+            <element signature="e#97#115#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/cmpy/core/greens.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="485">
+          <caret line="127" column="12" selection-start-line="127" selection-start-column="4" selection-end-line="127" selection-end-column="12" />
+          <folding>
+            <element signature="e#97#115#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/est_test.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="386">
+          <caret line="198" selection-start-line="198" selection-end-line="198" />
+          <folding>
+            <element signature="e#96#107#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/test.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="522">
+          <caret line="29" column="32" selection-start-line="29" selection-start-column="32" selection-end-line="29" selection-end-column="32" />
           <folding>
             <element signature="e#97#115#0" expanded="true" />
           </folding>
@@ -457,37 +542,30 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/cmpy/tightbinding/loclength.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1321">
-          <caret line="306" column="43" selection-start-line="306" selection-start-column="43" selection-end-line="306" selection-end-column="43" />
+        <state relative-caret-position="570">
+          <caret line="347" selection-start-line="347" selection-end-line="347" />
           <folding>
             <element signature="e#110#119#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/loc.py">
+    <entry file="file://$PROJECT_DIR$/analysis.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="378">
-          <caret line="104" column="36" selection-start-line="104" selection-start-column="36" selection-end-line="104" selection-end-column="36" />
+        <state relative-caret-position="440">
+          <caret line="125" column="11" selection-start-line="125" selection-start-column="11" selection-end-line="125" selection-end-column="11" />
           <folding>
-            <element signature="e#111#120#0" expanded="true" />
+            <element signature="e#111#142#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/analysis.py">
+    <entry file="file://$PROJECT_DIR$/loc.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="389">
-          <caret line="107" column="30" selection-start-line="107" selection-start-column="30" selection-end-line="107" selection-end-column="30" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/test.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-97">
-          <caret line="54" column="12" selection-start-line="54" selection-start-column="12" selection-end-line="54" selection-end-column="12" />
+        <state relative-caret-position="758">
+          <caret line="124" selection-start-line="124" selection-end-line="124" />
           <folding>
-            <element signature="e#97#108#0" expanded="true" />
+            <element signature="e#111#120#0" expanded="true" />
           </folding>
         </state>
       </provider>

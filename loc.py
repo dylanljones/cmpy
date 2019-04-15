@@ -8,7 +8,6 @@ version: 1.0
 """
 import os
 import numpy as np
-import matplotlib.pyplot as plt
 from cmpy import eta
 from cmpy.tightbinding import TbDevice, sp3_basis, s_basis
 from cmpy.tightbinding.loclength import Folder, LT_Data, SOC, NO_SOC, ROOT
@@ -29,9 +28,12 @@ def print_header(txt):
 def init_lengths(lengths, existing, model, e, w, n_avrg=200):
     if lengths is None:
         if existing is None:
-            print("Initializing lengths")
-            out = get_lengths(model, e, w, n_avrg=n_avrg)
-            print(f"Configured range: {out[0]}-{out[-1]}")
+            if w <= 2:
+                print("Initializing lengths")
+                out = get_lengths(model, e, w, n_avrg=n_avrg)
+                print(f"Configured range: {out[0]}-{out[-1]}")
+            else:
+                out = np.arange(100, 200, 5)
         else:
             out = existing[:, 0]
     else:
@@ -103,43 +105,19 @@ def calculate_disorder_lt(w_values, h, soc, lengths=None, e=0, n_avrg=250):
     return data
 
 
-# ====================False=========================================================
-
-
-def plot_loc_length(n_fit=20):
-    fig, ax = plt.subplots()
-    for path in folder.files:
-        data = LT_Data(path)
-        print(data)
-        soc, xi, err = list(), list(), list()
-        w, h = float(data.info()["w"]), int(data.info()["h"])
-        label = f"w={w}, height={h}"
-        for k in data:
-            soc.append(data.key_value(k))
-            l, t = data.get_set(k, mean=True)
-            popt, errs = fit(l, t, p0=[20, 1], n_fit=n_fit)
-            loc_len = popt[0], errs[0]
-            xi.append(loc_len[0]/h)
-            err.append(loc_len[1]/h)
-
-        ax.errorbar(soc, xi, yerr=err, label=label)
-    ax.set_xlabel(r"$\lambda_{soc}$")
-    ax.set_ylabel(r"$\Lambda/h$")
-    ax.legend()
-    plt.show()
+def estimate_max_memory(model, max_length):
+    n_elements = model.n_orbs * model.slice_elements * max_length
+    print(n_elements)
 
 
 def main():
-    w = 1
-    h = 1
     soc = 0
-
-    w_values = [0.5, 0.75, 1, 1.5, 2, 2.5, 3]
-    heights = [1, 2, 4]
+    w_values = [1, 1.5, 2, 2.5, 3, 4, 5]
+    heights = [1, 2, 4, 6, 8, 10]
 
     # calculate_width_lt(e, w, soc, heights, n_avrg=500)
     for h in heights:
-        calculate_disorder_lt(w_values, h, soc, n_avrg=500)
+        calculate_disorder_lt(w_values, h, soc=None, n_avrg=2000)
 
 
 if __name__ == "__main__":

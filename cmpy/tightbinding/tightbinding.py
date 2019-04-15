@@ -20,6 +20,7 @@ class TightBinding:
         self.energies = list()
         self.hoppings = list()
 
+        self._ham = None
         self.sparse_mode = False
 
     @property
@@ -81,7 +82,12 @@ class TightBinding:
         return self.energies[alpha]
 
     def build(self, shape=None):
+        self._ham = None
         self.lattice.build(shape)
+
+    def reshape(self, x=None, y=None, z=None):
+        self._ham = None
+        self.lattice.reshape(x, y, z)
 
     def dispersion(self, k):
         ham = Hamiltonian.zeros(self.n_base, self.n_orbs, "complex")
@@ -131,32 +137,42 @@ class TightBinding:
                 band_sections.append(e_vals)
         return band_sections
 
-    def hamiltonian(self, w_eps=0.):
+    def _init_hamiltonian(self, blocksize=None):
         n = self.lattice.n
         if self.sparse_mode:
             ham = SparseHamiltonian.zeros(n, self.n_orbs, "complex")
         else:
             ham = Hamiltonian.zeros(n, self.n_orbs, "complex")
 
-        # Set values
         for i in range(n):
             n, alpha = self.lattice.get(i)
-
             # Site energies
             eps = self.energies[alpha]
-            if w_eps:
-                eps = shuffle(eps, w_eps)
             ham.set_energy(i, eps)
-
             # Hopping energies
             neighbours = self.lattice.neighbours[i]
             for dist in range(len(neighbours)):
                 t = self.hoppings[dist]
-                indices = neighbours[dist]
-                for j in indices:
+                for j in neighbours[dist]:
                     if j > i:
                         ham.set_hopping(i, j, t)
+        if blocksize is not None:
+            ham.config_blocks(blocksize)
         return ham
+
+    def hamiltonian(self, w_eps=0., blocksize=None):
+        if self._ham is None:
+            self._ham = self._init_hamiltonian(blocksize)
+
+        if w_eps:
+            n = self.lattice.n
+            for i in range(n):
+                n, alpha = self.lattice.get(i)
+                # Site energies
+                eps = shuffle(self.energies[alpha], w_eps)
+                self._ham.set_energy(i, eps)
+
+        return self._ham
 
     def slice_hamiltonian(self):
         n = self.lattice.slice_sites

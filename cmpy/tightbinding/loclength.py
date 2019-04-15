@@ -20,9 +20,13 @@ DEFAULT_MODE = "lin"
 PROJECT = dirname(dirname(dirname(abspath(__file__))))
 DATA_ROOT = join(PROJECT, "_data")
 
-ROOT = join(DATA_ROOT, "localization")
-SOC = join(ROOT, "soc")
-NO_SOC = join(ROOT, "no soc")
+ROOT = join(DATA_ROOT, "localization2")
+SOC = join(ROOT, "sp3-basis")
+NO_SOC = join(ROOT, "s-basis")
+# SOC = join(ROOT, "soc")
+# NO_SOC = join(ROOT, "no soc")
+
+
 if not os.path.isdir(ROOT):
     os.makedirs(ROOT)
 
@@ -265,7 +269,7 @@ def estimate(model, e, w, lmin=100, lmax=1000, n=40, fitmin=5, fitmax=10, scale=
                     if err <= 0.2:
                         estimation = loclen
                         break
-                    if 2 * loclen < length:
+                    if err <= 1 and 2 * loclen < length:
                         estimation = lmin
                         break
                 except Exception as e:
@@ -306,7 +310,7 @@ def _lin_func(x, l, y0):
 
 def fit(lengths, trans, p0=None, n_fit=None, mode=DEFAULT_MODE):
     if p0 is None:
-        p0 = [50, 1]
+        p0 = [1, 1]
     if n_fit is not None:
         lengths = lengths[-n_fit:]
         trans = trans[-n_fit:]
@@ -319,7 +323,8 @@ def fit(lengths, trans, p0=None, n_fit=None, mode=DEFAULT_MODE):
 
 
 def build_fit(lengths, popt, n_fit=None, mode=DEFAULT_MODE):
-    lengths = lengths[-n_fit:]
+    if n_fit is not None:
+        lengths = lengths[-n_fit:]
     y = None
     if mode == "exp":
         y = _exp_func(lengths, *popt)
