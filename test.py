@@ -8,7 +8,7 @@ version: 1.0
 """
 import numpy as np
 from cmpy.core import *
-from cmpy.tightbinding import TbDevice
+from cmpy.tightbinding import TbDevice, p3_basis
 
 
 def estimate_max_memory(model, max_length):
@@ -17,13 +17,13 @@ def estimate_max_memory(model, max_length):
     print(format_num(size))
 
 
-def main():
-    model = TbDevice.square((10, 1))
-    model.set_disorder(1)
 
-    lengths = np.arange(100, 200, 10)
-    trans = model.transmission_loss(lengths, n_avrg=1000, flatten=True)
-    plot_transmission_loss(lengths, trans)
+def main():
+    model = TbDevice.square_p3((10, 1))
+    model.set_disorder(1)
+    lengths = np.arange(100, 200, 5)
+    trans = model.transmission_loss(lengths, n_avrg=1000)
+    # plot_transmission_loss(lengths, trans)
     # estimate_max_memory(model, lengths[-1])
 
     # trans = model.transmission_loss(lengths, n_avrg=100, flatten=True)

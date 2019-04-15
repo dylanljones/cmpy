@@ -8,8 +8,12 @@ version: 1.0
 """
 import numpy as np
 from cmpy.core import greens, prange, Progress, eta
-from .basis import sp3_basis
+from .basis import sp3_basis, p3_basis
 from .tightbinding import TightBinding
+
+# =============================================================================
+# TIGHTBINDING-LEAD
+# =============================================================================
 
 
 class Lead:
@@ -58,7 +62,7 @@ class Lead:
 
         Parameters
         ----------
-        omega: float
+        omega: floatDEVICE
             energy of the system
 
         Returns
@@ -123,6 +127,10 @@ def gamma(sigma_s):
     """
     return 1j * (sigma_s - np.conj(sigma_s).T)
 
+# =============================================================================
+# TIGHTBINDING-DEVICE
+# =============================================================================
+
 
 class TbDevice(TightBinding):
 
@@ -173,7 +181,7 @@ class TbDevice(TightBinding):
 
     @classmethod
     def square_sp3(cls, shape=(2, 1), basis=sp3_basis(), name="A", a=1., wideband=False):
-        """ square device prefab with one atom at the origin of the unit cell with s and p orbitals
+        """ square device prefab with one atom at the origin of the unit cell with p orbitals
 
         Parameters
         ----------
@@ -182,6 +190,30 @@ class TbDevice(TightBinding):
             if None, the lattice won't be built on initialization
         basis: Basis, optional
             energy basis of one atom, if None, use default sp3-configuration
+        name: str, optional
+            name of the atom, the default is "A"
+        a: float, optional
+            lattice constant, default: 1
+        wideband: bool, optional
+            if True, use wide band approximation, the default is False
+
+        Returns
+        -------
+        latt: Lattice
+        """
+        return cls.square(shape, basis=basis, name=name, a=a, wideband=wideband)
+
+    @classmethod
+    def square_p3(cls, shape=(2, 1), basis=p3_basis(), name="A", a=1., wideband=False):
+        """ square device prefab with one atom at the origin of the unit cell with s and p orbitals
+
+        Parameters
+        ----------
+        shape: tuple, optional
+            shape to build lattice, the default is (1, 1)
+            if None, the lattice won't be built on initialization
+        basis: Basis, optional
+            energy basis of one atom, if None, use default p3-configuration
         name: str, optional
             name of the atom, the default is "A"
         a: float, optional
@@ -237,40 +269,64 @@ class TbDevice(TightBinding):
 
     # =========================================================================
 
-    def _expand_gammas(self, gammas, size):
-        n = self.slice_elements
-        if n != size:
-            gamma_l = np.zeros((size, size), "complex")
-            gamma_l[:n, :n] = gammas[0]
-            gamma_r = np.zeros((size, size), "complex")
-            gamma_r[size - n:, size - n:] = gammas[1]
-            gammas = gamma_l, gamma_r
-        return gammas
-
     def transmission(self, omega=eta, sigmas=None, gammas=None, blocksize=None):
+        """ Calculate the transmission of the tight binding device
+
+        Parameters
+        ----------
+        omega: float, optional
+            Energy of the system, default is zero (plus broadening)
+        sigmas: tuple, optional
+            Self-energy of the leads, default is None.
+            If not given, sigmas will be calculated
+        gammas: tuple, optional
+            Broadening matrix of the leads, default is None.
+            If not given, gammas will be calculated
+        blocksize: int, optional
+            blocksize to use in rgf-algorithm, default is None.
+            If not specified, use one slice of the device
+
+        Returns
+        -------
+        t: float
+        """
         if blocksize is None:
             blocksize = self.slice_elements
-
         n = self.n_elements
         ham = self.hamiltonian(self.w_eps)
 
+        # Calculate self energy and broadening matrix of the leads
         if sigmas is None:
             sigmas, gammas = self.prepare(omega)
 
-        # Add sigmas at corners of hamiltonian
+        # Add self energy at the corners (interface) of the hamiltonian
         ham.add(0, 0, sigmas[0])
         i = n - self.slice_elements
         ham.add(i, i, sigmas[1])
 
+        # Calculate greens-function with rgf-algorthm or full inversion
+        # depending on the size of the hamiltonian
         if ham.n > 1000:
-            if ham.block_shape != (blocksize, blocksize):
+            # Check if hamiltonian-blocks are configured right
+            if ham.block_size is None or ham.block_shape[0] != int(n / blocksize):
                 ham.config_blocks(blocksize)
+            # Use recursive greens-function algorithm to calculate lower left block of gf
             g_1n = greens.rgf(ham, omega)
+
         else:
+            # calculate greens-function by inverting full hamiltonian
             g = greens.greens(ham, omega)
+            # Get lower left block of gf
             g_1n = g[-blocksize:, :blocksize]
 
         return np.trace(gammas[1] @ g_1n @ gammas[0] @ g_1n.conj().T).real
+
+    def transmission_curve(self, omegas, verbose=True):
+        n = omegas.shape[0]
+        trans = np.zeros(n, dtype="float")
+        for i in prange(n, header="Calculating transmission", enabled=verbose):
+            trans[i] = self.transmission(omegas[i])
+        return trans
 
     def mean_transmission(self, omega=eta, sigmas=None, gammas=None, n=100, flatten=True,
                           prog=None, header=None):
@@ -285,12 +341,6 @@ class TbDevice(TightBinding):
             p.end()
         return np.mean(trans) if flatten else trans
 
-    def transmission_curve(self, omegas, verbose=True):
-        n = omegas.shape[0]
-        trans = np.zeros(n, dtype="float")
-        for i in prange(n, header="Calculating transmission", enabled=verbose):
-            trans[i] = self.transmission(omegas[i])
-        return trans
 
     def transmission_loss(self, lengths, omega=eta, n_avrg=100, flatten=False, prog=None,
                           header=None):
@@ -302,7 +352,7 @@ class TbDevice(TightBinding):
         for i in range(n):
             length = lengths[i]
             self.reshape(length)
-            p.set_description(f"Length: {length}, {self.n_elements}")
+            p.set_description(f"Length: {length}")
             for j in range(n_avrg):
                 p.update()
                 trans[i, j] = self.transmission(omega, sigmas, gammas)

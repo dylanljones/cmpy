@@ -128,6 +128,19 @@ def s_basis(eps=0, t=1):
     return b
 
 
+def p3_basis(eps_p=3, t_sss=-1, t_sps=0.75, t_pps=0.75, t_ppp=-0.25, soc=1):
+    b = Basis("p_x", "p_y", "p_z", spin=True)
+    # Site energies
+    b.set_energy("p", eps_p)
+    # Hopping parameters
+    b.set_hopping("p_x", "p_x", t_pps)
+    b.set_hopping("p_y", "p_y", t_pps)
+    b.set_hopping("p_z", "p_z", t_ppp)
+    # spin orbit coupling
+    b.set_soc(soc)
+    return b
+
+
 def sp3_basis(eps_s=0, eps_p=3, t_sss=-1, t_sps=0.75, t_pps=0.75, t_ppp=-0.25, soc=2):
     b = Basis("s", "p_x", "p_y", "p_z", spin=True)
     # Site energies

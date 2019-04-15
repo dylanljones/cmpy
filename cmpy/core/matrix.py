@@ -133,37 +133,30 @@ class Matrix(np.ndarray):
         # Convert to tuple if int
         if not hasattr(block_size, "__len__"):
             block_size = (block_size, block_size)
-
         # Check size compability
         if (self.shape[0] % block_size[0] != 0) or (self.shape[1] % block_size[1] != 0):
             raise ValueError("Shape of Matrix must be divisible through block-size!")
 
-        # Set block-indices and size
-        rows = np.arange(0, self.shape[0] + 1, block_size[0])
-        cols = np.arange(0, self.shape[1] + 1, block_size[1])
-        n, m = rows.shape[0] - 1, cols.shape[0] - 1
-        block_indices = np.zeros((n, m, 2, 2), dtype="int")
-        for i in range(n):
-            for j in range(m):
-                block_indices[i, j, 0] = rows[i], cols[j]
-                block_indices[i, j, 1] = rows[i+1], cols[j+1]
-
+        r0, rs = self.shape[0], block_size[0]
+        c0, cs = self.shape[1], block_size[1]
+        self.block_indices = np.moveaxis(np.mgrid[0:r0:rs, 0:c0:cs], 0, -1)
         self.block_size = block_size
-        self.block_indices = block_indices
-
-    def _assert_blocks(self):
-        if self.block_indices is None:
-            raise ValueError("Blocks are not configured yet!")
 
     def reset_blocks(self):
         """ Reset blocks to None """
         self.block_indices = None
         self.block_size = None
 
+    def _get_block_indices(self, i, j):
+        if self.block_indices is None:
+            raise ValueError("Blocks are not configured yet!")
+        r0, c0 = self.block_indices[i, j]
+        r1, c1 = r0 + self.block_size[0], c0 + self.block_size[1]
+        return (r0, c0), (r1, c1)
+
     def get_block(self, i, j):
         """ np.ndarray: Return block with block index i, j"""
-        self._assert_blocks()
-        (r0, c0), (r1, c1) = self.block_indices[i, j]
+        (r0, c0), (r1, c1) = self._get_block_indices(i, j)
         return self[r0:r1, c0:c1]
 
     def set_block(self, i, j, array):
@@ -178,8 +171,7 @@ class Matrix(np.ndarray):
         array: array_like
             Data to fill
         """
-        self._assert_blocks()
-        (r0, c0), (r1, c1) = self.block_indices[i, j]
+        (r0, c0), (r1, c1) = self._get_block_indices(i, j)
         self[r0:r1, c0:c1] = array
 
     # ==============================================================================================
@@ -253,12 +245,15 @@ class Matrix(np.ndarray):
         """
         mp = MatrixPlot()
         mp.load(self)
-        if self.block_indices is not None:
-            for r in [idx[0, 0] for idx in self.block_indices[1:, 0]]:
-                mp.line(row=r, color="0.6")
+        # Draw block lines
 
-            for c in [idx[0, 1] for idx in self.block_indices[0, 1:]]:
-                mp.line(col=c, color="0.6")
+        # if self.block_indices is not None:
+        #     for r in [idx[0] for idx in self.block_indices[1:, 0]]:
+        #         mp.line(row=r, color="0.6")
+        #
+        #     for c in [idx[1] for idx in self.block_indices[0, 1:]]:
+        #         mp.line(col=c, color="0.6")
+
         if show:
             mp.show()
         return mp

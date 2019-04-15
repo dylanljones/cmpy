@@ -24,7 +24,7 @@ def greens(ham, omega):
     gf: array_like
     """
     e = np.eye(ham.shape[0]) * omega
-    return la.inv(e - ham)
+    return la.inv(e - ham, overwrite_a=True)
 
 
 def advanced_gf(omega, ham, sigma_l, sigma_r):
@@ -99,7 +99,7 @@ def rda(ham, t, omega, thresh=0.):
     return gf_l, gf_b, gf_r
 
 
-def rgf(ham, omega, chunksize=None):
+def rgf(ham, omega):
     """ Recursive green's function
 
     Calculate green's function using the recursive green's function formalism.
@@ -110,27 +110,20 @@ def rgf(ham, omega, chunksize=None):
         hamiltonian of model, must allready be blocked
     omega: float
         energy-value to calculate the Green's functions
-    chunksize: int, optional
-        chunk size to use in recursion.
-        If None, use full pre defined blocks of hamiltonian
 
     Returns
     -------
     gf_1n: array_like
         lower left block of greens function
     """
-    if chunksize is None and not ham.is_blocked:
-        raise ValueError("Block sizes of hamiltonian not set up and no chunksize specified!")
 
-    if chunksize is not None:
-        ham.config_blocks(chunksize)
-
+    e = np.eye(ham.block_size[0]) * omega
     n_blocks = ham.block_shape[0]
 
     g_nn = greens(ham.get_block(0, 0), omega)
     g_1n = g_nn
     for i in range(1, n_blocks):
         h = ham.get_block(i, i) + ham.get_block(i, i-1) @ g_nn @ ham.get_block(i-1, i)
-        g_nn = greens(h, omega)
+        g_nn = la.inv(e - h, overwrite_a=True)
         g_1n = g_1n @ ham.get_block(i-1, i) @ g_nn
     return g_1n
