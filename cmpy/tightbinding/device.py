@@ -268,6 +268,49 @@ class TbDevice(TightBinding):
         dev.w_eps = self.w_eps
         return dev
 
+    def set_disorder(self, w_eps):
+        """ Set the amoount of disorder of the on-site energies
+
+        Parameters
+        ----------
+        w_eps: float
+            disorder amount
+        """
+        self.w_eps = w_eps
+
+    def prepare(self, omega=eta):
+        """ Calculate the lead self energy and broadening matrix of the device
+
+        Parameters
+        ----------
+        omega: complex, optional
+            Energy of the system, default is zero (plus broadening)
+
+        Returns
+        -------
+        sigmas: tuple
+            Self-energies of the leads, default is None.
+            If not given, sigmas will be calculated
+        gammas: tuple
+            Broadening matrices of the leads, default is None.
+            If not given, gammas will be calculated
+        """
+        no_cache = self._cached_sigmas is None
+        energy_changed = omega != self._cached_omega
+        if no_cache or energy_changed:
+            # print("Calculating sigmas")
+            if self.wideband:
+                sig = 1j * np.eye(self.slice_elements)
+                sigmas = [sig, sig]
+            else:
+                sigmas = self.lead.sigmas(omega)
+            gammas = gamma(sigmas[0]), gamma(sigmas[1])
+            self._cached_omega = omega
+            self._cached_sigmas = sigmas
+            self._cached_gammas = gammas
+
+        return self._cached_sigmas, self._cached_gammas
+
     def clear_cache(self):
         """Clear all cached objects"""
         super().clear_cache()
@@ -294,36 +337,11 @@ class TbDevice(TightBinding):
             self._cached_sigmas = None
             self._cached_gammas = None
 
-    def set_disorder(self, w_eps):
-        """ Set the amoount of disorder of the on-site energies
-
-        Parameters
-        ----------
-        w_eps: float
-            disorder amount
-        """
-        self.w_eps = w_eps
-
     def show(self):
         """ Plot the lattice of the device"""
         self.lattice.show()
 
     # =========================================================================
-
-    def prepare(self, omega=eta):
-        if (self._cached_sigmas is None) or (omega != self._cached_omega):
-            print("Calculating sigmas")
-            if self.wideband:
-                sig = 1j * np.eye(self.slice_elements)
-                sigmas = [sig, sig]
-            else:
-                sigmas = self.lead.sigmas(omega)
-            gammas = gamma(sigmas[0]), gamma(sigmas[1])
-            self._cached_omega = omega
-            self._cached_sigmas = sigmas
-            self._cached_gammas = gammas
-
-        return self._cached_sigmas, self._cached_gammas
 
     def transmission(self, omega=eta, sigmas=None, gammas=None, rec_thresh=500, compressed=True):
         """ Calculate the transmission of the tight binding device
@@ -337,10 +355,10 @@ class TbDevice(TightBinding):
         omega: float, optional
             Energy of the system, default is zero (plus broadening)
         sigmas: tuple, optional
-            Self-energy of the leads, default is None.
+            Self-energies of the leads, default is None.
             If not given, sigmas will be calculated
         gammas: tuple, optional
-            Broadening matrix of the leads, default is None.
+            Broadening matrices of the leads, default is None.
             If not given, gammas will be calculated
         rec_thresh: int, optional
             Threshold to use recursive greens function algorithm, default is 500.
@@ -445,10 +463,10 @@ class TbDevice(TightBinding):
         omega: float, optional
             Energy of the system, default is zero (plus broadening)
         sigmas: tuple, optional
-            Self-energy of the leads, default is None.
+            Self-energies of the leads, default is None.
             If not given, sigmas will be calculated
         gammas: tuple, optional
-            Broadening matrix of the leads, default is None.
+            Broadening matrices of the leads, default is None.
             If not given, gammas will be calculated
         n: int, optional
             number of values to calculate, the default is 100
@@ -479,7 +497,7 @@ class TbDevice(TightBinding):
     def transmission_loss(self, lengths, omega=eta, n_avrg=1000, flatten=False,
                           prog=None, header=None):
         """ Calculate the mean transmission loss of the device
-        
+
         Parameters
         ----------
         lengths: array_like
@@ -516,3 +534,32 @@ class TbDevice(TightBinding):
         if prog is None:
             p.end()
         return np.mean(trans, axis=1) if flatten else trans
+
+    def normal_transmission(self, omega=eta):
+        """ calculate noprmal transmission of the device without any disorder
+
+        Parameters
+        ----------
+        omega: float, optional
+            Energy of the system, default is zero (plus broadening)
+
+        Returns
+        -------
+        t: float
+        """
+        # Store device configuration
+        length = self.lattice.shape[0]
+        w = self.w_eps
+
+        # Set shortest model with no disorder
+        self.reshape(5)
+        self.set_disorder(0)
+
+        # Calculate transmission
+        t = self.transmission(omega)
+
+        # Reset device configuration
+        self.reshape(length)
+        self.set_disorder(w)
+
+        return t

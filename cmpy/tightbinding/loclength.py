@@ -10,6 +10,8 @@ from os.path import abspath, dirname, join
 import numpy as np
 from scipy.optimize import curve_fit
 from ..core import eta, Progress
+from .basis import s_basis, p3_basis, sp3_basis
+from .device import TbDevice
 
 DEFAULT_MODE = "lin"
 
@@ -156,6 +158,24 @@ class LT_Data(Data):
     def sort_all(self):
         for key in self:
             self.sort_lengths(key)
+
+    def get_disord_model(self, key):
+        basis_name = os.path.split(dirname(self.path))[1]
+        info = self.info()
+        if basis_name == "s-basis":
+            basis = s_basis()
+        elif basis_name == "p3-basis":
+            soc = info["soc"]
+            basis = p3_basis(soc=soc)
+        else:
+            soc = info["soc"]
+            basis = sp3_basis(soc=soc)
+
+        e = info["e"]
+        h = int(self.key_value(key))
+        model = TbDevice.square((2, h), basis.eps, basis.hop)
+        return model, e + eta
+
 
     def __str__(self):
         return f"LT-Data({self.info_str()})"

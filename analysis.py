@@ -45,6 +45,7 @@ def plot_lt(data, n_fit=1., mode="lin", show=True):
         if mode == "lin":
             t = np.log10(t)
         n_f = int(len(l) * n_fit)
+
         loclen, err, fit_data = loc_length_fit(l, t, p0=[1, 1], n_fit=n_f, mode=mode)
         if norm is None:
             norm = int(k.split("=")[1])
@@ -107,12 +108,13 @@ def loclen_plotter(ax, data, log=False):
     ax.semilogy(disorder, loclen, label=f"$M={height}$")
 
 
-def plot_wl(soc=None, show=True):
+def plot_wl(path, soc=None, show=True):
+    f = Folder(path)
     plot = Plot()
     if soc is None:
-        paths = [x for x in folder.find("disord-") if "soc=" not in x]
+        paths = [x for x in f.find("disord-") if "soc=" not in x]
     else:
-        paths = folder.find("disord-", f"soc={soc}")
+        paths = f.find("disord-", f"soc={soc}")
         plot.set_title(r"$\lambda_{SOC}=$" + f"${soc}$")
     plot.set_labels("$w$", r"$\xi / M$")
     for i, path in enumerate(paths):
@@ -131,11 +133,36 @@ def delete_keys(folder, key):
         data.save()
 
 
+def plot_data(path):
+    f = Folder(path)
+    for path in f.files:
+        data = LT_Data(path)
+        print(data.info_str())
+        plot = Plot()
+        for k in data:
+            l, t = data.get_set(k, mean=True)
+            try:
+                t = np.log10(t)
+                #print(loc_length(l, t))
+            except Exception as e:
+                pass
+            plot.plot(l, t)
+        plt.show()
+
+
+
 def main():
-    plot_all_lt("disord-")
-    plot_wl(None, False)
-    plot_wl(0, False)
-    plot_wl(1)
+    #plot_data(P3_PATH)
+    #plot_all_lt("disord-")
+
+    plot_wl(S_PATH, None, False)
+    # plot_wl(P3_PATH, 0, False)
+    # plot_wl(P3_PATH, 1, False)
+    # plot_wl(SP3_PATH, 0, False)
+    # plot_wl(SP3_PATH, 1, False)
+
+
+    plt.show()
 
 
 if __name__ == "__main__":

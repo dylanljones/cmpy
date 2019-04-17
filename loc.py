@@ -106,7 +106,7 @@ def calculate_disorder_lt(basis, w_values, h, lengths=None, e=0, n_avrg=250):
 
 
 def mean_batched(basis, w_values, heights, n_batch=500, n_avrg=3000):
-    for n in range(n_batch, n_avrg, n_batch):
+    for n in range(n_batch, n_avrg + 1, n_batch):
         for h in heights:
             calculate_disorder_lt(basis, w_values, h, n_avrg=n)
 
@@ -164,17 +164,16 @@ def update_all_lengths(root, l_offset):
 
 def main():
     # basis = s_basis()
-    basis = sp3_basis(soc=1)
+    basis = p3_basis(soc=0)
+    # basis = sp3_basis(soc=0)
 
-    w_values = [1, 1.5, 2, 2.5, 3, 4, 5]
-    heights = [1, 2, 4, 6]
+    w_values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    heights = [1, 8, 16, 32]# [1, 2, 4, 6]
     # update_all_lengths(S_PATH, 10)
 
-    mean_batched(basis, w_values, heights, n_avrg=2000, n_batch=500)
-
     #for h in heights:
-    #    calculate_disorder_lt(basis, w_values, h, n_avrg=1000)
-
+    #    calculate_disorder_lt(basis, w_values, h, n_avrg=500)
+    mean_batched(basis, w_values, heights, n_avrg=2000, n_batch=100)
 
 if __name__ == "__main__":
     main()
