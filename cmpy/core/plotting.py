@@ -13,7 +13,6 @@ Plotting utilities
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm, colors
-from mpl_toolkits.mplot3d import Axes3D
 
 
 class Plot:
@@ -53,6 +52,9 @@ class Plot:
             self.ax.set_ylabel(ylabel)
         if zlabel:
             self.ax.set_zlabel(zlabel)
+
+    def plot(self, *args, **kwargs):
+        return self.ax.plot(*args, **kwargs)[0]
 
     def tight(self, *args, **kwargs):
         self.fig.tight_layout(*args, **kwargs)

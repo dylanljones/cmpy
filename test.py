@@ -6,9 +6,10 @@ author: Dylan
 project: cmpy
 version: 1.0
 """
+import os
 import numpy as np
 from cmpy.core import *
-from cmpy.tightbinding import TbDevice, p3_basis
+from cmpy.tightbinding import TbDevice
 
 
 def estimate_max_memory(model, max_length):
@@ -17,17 +18,17 @@ def estimate_max_memory(model, max_length):
     print(format_num(size))
 
 
-
-def main():
+def test_transmission():
     model = TbDevice.square_p3((10, 1))
     model.set_disorder(1)
     lengths = np.arange(100, 200, 5)
-    trans = model.transmission_loss(lengths, n_avrg=1000)
-    # plot_transmission_loss(lengths, trans)
-    # estimate_max_memory(model, lengths[-1])
+    trans = model.transmission_loss(lengths, n_avrg=300)
 
-    # trans = model.transmission_loss(lengths, n_avrg=100, flatten=True)
-    # plot_transmission_loss(lengths, trans)
+
+def main():
+    model = TbDevice.square_sp3((300, 10))
+    ham = model.hamiltonian()
+    print(format_num(ham.nbytes))
 
 
 if __name__ == "__main__":

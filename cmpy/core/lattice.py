@@ -10,7 +10,6 @@ import itertools
 import numpy as np
 from .utils import vrange, iter_indices, index_array
 from .utils import translate, distance
-from .printing import prange
 from .plotting import LatticePlot
 
 # np.random.seed(100)
@@ -46,6 +45,56 @@ class Lattice:
         self.shape = np.zeros(self.dim)
         self.indices = None
         self.neighbours = list()
+
+    @classmethod
+    def square(cls, shape=(1, 1), name="A", a=1.):
+        """ square lattice prefab with one atom at the origin of the unit cell
+
+        Parameters
+        ----------
+        shape: tuple, optional
+            shape to build lattice, default: (1, 1)
+            if None, the lattice won't be built on initialization
+        name: str, optional
+            name of the atom, default: "A"
+        a: float, optional
+            lattice constant, default: 1
+
+        Returns
+        -------
+        latt: Lattice
+        """
+        latt = cls(np.eye(2) * a)
+        latt.add_atom(name=name)
+        latt.calculate_distances(1)
+        if shape is not None:
+            latt.build(shape)
+        return latt
+
+    @classmethod
+    def cubic_lattice(cls, shape=(1, 1, 1), name="A", a=1):
+        """ cubic lattice prefab with one atom at the origin of the unit cell
+
+        Parameters
+        ----------
+        shape: tuple, optional
+            shape to build lattice, default: (1, 1, 1)
+            if None, the lattice won't be built on initialization
+        name: str, optional
+            name of the atom, default: "A"
+        a: float, optional
+            lattice constant, default: 1
+
+        Returns
+        -------
+        latt: Lattice
+        """
+        latt = cls(np.eye(3) * a)
+        latt.add_atom(name=name)
+        latt.calculate_distances(1)
+        if shape is not None:
+            latt.build(shape)
+        return latt
 
     @property
     def n_base(self):
@@ -83,8 +132,7 @@ class Lattice:
         Raises
         ------
         ValueError:
-            raised if position is allready occupied or
-            number of orbitals doesn*t match others.
+            raised if position is allready occupied.
         """
         if pos is None:
             pos = np.zeros(self.vectors.shape[0])
@@ -369,7 +417,6 @@ class Lattice:
         if idx is None:
             idx = indices[i_site]
 
-        n, alpha = idx[:-1], idx[-1]
         # Get relevant index range to only look for neighbours
         # in proximity of site (larger then highest distance)
         n_dist = len(self.distances)
@@ -497,7 +544,6 @@ class Lattice:
             if delta_x > 0:
                 self.add_slices(delta_x)
                 return
-
         # If none of the above cases hold up, build full lattice
         shape = self.shape
         for i, val in enumerate([x, y, z]):
@@ -573,62 +619,3 @@ class Lattice:
         if show:
             plot.show()
         return plot
-
-
-# =========================================================================
-# 2D lattice prefabs
-# =========================================================================
-
-
-def square_lattice(shape=(1, 1), name="A", a=1.):
-    """ square lattice prefab with one atom at the origin of the unit cell
-
-    Parameters
-    ----------
-    shape: tuple, optional
-        shape to build lattice, default: (1, 1)
-        if None, the lattice won't be built on initialization
-    name: str, optional
-        name of the atom, default: "A"
-    a: float, optional
-        lattice constant, default: 1
-
-    Returns
-    -------
-    latt: Lattice
-    """
-    latt = Lattice(np.eye(2)*a)
-    latt.add_atom(name=name)
-    latt.calculate_distances(1)
-    if shape is not None:
-        latt.build(shape)
-    return latt
-
-# =========================================================================
-# 3D lattice prefabs
-# =========================================================================
-
-
-def cubic_lattice(shape=(1, 1, 1), name="A", a=1):
-    """ cubic lattice prefab with one atom at the origin of the unit cell
-
-    Parameters
-    ----------
-    shape: tuple, optional
-        shape to build lattice, default: (1, 1, 1)
-        if None, the lattice won't be built on initialization
-    name: str, optional
-        name of the atom, default: "A"
-    a: float, optional
-        lattice constant, default: 1
-
-    Returns
-    -------
-    latt: Lattice
-    """
-    latt = Lattice(np.eye(3)*a)
-    latt.add_atom(name=name)
-    latt.calculate_distances(1)
-    if shape is not None:
-        latt.build(shape)
-    return latt

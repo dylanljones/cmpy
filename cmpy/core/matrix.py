@@ -8,8 +8,8 @@ version: 1.0
 """
 import numpy as np
 from scipy import linalg as la
-from scipy import sparse
 from .plotting import MatrixPlot
+from .printing import format_num
 
 
 class Matrix(np.ndarray):
@@ -32,7 +32,7 @@ class Matrix(np.ndarray):
 
         Returns
         -------
-        matrix: matrix
+        matrix: Matrix
         """
         obj = np.asarray(inputarr, dtype).view(cls)
         obj.block_indices = None
@@ -67,10 +67,6 @@ class Matrix(np.ndarray):
         m = n if m is None else m
         return cls(np.zeros((n, m)), dtype)
 
-    @classmethod
-    def eye(cls, n, dtype=None):
-        return cls(np.eye(n), dtype)
-
     def iter_indices(self, skip_diag=False):
         """ index generator of the Matrix
 
@@ -91,6 +87,17 @@ class Matrix(np.ndarray):
                 yield i, j
 
     def insert(self, i, j, array):
+        """ Insert subarray starting at index (i, j)
+
+        Parameters
+        ----------
+        i: int
+            row index to start inserting the subarray
+        j: int
+            collumn index to start inserting the subarray
+        array: array_like
+            subarray to insert into matrix
+        """
         shape = array.shape
         if shape:
             i1, j1 = i + shape[0], j + shape[1]
@@ -99,6 +106,17 @@ class Matrix(np.ndarray):
             self[i, j] = array
 
     def add(self, i, j, array):
+        """ Add subarray starting at index (i, j)
+
+        Parameters
+        ----------
+        i: int
+            row index to start adding the subarray
+        j: int
+            collumn index to start adding the subarray
+        array: array_like
+            subarray to add to matrix
+        """
         shape = array.shape
         if shape:
             i1, j1 = i + shape[0], j + shape[1]
@@ -148,6 +166,22 @@ class Matrix(np.ndarray):
         self.block_size = None
 
     def _get_block_indices(self, i, j):
+        """ Get the indices of block (i, j)
+
+        Parameters
+        ----------
+        i: int
+            row index of block
+        j: int
+            collumn index of block
+
+        Returns
+        -------
+        start: tuple
+            start indices of block
+        stop:
+            end indices of block
+        """
         if self.block_indices is None:
             raise ValueError("Blocks are not configured yet!")
         r0, c0 = self.block_indices[i, j]
@@ -155,12 +189,12 @@ class Matrix(np.ndarray):
         return (r0, c0), (r1, c1)
 
     def get_block(self, i, j):
-        """ np.ndarray: Return block with block index i, j"""
+        """ np.ndarray: Return block with block index (i, j)"""
         (r0, c0), (r1, c1) = self._get_block_indices(i, j)
         return self[r0:r1, c0:c1]
 
     def set_block(self, i, j, array):
-        """ Set block with block index i, j
+        """ Set block with block index (i, j)
 
         Parameters
         ----------
@@ -247,16 +281,20 @@ class Matrix(np.ndarray):
         mp.load(self)
         # Draw block lines
 
-        # if self.block_indices is not None:
-        #     for r in [idx[0] for idx in self.block_indices[1:, 0]]:
-        #         mp.line(row=r, color="0.6")
-        #
-        #     for c in [idx[1] for idx in self.block_indices[0, 1:]]:
-        #         mp.line(col=c, color="0.6")
+        if self.block_indices is not None:
+            for r in [idx[0] for idx in self.block_indices[1:, 0]]:
+                mp.line(row=r, color="0.6")
+
+            for c in [idx[1] for idx in self.block_indices[0, 1:]]:
+                mp.line(col=c, color="0.6")
 
         if show:
             mp.show()
         return mp
+
+    def print_mem(self):
+        """ Print formatted string of memory usage"""
+        print(format_num(self.nbytes, "b", 1024))
 
     def __str__(self):
         x = max([len(str(self[i, j])) for i, j in self.iter_indices()])
@@ -279,6 +317,21 @@ class Matrix(np.ndarray):
 class Hamiltonian(Matrix):
 
     def __new__(cls, inputarr, num_orbitals=1, dtype=None):
+        """ Initialize Hamiltonian for system with multiple sites and orbitals
+
+        Parameters
+        ----------
+        inputarr: array_like
+            Input array for the Hamiltonian
+        num_orbitals: int, optional
+            number of orbitals per site. The default is 1
+        dtype: str or np.dtype, optional
+            Optional datatype of the matrix
+
+        Returns
+        -------
+        matrix: Matrix
+        """
         inputarr = np.asarray(inputarr)
         obj = super().__new__(cls, inputarr, dtype)
         n = inputarr.shape[0]
@@ -295,54 +348,132 @@ class Hamiltonian(Matrix):
 
     @classmethod
     def zeros(cls, n_sites, n_orbitals=1, dtype=None):
+        """ Initialize Hamiltonian filled with zeros for system with multiple sites and orbitals
+
+        Parameters
+        ----------
+        n_sites: int
+            number of rows of the matrix
+        n_orbitals: int, optional
+            number of orbitals per site. The default is 1
+        dtype: str or np.dtype, optional
+            Optional datatype of the matrix
+
+        Returns
+        -------
+        matrix: matrix
+        """
         n = n_sites * n_orbitals
         return cls(np.zeros((n, n)), n_orbitals, dtype)
-
-    @classmethod
-    def eye(cls, n_sites, n_orbitals=1, dtype=None):
-        return cls(np.eye(n_sites * n_orbitals), n_orbitals, dtype)
 
     # ==============================================================================================
 
     @property
     def n(self):
+        """int: size of the hamiltonain-axis 1 and 2"""
         return self.shape[0]
 
     def get(self, i_s, j_s):
+        """ Get hamiltonian energy element (with all orbitals)
+
+        Parameters
+        ----------
+        i_s: int
+            index of first the site
+        j_s: int
+            index of second the site
+        Returns
+        -------
+        energy: array_like
+        """
         i, j = i_s*self.n_orbs, j_s*self.n_orbs
         return self[i:i+self.n_orbs, j:j+self.n_orbs]
 
+    def set(self, i_s, j_s, array):
+        """ Set hamiltonian energy element (with all orbitals)
+
+        Parameters
+        ----------
+        i_s: int
+            index of first the site
+        j_s: int
+            index of second the site
+        array: array_like
+            energy array for all orbitals
+        """
+        i, j = i_s*self.n_orbs, j_s*self.n_orbs
+        self.insert(i, j, array)
+
     def set_energy(self, i, e):
+        """ Set on-site energy of site
+
+        Parameters
+        ----------
+        i: int
+            index of site
+        e: array_like or scalar
+            energy array of site for all orbitals
+        """
         e = np.asarray(e)
         self.set(i, i, e)
 
-    def set_all_energies(self, e):
-        for i in range(self.n_sites):
-            self.set_energy(i, e)
-
     def set_hopping(self, i, j, t):
+        """ Set on-site energy of site
+
+        Parameters
+        ----------
+        i: int
+            index of first site
+        j: int
+            index of second site
+        t: array_like or scalar
+            hopping array between all orbitals of the two sites
+        """
         i, j, = min(i, j), max(i, j)
         t = np.asarray(t)
         self.set(i, j, t)
         self.set(j, i, t.conj().T)
 
-    def set(self, i_s, j_s, array):
-        i, j = i_s*self.n_orbs, j_s*self.n_orbs
-        self.insert(i, j, array)
-
     # ==============================================================================================
 
     def ground_state(self):
+        """ Get the eigenvalue and eigenvector of the ground state
+
+        Returns
+        -------
+        eigval: float
+        eigvec: np.ndarray
+        """
         eigvals, eigvectors = self.eig()
         i = np.argmin(eigvals)
         return eigvals[i], eigvectors[i]
 
     def undressed(self):
+        """ Get the undressed hamiltonian
+
+        Returns
+        -------
+        ham: Hamiltonian
+        """
         ham = self.copy()
-        ham.set_all_energies(np.zeros((self.n_orbs, self.n_orbs)))
+        for i in range(self.n_sites):
+            ham.set_energy(i, np.zeros((self.n_orbs, self.n_orbs)))
         return ham
 
     def greens(self, omega, only_diag=True):
+        """ Calculate the greens function for the hamiltonian
+
+        Parameters
+        ----------
+        omega: complex
+            energy for the greens function
+        only_diag: bool, optional
+            only return diagonal elements of the greens function if True
+
+        Returns
+        -------
+        greens: np.ndarray
+        """
         omega = np.asarray(omega)
         # Calculate eigenvalues and -vectors of hamiltonian
         eigenvalues, eigenvectors = self.eig()
@@ -354,6 +485,17 @@ class Hamiltonian(Matrix):
         return np.einsum(subscript_str, eigenvectors_adj, 1 / arg, eigenvectors)
 
     def dos(self, omegas):
+        """ Calculate the density of states
+
+        Parameters
+        ----------
+        omegas: array_like or scalar
+            energy values to calculate density of states
+
+        Returns
+        -------
+        dos: np.ndarray
+        """
         greens = self.greens(omegas, only_diag=True)
         dos = -1/np.pi * np.sum(greens.imag, axis=1)
         return dos
@@ -361,6 +503,17 @@ class Hamiltonian(Matrix):
     # ==============================================================================================
 
     def show(self, show=True, ticklabels=None, show_blocks=False):
+        """ Plot the Hamiltonian
+
+        Parameters
+        ----------
+        show: bool, optional
+            if True, call plt.show(), default: True
+        ticklabels: array_like, optional
+            Lables of the states of the hamiltonian
+        show_blocks: bool, optional
+            if True, show blocks of the orbitals, default is False
+        """
         mp = super().show(False)
         if show_blocks and self.n_orbs > 1:
             row_idx = [i * self.n_orbs for i in range(1, self.n_sites)]

@@ -20,15 +20,21 @@ DEFAULT_MODE = "lin"
 PROJECT = dirname(dirname(dirname(abspath(__file__))))
 DATA_ROOT = join(PROJECT, "_data")
 
-ROOT = join(DATA_ROOT, "localization2")
-SOC = join(ROOT, "sp3-basis")
-NO_SOC = join(ROOT, "s-basis")
+ROOT = join(DATA_ROOT, "localization3")
+S_PATH = join(ROOT, "s-basis")
+P3_PATH = join(ROOT, "p3-basis")
+SP3_PATH = join(ROOT, "sp3-basis")
 # SOC = join(ROOT, "soc")
 # NO_SOC = join(ROOT, "no soc")
 
+def create_dir(path):
+    if not os.path.isdir(path):
+        os.makedirs(path)
 
-if not os.path.isdir(ROOT):
-    os.makedirs(ROOT)
+
+create_dir(S_PATH)
+create_dir(P3_PATH)
+create_dir(SP3_PATH)
 
 
 class Folder:
@@ -142,14 +148,14 @@ class LT_Data(Data):
             trans = np.mean(trans, axis=1)
         return lengths, trans
 
-    def sort(self, key):
+    def sort_lengths(self, key):
         arr = self[key]
         idx = np.argsort(arr[:, 0])
         self[key] = arr[idx]
 
     def sort_all(self):
         for key in self:
-            self.sort(key)
+            self.sort_lengths(key)
 
     def __str__(self):
         return f"LT-Data({self.info_str()})"

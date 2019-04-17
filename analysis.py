@@ -123,10 +123,19 @@ def plot_wl(soc=None, show=True):
         plot.show()
 
 
+def delete_keys(folder, key):
+    for path in folder.files:
+        data = LT_Data(path)
+        if data.get(key, None) is not None:
+            del data[key]
+        data.save()
+
+
 def main():
-    # plot_all_lt("disord-")
-    # plot_wl(0, False)
-    plot_wl(None)
+    plot_all_lt("disord-")
+    plot_wl(None, False)
+    plot_wl(0, False)
+    plot_wl(1)
 
 
 if __name__ == "__main__":

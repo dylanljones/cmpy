@@ -120,7 +120,7 @@ def rgf(ham, omega):
     e = np.eye(ham.block_size[0]) * omega
     n_blocks = ham.block_shape[0]
 
-    g_nn = greens(ham.get_block(0, 0), omega)
+    g_nn = la.inv(e - ham.get_block(0, 0), overwrite_a=True)
     g_1n = g_nn
     for i in range(1, n_blocks):
         h = ham.get_block(i, i) + ham.get_block(i, i-1) @ g_nn @ ham.get_block(i-1, i)

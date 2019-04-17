@@ -106,8 +106,11 @@ class ConsoleLine:
 
     def __init__(self, header=None, width=None):
         self._header = "" if header is None else header + ": "
-        width = shutil.get_terminal_size((80, 20))[0] - 1 if width is None else width
-        self._width = width
+        self._width = None
+        self.set_width(width)
+
+    def set_width(self, width=None):
+        self._width = shutil.get_terminal_size((80, 20))[0] - 1 if width is None else width
 
     def write(self, txt):
         txt = self._format(txt)
@@ -260,6 +263,7 @@ class Progress(ConsoleLine):
             info += f" {self._txt}"
         info += " [" + self._format_counter(self._i)
         info += ", " + self._format_time(self._i) + "]"
+        self.set_width()
         self.write(info)
 
     def _start(self):

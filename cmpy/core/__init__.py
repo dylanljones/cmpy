@@ -10,6 +10,5 @@ from .utils import *
 from .plotting import *
 from .printing import *
 from .matrix import *
-from .sparse import *
-from .lattice import Lattice, square_lattice, cubic_lattice
+from .lattice import Lattice
 from . import greens

@@ -38,6 +38,14 @@ def get_soc(orb1, orb2, s1, s2):
 class Basis:
 
     def __init__(self, *orbitals, spin=True):
+        """ Initialize the Basis object
+
+        Parameters
+        orbitals: array_like
+            orbital names of the basis
+        spin: bool, optional
+            if True, use two spin channels, default: True
+        """
         if spin:
             orbs = list()
             orbs += [orb + " up" for orb in orbitals]
@@ -46,6 +54,7 @@ class Basis:
             orbs = orbitals
         self.spin = spin
         self.orbs = orbs
+        self.soc = None
 
         n = len(orbs)
         self.n = n
@@ -55,17 +64,49 @@ class Basis:
 
     @property
     def eps(self):
+        """ np.ndarray: on-site energies of all orbitals"""
         return self._eps + self._soc
 
     def find_orbit(self, orb):
+        """ Find indices of orbitals that match query
+
+        Parameters
+        ----------
+        orb: str
+            search string
+
+        Returns
+        -------
+        indices: list
+        """
         return [i for i in range(self.n) if self.orbs[i].startswith(orb)]
 
     def set_energy(self, orb, energy):
+        """ Set on-site energy for a orbital
+
+        Parameters
+        ----------
+        orb: str
+            name of orbital
+        energy: float
+            energy value of orbital
+        """
         for i in range(self.n):
             if self.orbs[i].startswith(orb):
                 self.eps[i, i] = energy
 
     def set_hopping(self, orb1, orb2, hopping):
+        """ Set hopping energy between two orbitals
+
+        Parameters
+        ----------
+        orb1: str
+            name of first orbital
+        orb2: str
+            name of second orbital
+        hopping: float
+            hopping energy between the orbitals
+        """
         indices_i = self.find_orbit(orb1)
         indices_j = self.find_orbit(orb2)
         for i, j in zip(indices_i, indices_j):
@@ -74,6 +115,14 @@ class Basis:
                 self.hop[j, i] = hopping
 
     def set_soc(self, coupling=1.):
+        """ Set the spin-orbit-coupling strength
+
+        Parameters
+        ----------
+        coupling: float
+            coupling strength, default: 1.
+        """
+        self.soc = coupling
         h_soc = Matrix.zeros(self.n, dtype="complex")
         if self.spin is False:
             raise ValueError("SOC requires two different spin-types")
@@ -82,16 +131,6 @@ class Basis:
             orb2, s2 = self.orbs[j].split(" ")
             h_soc[i, j] = get_soc(orb1, orb2, s1, s2)
         self._soc = h_soc * coupling
-
-    def site_string(self, width=None):
-        header = [orb.split(" ")[0] for orb in self.orbs]
-        string = matrix_string(self.eps, width, col_header=header, row_header=header)
-        return string
-
-    def hop_string(self, width=None):
-        header = [orb.split(" ")[0] for orb in self.orbs]
-        string = matrix_string(self.hop, width, col_header=header, row_header=header)
-        return string
 
     def show(self):
         header = list()
@@ -114,6 +153,16 @@ class Basis:
         plot2.ax.set_title("Hopping-hamiltonian")
         plt.show()
 
+    def site_string(self, width=None):
+        header = [orb.split(" ")[0] for orb in self.orbs]
+        string = matrix_string(self.eps, width, col_header=header, row_header=header)
+        return string
+
+    def hop_string(self, width=None):
+        header = [orb.split(" ")[0] for orb in self.orbs]
+        string = matrix_string(self.hop, width, col_header=header, row_header=header)
+        return string
+
     def __str__(self):
         string = "BASE:\n\n"
         string += "Site-hamiltonian:\n" + self.site_string() + "\n\n"
@@ -121,14 +170,46 @@ class Basis:
         return string
 
 
-def s_basis(eps=0, t=1):
+def s_basis(eps=0., t=1.):
+    """ Basis object for a system with s orbitals
+
+    Parameters
+    ----------
+    eps: float, optional
+        on-site energy of s orbital, default: 0.
+    t: float, optional
+        hopping energy between the s orbitals, default: 1.
+
+    Returns
+    -------
+    basis: Basis
+    """
     b = Basis("s", spin=False)
     b.set_energy("s", eps)
     b.set_hopping("s", "s", t)
     return b
 
 
-def p3_basis(eps_p=3, t_sss=-1, t_sps=0.75, t_pps=0.75, t_ppp=-0.25, soc=1):
+def p3_basis(eps_p=3, t_sps=0.75, t_pps=0.75, t_ppp=-0.25, soc=1.):
+    """ Basis object for a system with p_x, p_y, and p_z orbitals
+
+    Parameters
+    ----------
+    eps_p: float, optional
+        on-site energy of p orbital, default: 0.
+    t_sps: float, optional
+        symmetric hopping energy between the s and p orbitals, default: 0.75
+    t_pps: float, optional
+        symmetric hopping energy between the p orbitals, default: 0.75
+    t_ppp: float, optional
+        antisymmetric hopping energy between the p orbitals, default: -0.25
+    soc: float, optional
+        Spin-orbit-coupling strength, default: 1.
+
+    Returns
+    -------
+    basis: Basis
+    """
     b = Basis("p_x", "p_y", "p_z", spin=True)
     # Site energies
     b.set_energy("p", eps_p)
@@ -141,7 +222,30 @@ def p3_basis(eps_p=3, t_sss=-1, t_sps=0.75, t_pps=0.75, t_ppp=-0.25, soc=1):
     return b
 
 
-def sp3_basis(eps_s=0, eps_p=3, t_sss=-1, t_sps=0.75, t_pps=0.75, t_ppp=-0.25, soc=2):
+def sp3_basis(eps_s=0, eps_p=3, t_sss=-1., t_sps=0.75, t_pps=0.75, t_ppp=-0.25, soc=1.):
+    """ Basis object for a system with s, p_x, p_y, and p_z orbitals
+
+    Parameters
+    ----------
+    eps_s: float, optional
+        on-site energy of s orbital, default: 0.
+    eps_p: float, optional
+        on-site energy of p orbital, default: 3.
+    t_sss: float, optional
+        symmetric hopping energy between the s orbitals, default: -1.
+    t_sps: float, optional
+        symmetric hopping energy between the s and p orbitals, default: 0.75
+    t_pps: float, optional
+        symmetric hopping energy between the p orbitals, default: 0.75
+    t_ppp: float, optional
+        antisymmetric hopping energy between the p orbitals, default: -0.25
+    soc: float, optional
+        Spin-orbit-coupling strength, default: 1.
+
+    Returns
+    -------
+    basis: Basis
+    """
     b = Basis("s", "p_x", "p_y", "p_z", spin=True)
     # Site energies
     b.set_energy("s", eps_s)
