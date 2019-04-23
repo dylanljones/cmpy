@@ -33,6 +33,12 @@ class Plot:
     def ylim(self):
         return self.ax.get_ylim()
 
+    def set_scales(self, xscale=None, yscale=None):
+        if xscale is not None:
+            self.ax.set_xscale(xscale)
+        if yscale is not None:
+            self.ax.set_yscale(yscale)
+
     def set_title(self, txt=None):
         if txt:
             self.ax.set_title(txt)

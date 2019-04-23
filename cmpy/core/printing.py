@@ -213,7 +213,7 @@ class Timer:
 
 class Progress(ConsoleLine):
 
-    def __init__(self, iterable=None, total=None, header=None, unit="it", f=10, enabled=True):
+    def __init__(self, iterable=None, total=None, header=None, unit="it", f=5, enabled=True):
         self._enabled = enabled
         super().__init__(header)
         self._iterable = iterable

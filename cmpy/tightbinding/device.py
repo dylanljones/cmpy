@@ -8,7 +8,9 @@ version: 1.0
 """
 import numpy as np
 from scipy import linalg as la
-from cmpy.core import greens, prange, Progress, eta
+import matplotlib.pyplot as plt
+from cmpy.core import greens, eta
+from cmpy.core import prange, Progress, Symbols
 from .basis import sp3_basis, p3_basis
 from .tightbinding import TightBinding
 
@@ -128,7 +130,6 @@ def gamma(sigma_s):
     """
     return 1j * (sigma_s - np.conj(sigma_s).T)
 
-
 # =============================================================================
 # TIGHTBINDING-DEVICE
 # =============================================================================
@@ -208,7 +209,8 @@ class TbDevice(TightBinding):
         return cls.square(shape, basis=basis, name=name, a=a, wideband=wideband)
 
     @classmethod
-    def square_p3(cls, shape=(2, 1), basis=p3_basis(), name="A", a=1., wideband=False):
+    def square_p3(cls, shape=(2, 1), eps_p=0., t_pps=1., t_ppp=1., soc=0.,
+                  name="A", a=1., wideband=False):
         """ square device prefab with one atom at the origin of the unit cell with s and p orbitals
 
         Parameters
@@ -229,6 +231,7 @@ class TbDevice(TightBinding):
         -------
         latt: Lattice
         """
+        basis = p3_basis(eps_p, t_pps=t_pps, t_ppp=t_ppp, soc=soc)
         return cls.square(shape, basis=basis, name=name, a=a, wideband=wideband)
 
     @property
@@ -278,6 +281,38 @@ class TbDevice(TightBinding):
         """
         self.w_eps = w_eps
 
+    def clear_cache(self):
+        """Clear all cached objects"""
+        super().clear_cache()
+        self._cached_omega = None
+        self._cached_sigmas = None
+        self._cached_gammas = None
+
+    def reshape(self, x=None, y=None, z=None):
+        """ Reshape lattice of the device and reload leads
+
+        Parameters
+        ----------
+        x: int, optional
+            new size in x-direction
+        y: int, optional
+            new size in y-direction
+        z: int, optional
+            new size in z-direction
+        """
+        super().reshape(x, y, z)
+        self.load_lead(self.wideband)
+        if (y is not None) or (z is not None):
+            self._cached_omega = None
+            self._cached_sigmas = None
+            self._cached_gammas = None
+
+    def show(self):
+        """ Plot the lattice of the device"""
+        self.lattice.show()
+
+    # =========================================================================
+
     def prepare(self, omega=eta):
         """ Calculate the lead self energy and broadening matrix of the device
 
@@ -311,39 +346,7 @@ class TbDevice(TightBinding):
 
         return self._cached_sigmas, self._cached_gammas
 
-    def clear_cache(self):
-        """Clear all cached objects"""
-        super().clear_cache()
-        self._cached_omega = None
-        self._cached_sigmas = None
-        self._cached_gammas = None
-
-    def reshape(self, x=None, y=None, z=None):
-        """ Reshape lattice of the device and reload leads
-
-        Parameters
-        ----------
-        x: int, optional
-            new size in x-direction
-        y: int, optional
-            new size in y-direction
-        z: int, optional
-            new size in z-direction
-        """
-        super().reshape(x, y, z)
-        self.load_lead(self.wideband)
-        if (y is not None) or (z is not None):
-            self._cached_omega = None
-            self._cached_sigmas = None
-            self._cached_gammas = None
-
-    def show(self):
-        """ Plot the lattice of the device"""
-        self.lattice.show()
-
-    # =========================================================================
-
-    def transmission(self, omega=eta, sigmas=None, gammas=None, rec_thresh=500, compressed=True):
+    def transmission(self, omega=eta, sigmas=None, gammas=None, rec_thresh=500):
         """ Calculate the transmission of the tight binding device
 
         If the size of the full hamiltonian is smaller then the given threshold
@@ -373,54 +376,54 @@ class TbDevice(TightBinding):
         # Calculate self energy and broadening matrix of the leads
         if sigmas is None:
             sigmas, gammas = self.prepare(omega)
-
         blocksize = self.slice_elements
 
-        # =============================
+        # =================
         # Use RGF-algorithm
-        # =============================
+        # =================
         if self.n_elements > rec_thresh:
-            # If compressed, build up slice-hamiltonian for each iteration
-            # of the RGF-Algorithm.
-            if compressed:
-                # Calculate lower left corner of greens function (rgf)
-                n_blocks = self.lattice.shape[0]
-                h_hop = self.slice_hopping()
+            # Calculate lower left corner of greens function (rgf)
+            n_blocks = self.lattice.shape[0]
+            h_hop = self.slice_hopping()
+            h_hop_adj = np.conj(h_hop).T
+            e = np.eye(blocksize) * omega
 
-                e = np.eye(blocksize) * omega
-                # Calculate gf block using left interface of the hamiltonain with self energy added
-                g_nn = la.inv(e - (self.slice_hamiltonian(self.w_eps) + sigmas[0]), overwrite_a=True)
-                g_1n = g_nn
+            # Calculate gf block using left interface of the hamiltonain with self energy added
+            h_eff = self.slice_hamiltonian(self.w_eps) + sigmas[0]
+            g_nn = la.inv(e - h_eff, overwrite_a=True, check_finite=False)
+            g_1n = g_nn
 
-                # Calculate gf block using bulk blocks of the hamiltonain
-                for i in range(1, n_blocks-1):
-                    h = self.slice_hamiltonian(self.w_eps) + h_hop @ g_nn @ np.conj(h_hop).T
-                    g_nn = la.inv(e - h, overwrite_a=True)
-                    g_1n = g_1n @ h_hop @ g_nn
+            # Calculate gf block using bulk blocks of the hamiltonain
+            for i in range(1, n_blocks-1):
+                h_eff = self.slice_hamiltonian(self.w_eps) + h_hop @ g_nn @ h_hop_adj
+                g_nn = la.inv(e - h_eff, overwrite_a=True, check_finite=False)
+                g_1n = g_1n @ h_hop_adj @ g_nn
 
-                # Calculate gf block using right interface of the hamiltonain with self energy added
-                h = self.slice_hamiltonian(self.w_eps) + sigmas[1] + h_hop @ g_nn @ np.conj(h_hop).T
-                g_nn = la.inv(e - h, overwrite_a=True)
-                g_1n = g_1n @ h_hop @ g_nn
+            # Calculate gf block using right interface of the hamiltonain with self energy added
+            h_eff = self.slice_hamiltonian(self.w_eps) + sigmas[1] + h_hop @ g_nn @ h_hop_adj
+            g_nn = la.inv(e - h_eff, overwrite_a=True, check_finite=False)
+            g_1n = g_1n @ h_hop_adj @ g_nn
 
-            # Otherwise, use blocks of full hamiltonian.
-            else:
-                ham = self.hamiltonian(self.w_eps)
-                n = ham.n
-                # Add self energy at the corners (interface) of the hamiltonian
-                ham.add(0, 0, sigmas[0])
-                i = n - self.slice_elements
-                ham.add(i, i, sigmas[1])
+            # Slower algorithm using blocks of full hamiltonian.
+            # This is very memory-inefficient for large systems.
+            # =================================================
 
-                # Check if hamiltonian-blocks are configured right
-                if ham.block_size is None or ham.block_shape[0] != int(n / blocksize):
-                    ham.config_blocks(blocksize)
-                # Use recursive greens-function algorithm to calculate lower left block of gf
-                g_1n = greens.rgf(ham, omega)
+            # ham = self.hamiltonian(self.w_eps)
+            # n = ham.n
+            # # Add self energy at the corners (interface) of the hamiltonian
+            # ham.add(0, 0, sigmas[0])
+            # i = n - self.slice_elements
+            # ham.add(i, i, sigmas[1])
+            #
+            # # Check if hamiltonian-blocks are configured right
+            # if ham.block_size is None or ham.block_shape[0] != int(n / blocksize):
+            #     ham.config_blocks(blocksize)
+            # # Use recursive greens-function algorithm to calculate lower left block of gf
+            # g_1n = greens.rgf(ham, omega)
 
-        # =============================
+        # ====================
         # Use full Hamiltonian
-        # =============================
+        # ====================
         else:
             ham = self.hamiltonian(self.w_eps)
             n = self.n_elements
@@ -536,7 +539,7 @@ class TbDevice(TightBinding):
         return np.mean(trans, axis=1) if flatten else trans
 
     def normal_transmission(self, omega=eta):
-        """ calculate noprmal transmission of the device without any disorder
+        """ calculate normal transmission of the device without any disorder
 
         Parameters
         ----------
@@ -550,16 +553,40 @@ class TbDevice(TightBinding):
         # Store device configuration
         length = self.lattice.shape[0]
         w = self.w_eps
-
         # Set shortest model with no disorder
         self.reshape(5)
         self.set_disorder(0)
-
         # Calculate transmission
         t = self.transmission(omega)
-
         # Reset device configuration
         self.reshape(length)
         self.set_disorder(w)
 
         return t
+
+    def plot_transmission_hist(self, omega=eta, n=1000, show=True):
+        """ Plot the histogram of the transmission for the disordered system
+
+        Parameters
+        ----------
+        omega: float, optional
+            Energy of the system, default is zero (plus broadening)
+        n: int, optional
+            Number of sample points, default: 1000
+        show: bool, optional
+            If True, show plot. The default is True
+        """
+        if self.w_eps == 0:
+            raise ValueError("Histogram can't be computed: No Disorder set")
+
+        trans = self.mean_transmission(omega=omega, n=n, flatten=False)
+        mean = np.mean(trans)
+        std = np.std(trans)
+        print(f"<T>={mean:.5}, {Symbols.Delta}T={std:.5}")
+
+        fig, ax = plt.subplots()
+        ax.set_xscale("log")
+        bins = np.geomspace(min(trans), 1, 100)
+        ax.hist(trans, bins=bins)
+        if show:
+            plt.show()

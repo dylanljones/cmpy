@@ -22,12 +22,13 @@ DEFAULT_MODE = "lin"
 PROJECT = dirname(dirname(dirname(abspath(__file__))))
 DATA_ROOT = join(PROJECT, "_data")
 
-ROOT = join(DATA_ROOT, "localization3")
+ROOT = join(DATA_ROOT, "localization")
 S_PATH = join(ROOT, "s-basis")
 P3_PATH = join(ROOT, "p3-basis")
 SP3_PATH = join(ROOT, "sp3-basis")
 # SOC = join(ROOT, "soc")
 # NO_SOC = join(ROOT, "no soc")
+
 
 def create_dir(path):
     if not os.path.isdir(path):

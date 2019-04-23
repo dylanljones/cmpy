@@ -281,12 +281,12 @@ class Matrix(np.ndarray):
         mp.load(self)
         # Draw block lines
 
-        if self.block_indices is not None:
-            for r in [idx[0] for idx in self.block_indices[1:, 0]]:
-                mp.line(row=r, color="0.6")
-
-            for c in [idx[1] for idx in self.block_indices[0, 1:]]:
-                mp.line(col=c, color="0.6")
+        # if self.block_indices is not None:
+        #     for r in [idx[0] for idx in self.block_indices[1:, 0]]:
+        #         mp.line(row=r, color="0.6")
+        #
+        #     for c in [idx[1] for idx in self.block_indices[0, 1:]]:
+        #         mp.line(col=c, color="0.6")
 
         if show:
             mp.show()
@@ -515,15 +515,15 @@ class Hamiltonian(Matrix):
             if True, show blocks of the orbitals, default is False
         """
         mp = super().show(False)
-        if show_blocks and self.n_orbs > 1:
-            row_idx = [i * self.n_orbs for i in range(1, self.n_sites)]
-            col_idx = [i * self.n_orbs for i in range(1, self.n_sites)]
-            for r in row_idx:
-                mp.line(row=r, color="0.6")
-            for c in col_idx:
-                mp.line(col=c, color="0.6")
-        if ticklabels is not None:
-            mp.set_ticklabels(ticklabels, ticklabels)
+        # if show_blocks and self.n_orbs > 1:
+        #     row_idx = [i * self.n_orbs for i in range(1, self.n_sites)]
+        #     col_idx = [i * self.n_orbs for i in range(1, self.n_sites)]
+        #     for r in row_idx:
+        #         mp.line(row=r, color="0.6")
+        #     for c in col_idx:
+        #         mp.line(col=c, color="0.6")
+        # if ticklabels is not None:
+        #     mp.set_ticklabels(ticklabels, ticklabels)
         if show:
             mp.show()
         return mp

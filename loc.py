@@ -51,7 +51,7 @@ def calculate_width_lt(basis, heights, w, lengths=None, e=0, n_avrg=250):
         elif basis.n == 8:
             data = LT_Data(os.path.join(SP3_PATH, fn))
 
-    header = f"Calculating L-T-Dataset (e={e}, w={w}, soc={basis.soc})"
+    header = f"Calculating L-T-Dataset (e={e}, w={w}, soc={basis.soc}, n={n_avrg})"
     print_header(header)
     n = len(heights)
     for i in range(n):
@@ -85,7 +85,7 @@ def calculate_disorder_lt(basis, w_values, h, lengths=None, e=0, n_avrg=250):
             data = LT_Data(os.path.join(SP3_PATH, fn))
 
     # calculate dataset
-    header = f"Calculating L-T-Dataset (e={e}, h={h}, soc={basis.soc})"
+    header = f"Calculating L-T-Dataset (e={e}, h={h}, soc={basis.soc}, n={n_avrg})"
     print_header(header)
     model = TbDevice.square((2, h), basis.eps, basis.hop)
 
@@ -101,7 +101,8 @@ def calculate_disorder_lt(basis, w_values, h, lengths=None, e=0, n_avrg=250):
         arr = calculate_lt(model, sys_lengths, w, n_avrg, omega, existing=existing)
         data.update({key: arr})
         data.save()
-        print()
+        #print()
+    print()
     return data
 
 
@@ -163,17 +164,20 @@ def update_all_lengths(root, l_offset):
 
 
 def main():
+    soc = 1
+
     # basis = s_basis()
-    basis = p3_basis(soc=0)
+    basis = p3_basis(eps_p=0, t_pps=1, t_ppp=1, soc=soc)
     # basis = sp3_basis(soc=0)
 
-    w_values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    heights = [1, 8, 16, 32]# [1, 2, 4, 6]
+    w_values = [0.5, 1.5]# [1, 2, 3, 4, 5, 6, 7, 8]
+    heights = [1, 4, 8] # [1, 2, 4, 6]
     # update_all_lengths(S_PATH, 10)
 
     #for h in heights:
     #    calculate_disorder_lt(basis, w_values, h, n_avrg=500)
-    mean_batched(basis, w_values, heights, n_avrg=2000, n_batch=100)
+    mean_batched(basis, w_values, heights, n_avrg=3000, n_batch=1000)
+
 
 if __name__ == "__main__":
     main()

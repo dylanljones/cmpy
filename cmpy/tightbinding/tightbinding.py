@@ -8,8 +8,32 @@ version: 1.0
 """
 import numpy as np
 from cmpy.core import Lattice, Hamiltonian
-from cmpy.core import distance, shuffle, chain, vlinspace
+from cmpy.core import distance, chain, vlinspace
 from cmpy.core import Progress
+
+
+def shuffle(obj, disorder):
+    """ Shuffle elements of object
+
+    Parameters
+    ----------
+    obj: array_like or int
+        object to shuffle
+    disorder: float
+        disorder amount
+
+    Returns
+    -------
+    shuffled: array_like
+    """
+    if len(obj.shape) == 0:
+        return obj + np.random.uniform(-disorder, +disorder)
+    else:
+        shuffled = obj.copy()
+        delta = np.random.uniform(-disorder, +disorder)
+        for i in range(shuffled.shape[0]):
+            shuffled[i, i] += delta
+        return shuffled
 
 
 class TightBinding:
@@ -23,6 +47,7 @@ class TightBinding:
         # Cached hamiltonian objects for more performance
         self._cached_ham = None
         self._cached_slice = None
+        self._cached_slice_energies = None
         self._cached_hop = None
 
     @property
@@ -132,11 +157,18 @@ class TightBinding:
         _, alpha = self.lattice.get(i)
         return self.energies[alpha]
 
+    def clear_slice_cache(self):
+        self._cached_slice = None
+        self._cached_slice_energies = None
+        self._cached_hop = None
+
+    def clear_ham_cache(self):
+        self._cached_ham = None
+
     def clear_cache(self):
         """Clear cached hamiltonian objects"""
-        self._cached_ham = None
-        self._cached_slice = None
-        self._cached_hop = None
+        self.clear_ham_cache()
+        self.clear_slice_cache()
 
     def build(self, shape=None):
         """ Build model
@@ -164,8 +196,7 @@ class TightBinding:
         self._cached_ham = None
         self.lattice.reshape(x, y, z)
         if (y is not None) or (z is not None):
-            self._cached_slice = None
-            self._cached_hop = None
+            self.clear_slice_cache()
 
     def dispersion(self, k):
         """ Calculate dispersion of the model in k-space
@@ -257,11 +288,16 @@ class TightBinding:
         """
         n = self.lattice.slice_sites
         ham = Hamiltonian.zeros(n, self.n_orbs, "complex")
+
+        slice_energies = list()
+
         for i in range(n):
             _, alpha = self.lattice.get(i)
             # Site energies
             eps = self.energies[alpha]
+            slice_energies.append(eps)
             ham.set_energy(i, eps)
+
             # Hopping energies
             neighbours = self.lattice.neighbours[i]
             for dist in range(len(neighbours)):
@@ -272,7 +308,9 @@ class TightBinding:
                         ham.set_hopping(i, j, t)
                     except ValueError:
                         pass
-        return ham
+
+        self._cached_slice_energies = slice_energies
+        self._cached_slice = ham
 
     def slice_hamiltonian(self, w_eps=0.):
         """ Get the slice hamiltonian of the model and add disorder
@@ -291,15 +329,16 @@ class TightBinding:
         ham: Hamiltonian
         """
         if self._cached_slice is None:
-            self._cached_slice = self._init_slice_hamiltonian()
+            self._init_slice_hamiltonian()
         ham = self._cached_slice
-        if w_eps:
-            n = self.lattice.slice_sites
-            for i in range(n):
-                _, alpha = self.lattice.get(i)
-                # Site energies
-                eps = shuffle(self.energies[alpha], w_eps)
-                ham.set_energy(i, eps)
+
+        n = self.lattice.slice_sites
+        for i in range(n):
+            eps = self._cached_slice_energies[i]
+            if w_eps != 0:
+                eps = shuffle(eps, w_eps)
+            ham.set_energy(i, eps)
+
         return ham
 
     def _init_hop_hamiltonian(self):
@@ -369,7 +408,7 @@ class TightBinding:
                         ham.set_hopping(i, j, t)
         if blocksize is not None:
             ham.config_blocks(blocksize)
-        return ham
+        self._cached_ham = ham
 
     def hamiltonian(self, w_eps=0., blocksize=None):
         """ Get the full hamiltonian of the model and add disorder
@@ -388,15 +427,22 @@ class TightBinding:
         ham: Hamiltonian
         """
         if self._cached_ham is None:
-            self._cached_ham = self._init_hamiltonian(blocksize)
+            self._init_hamiltonian(blocksize)
         else:
+            # Reset interface elements
             h_interface = self.slice_hamiltonian()
             self._cached_ham.config_blocks(self.slice_elements)
             n = self._cached_ham.block_shape[0] - 1
             self._cached_ham.set_block(0, 0, h_interface)
             self._cached_ham.set_block(n, n, h_interface)
-
         ham = self._cached_ham
+
+        # Add disorder to hamiltonian
+
+        # if w_eps:
+        #     delta = np.eye(ham.shape[0]) * np.random.uniform(-w_eps, w_eps)
+        #     ham = ham + delta
+
         n = self.lattice.n
         if w_eps:
             for i in range(n):

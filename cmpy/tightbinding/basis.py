@@ -58,13 +58,14 @@ class Basis:
 
         n = len(orbs)
         self.n = n
-        self._eps = Matrix.zeros(n, dtype="complex")
-        self._soc = Matrix.zeros(n, dtype="complex")
-        self.hop = Matrix.zeros(n, dtype="complex")
+        self._eps = np.zeros((n, n), dtype="complex")
+        self._soc = np.zeros((n, n), dtype="complex")
+        self.hop = np.zeros((n, n), dtype="complex")
 
     @property
     def eps(self):
         """ np.ndarray: on-site energies of all orbitals"""
+        # print(self._soc)
         return self._eps + self._soc
 
     def find_orbit(self, orb):
@@ -93,7 +94,7 @@ class Basis:
         """
         for i in range(self.n):
             if self.orbs[i].startswith(orb):
-                self.eps[i, i] = energy
+                self._eps[i, i] = energy
 
     def set_hopping(self, orb1, orb2, hopping):
         """ Set hopping energy between two orbitals
@@ -122,14 +123,16 @@ class Basis:
         coupling: float
             coupling strength, default: 1.
         """
+        n = self.n
         self.soc = coupling
-        h_soc = Matrix.zeros(self.n, dtype="complex")
+        h_soc = np.zeros((n, n), dtype="complex")
         if self.spin is False:
             raise ValueError("SOC requires two different spin-types")
-        for i, j in self.eps.iter_indices():
-            orb1, s1 = self.orbs[i].split(" ")
-            orb2, s2 = self.orbs[j].split(" ")
-            h_soc[i, j] = get_soc(orb1, orb2, s1, s2)
+        for i in range(n):
+            for j in range(n):
+                orb1, s1 = self.orbs[i].split(" ")
+                orb2, s2 = self.orbs[j].split(" ")
+                h_soc[i, j] = get_soc(orb1, orb2, s1, s2)
         self._soc = h_soc * coupling
 
     def show(self):
@@ -142,12 +145,14 @@ class Basis:
                 elif s == "down":
                     orb += r"\downarrow"
             header.append(f"${orb}$")
-
-        plot1 = self.eps.show(False)
+        eps = Matrix(self.eps)
+        plot1 = eps.show(False)
         plot1.ax.set_title("Site-hamiltonian")
         plot1.set_ticklabels(header, header)
         plot1.fig.tight_layout()
-        plot2 = self.hop.show(False)
+
+        hop = Matrix(self.hop)
+        plot2 = hop.show(False)
         plot2.fig.tight_layout()
         plot2.set_ticklabels(header, header)
         plot2.ax.set_title("Hopping-hamiltonian")
@@ -190,7 +195,7 @@ def s_basis(eps=0., t=1.):
     return b
 
 
-def p3_basis(eps_p=3, t_sps=0.75, t_pps=0.75, t_ppp=-0.25, soc=1.):
+def p3_basis(eps_p=3, t_pps=0.75, t_ppp=-0.25, soc=1.):
     """ Basis object for a system with p_x, p_y, and p_z orbitals
 
     Parameters

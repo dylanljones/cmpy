@@ -98,8 +98,12 @@ def loclen_plotter(ax, data, log=False):
         ll, err = loc_length(l, np.log10(t), [1, 1], n_f)
         loclen.append(ll)
         errs.append(err)
-    loclen = np.array(loclen) / height
-    errs = np.array(errs) / height
+
+    idx = np.argsort(disorder)
+    disorder = np.array(disorder)[idx]
+    loclen = np.array(loclen)[idx] / height
+    errs = np.array(errs)[idx] / height
+
     if log:
         loclen = np.log10(loclen)
         errs = np.log10(errs)
@@ -119,13 +123,19 @@ def plot_wl(path, soc=None, show=True):
     plot.set_labels("$w$", r"$\xi / M$")
     for i, path in enumerate(paths):
         data = LT_Data(path)
-        loclen_plotter(plot.ax, data)
+        data.sort_all()
+        data.save()
+        try:
+            loclen_plotter(plot.ax, data)
+        except:
+            pass
     plot.legend()
     if show:
         plot.show()
 
 
-def delete_keys(folder, key):
+def delete_keys(path, key):
+    folder = Folder(path)
     for path in folder.files:
         data = LT_Data(path)
         if data.get(key, None) is not None:
@@ -150,14 +160,28 @@ def plot_data(path):
         plt.show()
 
 
+def plot_trans(path):
+    data = LT_Data(path)
+    print(data.info_str())
+    plot = Plot()
+    for k in data:
+        l, t = data.get_set(k, mean=True)
+        t = np.log10(t)
+        plot.plot(l, t, label=k)
+    plt.legend()
+    plt.show()
+
 
 def main():
-    #plot_data(P3_PATH)
-    #plot_all_lt("disord-")
+    # plot_trans(os.path.join(P3_PATH, f"disord-e=0-h=4-soc=2.npz"))
+    # delete_keys(P3_PATH, "w=1.5")
+    # plot_data(P3_PATH)
+    # plot_all_lt("disord-")
 
     plot_wl(S_PATH, None, False)
     # plot_wl(P3_PATH, 0, False)
-    # plot_wl(P3_PATH, 1, False)
+    plot_wl(P3_PATH, 1, False)
+    plot_wl(P3_PATH, 2, False)
     # plot_wl(SP3_PATH, 0, False)
     # plot_wl(SP3_PATH, 1, False)
 
