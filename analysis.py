@@ -6,6 +6,7 @@ Created on 3 Mar 2018
 project: tightbinding
 version: 1.0
 """
+import re
 import matplotlib.pyplot as plt
 from cmpy import Plot
 from cmpy.tightbinding.loclength import *
@@ -112,6 +113,13 @@ def loclen_plotter(ax, data, log=False):
     ax.semilogy(disorder, loclen, label=f"$M={height}$")
 
 
+def sort_paths(paths, query="h="):
+    heights = [int(re.search(query + "(\d+)", p).group(1)) for p in paths]
+    idx = np.argsort(heights)
+    return [paths[i] for i in idx]
+
+
+
 def plot_wl(path, soc=None, show=True):
     f = Folder(path)
     plot = Plot()
@@ -121,6 +129,8 @@ def plot_wl(path, soc=None, show=True):
         paths = f.find("disord-", f"soc={soc}")
         plot.set_title(r"$\lambda_{SOC}=$" + f"${soc}$")
     plot.set_labels("$w$", r"$\xi / M$")
+    paths = sort_paths(paths)
+
     for i, path in enumerate(paths):
         data = LT_Data(path)
         data.sort_all()
