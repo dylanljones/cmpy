@@ -20,7 +20,12 @@ import numpy as np
 class Symbols:
 
     pm = "\u00B1"
+
     Delta = "\u0394"
+    Lambda = "\u039B"
+
+    delta = "\u03B4"
+    lamb = "\u03BB"
     xi = "\u03BE"
 
 

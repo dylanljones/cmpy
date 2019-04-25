@@ -9,7 +9,7 @@ import os
 from os.path import abspath, dirname, join
 import numpy as np
 from scipy.optimize import curve_fit
-from ..core import eta, Progress
+from ..core import eta, Progress, ConsoleLine, Symbols, DATA_DIR
 from .basis import s_basis, p3_basis, sp3_basis
 from .device import TbDevice
 
@@ -19,15 +19,10 @@ DEFAULT_MODE = "lin"
 # DATA
 # =============================================================================
 
-PROJECT = dirname(dirname(dirname(abspath(__file__))))
-DATA_ROOT = join(PROJECT, "_data")
-
-ROOT = join(DATA_ROOT, "localization")
+ROOT = join(DATA_DIR, "localization")
 S_PATH = join(ROOT, "s-basis")
 P3_PATH = join(ROOT, "p3-basis")
 SP3_PATH = join(ROOT, "sp3-basis")
-# SOC = join(ROOT, "soc")
-# NO_SOC = join(ROOT, "no soc")
 
 
 def create_dir(path):
@@ -267,23 +262,25 @@ def estimate(model, e, w, lmin=100, lmax=1000, n=40, fitmin=5, fitmax=10, scale=
     omega = e + eta
     lengths = lengtharray(lmin, lmax, n, scale)
     trans = np.zeros(n)
-    loclen, err = 0, 0
+    loclen, err, relerr = 0, 0, 0
     estimation = 0
     length = 0
     model.set_disorder(w)
     sigmas, gammas = model.prepare(omega)
-    with Progress(total=n*n_avrg, header="Estimating") as p:
+    with ConsoleLine(header=f"Estimating") as out:
         for i in range(n):
             length = lengths[i]
-            info = f"L={length}, Lambda={loclen:.1f}, Err={err:.2f}"
-            p.set_description(info)
+            info = f"L={length}, Loclen={loclen:.2f}, Err={relerr:.2f}"
+
 
             # Calculate mean transmission
             model.reshape(length)
 
             t = np.zeros(n_avrg)
             for j in range(n_avrg):
-                p.update()
+                #p.update()
+                p = f"({i+1}/{n}) {100 * j / n_avrg:5.1f}% "
+                out.write(p + info)
                 t[j] = model.transmission(omega, sigmas=sigmas, gammas=gammas)
             trans[i] = np.log10(np.mean(t))
 
@@ -292,24 +289,25 @@ def estimate(model, e, w, lmin=100, lmax=1000, n=40, fitmin=5, fitmax=10, scale=
                 try:
                     loclen, err = loc_length(lengths[:i], trans[:i], n_fit=fitmax)
                     loclen = abs(loclen)
-                    err = abs(err) / loclen
-                    if err <= 0.2:
+                    relerr = abs(err) / loclen
+                    if relerr <= 0.2:
                         estimation = loclen
                         break
-                    if err <= 1 and 2 * loclen < length:
+                    if relerr <= 1 and 2 * loclen < length:
                         estimation = lmin
                         break
                 except Exception as e:
                     print(e)
-                    loclen, err = 0, 0
-        p.set_description(f"L={length}, Lambda={loclen:.1f}, Err={err:.2f}")
+                    loclen, err, relerr = 0, 0, 0
+
+        out.write(f"({i+1}/{n}) L={length}, Loclen={loclen:.2f}, Err={relerr:.2f}")
 
     return int(estimation)
 
 
 def get_lengths(model, e, w, lmin=100, lmax=1000, n_points=20, step=5, n_avrg=200):
     loclen_est = estimate(model, e, w, lmin, lmax, n_avrg=n_avrg)
-    l0 = int(max(loclen_est, 100))
+    l0 = int(max(loclen_est, lmin))
     l1 = l0 + n_points * step
     lengths = np.arange(l0, l1, step)
     return lengths

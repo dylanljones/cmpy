@@ -7,8 +7,9 @@ project: cmpy
 version: 1.0
 """
 from .utils import *
-from .plotting import *
-from .printing import *
 from .matrix import *
 from .lattice import Lattice
 from . import greens
+from .plotting import *
+from .printing import *
+from .data_manager import *
