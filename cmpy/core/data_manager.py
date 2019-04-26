@@ -36,3 +36,13 @@ def list_dirs(root):
         if os.path.isdir(path):
             results.append(path)
     return results
+
+
+def dict_to_str(dictionary):
+    return [f"{key}={val}" for key, val in dictionary.items()]
+
+
+def get_path(root, **info):
+    strings = dict_to_str(info)
+    path = os.path.join(root, *strings)
+    print(path)

@@ -15,7 +15,20 @@ from cmpy.tightbinding import *
 from cmpy.tightbinding.basis import *
 
 TEST_DIR = os.path.join(DATA_DIR, "Tests")
-create_dir(TEST_DIR)
+TEST_LOC = os.path.join(TEST_DIR, "Localization")
+create_dir(TEST_LOC)
+
+
+def calculate_test_data(soc_values, heights, w_values, n_avrg=100):
+    for soc in soc_values:
+        for h in heights:
+            # Init path and model-config
+            dirpath = os.path.join(TEST_LOC, "p3-basis", f"soc={soc}")
+            create_dir(dirpath)
+            path = os.path.join(dirpath, f"test-h={h}-soc={soc}.npz")
+            basis = p3_basis(eps_p=0, t_pps=1, t_ppp=1, soc=soc)
+            # calculate
+            disorder_lt(path, basis, h, w_values, n_avrg=n_avrg)
 
 
 def sort_files():
@@ -32,37 +45,24 @@ def sort_files():
             shutil.copyfile(path, new_path)
 
 
-
-def test_logarithmic(w_values, h, soc, n_avrg=100):
-    model = TbDevice.square_p3((200, h), soc=soc)
-    #lengths = np.arange(100, 201, 10)
-    root = os.path.join(TEST_DIR,  "Localization", "p3-basis", f"soc={soc}")
-    create_dir(root)
-    path = os.path.join(root, f"test-h={h}-soc={soc}.npz")
-    data = LT_Data(path)
-    for w in w_values:
-        model.set_disorder(w)
-
-        lengths = get_lengths(model, eta, w, lmin=50)
-        trans = model.transmission_loss(lengths, n_avrg=n_avrg)
-        arr = np.zeros((len(lengths), n_avrg+1))
-        arr[:, 0] = lengths
-        arr[:, 1:] = trans
-        data.update({f"w={w}": arr})
-        data.save()
-
-
-def create_test_data(heights, soc):
-    w = 1, 2, 4, 8, 16
-    for h in heights:
-        print(f"h={h}")
-        test_logarithmic(w, h, soc)
-
-
 def sort_paths(paths, query="h="):
     heights = [int(re.search(query + "(\d+)", p).group(1)) for p in paths]
     idx = np.argsort(heights)
     return [paths[i] for i in idx]
+
+
+def sort_keys(data):
+    keys, values = list(), list()
+    for k, v in data.items():
+        keys.append(k)
+        values.append(v)
+    key_vals = [data.key_value(k) for k in keys]
+    idx = np.argsort(key_vals)
+    data.clear()
+    for i in idx:
+        data.update({keys[i]: values[i]})
+    data.save()
+
 
 def search_string_value(string, header):
     return re.search(header + "(\d+)", string).group(1)
@@ -78,7 +78,7 @@ def show_loclen(*socs):
         data_list = list()
         for path in list_files(dirpath):
             data = LT_Data(path)
-
+            sort_keys(data)
             h = data.info()["h"]
             w, ll = list(), list()
             for k in data:
@@ -90,21 +90,61 @@ def show_loclen(*socs):
         plot = Plot()
         plot.set_title(dirname)
         for h, w, ll in sorted(data_list, key=lambda x: x[0]):
-            plot.plot(w, np.log10(ll), label=f"M={h}")
+            plot.plot(w, ll, label=f"M={h}")
         plot.legend()
     plot.show()
 
 
 
+def conductance(t):
+    return t / (1 - t)
+
+
+def resistance(g):
+    return 1 + 1/g
+
+
+def beta_func(g):
+    return -(1 + g) * np.log(resistance(g))
+
+
+def beta_strong(g, g0):
+    return np.log(g / g0)
+
+
+def plot_scaling():
+    model = TbDevice.square((2, 1))
+    model.set_disorder(0.5)
+    lengths = np.arange(2, 200, 5)
+
+    t0 = model.normal_transmission()
+    g0 = conductance(t0)
+
+    t = model.transmission_loss(lengths, n_avrg=200, flatten=True)
+    g = conductance(t)
+
+
+    plot = Plot()
+    plot.lines(x=0, y=0, color="0.5", lw=0.5)
+    plot.set_limits(xlim=(-4, 4), ylim=(-4, 1))
+    x = np.log(g)
+    idx = np.argsort(x)
+    plot.ax.plot(x[idx], beta_func(g)[idx])
+    plot.ax.plot(g, beta_strong(g, g0))
+    plot.show()
 
 
 
 def main():
-    model = TbDevice.square_p3((200, 1), eps_p=0, soc=1)
+    #plot_scaling()
+    #return
+    soc_values = 1, 2, 3, 4, 5, 10
+    heights = [1, 4, 8, 16]
+    w_values = [1, 2, 3, 4, 6, 8, 12, 16]
 
-    #create_test_data([1, 4, 8, 16], 3)
-    #create_test_data([1, 4, 8, 16], 4)
-    show_loclen(1, 2, 3)
+    #calculate_test_data(soc_values, heights, w_values)
+
+    show_loclen()
 
 
 

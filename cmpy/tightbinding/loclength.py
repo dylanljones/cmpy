@@ -111,11 +111,6 @@ class LT_Data(Data):
     def __init__(self, path):
         super().__init__(path)
 
-    @classmethod
-    def new(cls, root, energy, disorder, height):
-        filename = f"soc-e={energy}-w={disorder}-h={height}.npz"
-        return cls(os.path.join(root, filename))
-
     @staticmethod
     def key_value(key):
         return float(key.split("=")[1])
@@ -177,11 +172,79 @@ class LT_Data(Data):
         return f"LT-Data({self.info_str()})"
 
 # =============================================================================
+# INITIALIZATION
+# =============================================================================
+
+
+def _lengtharray(l0, l1, n, scale="lin"):
+    if scale == "log":
+        l0, l1 = np.log10(l0), np.log10(l1)
+        lengths = np.logspace(l0, l1, n, dtype="int")
+    else:
+        lengths = np.linspace(l0, l1, n, dtype="int")
+    return np.unique(lengths)
+
+
+def estimate(model, e, w, lmin=100, lmax=1000, n=40, fitmin=5, fitmax=10, scale="log", n_avrg=200,
+             header=None):
+    omega = e + eta
+    lengths = _lengtharray(lmin, lmax, n, scale)
+    trans = np.zeros(n)
+    loclen, err, relerr = 0, 0, 0
+    estimation = 0
+    length = 0
+    model.set_disorder(w)
+    sigmas, gammas = model.prepare(omega)
+    if header is None:
+        header = f"Estimating"
+    with ConsoleLine(header=header) as out:
+        for i in range(n):
+            length = lengths[i]
+            info = f"L={length}, Loclen={loclen:.2f}, Err={relerr:.2f}"
+
+            # Calculate mean transmission
+            model.reshape(length)
+            t = np.zeros(n_avrg)
+            for j in range(n_avrg):
+                #p.update()
+                p = f"({i+1}/{n}) {100 * j / n_avrg:5.1f}% "
+                out.write(p + info)
+                t[j] = model.transmission(omega, sigmas=sigmas, gammas=gammas)
+            trans[i] = np.log10(np.mean(t))
+
+            # Check localization estimate and error
+            if i >= fitmin:
+                try:
+                    loclen, err = loc_length(lengths[:i], trans[:i], n_fit=fitmax)
+                    loclen = abs(loclen)
+                    relerr = abs(err) / loclen
+                    if relerr <= 0.2:
+                        estimation = loclen
+                        break
+                    if relerr <= 1 and 2 * loclen < length:
+                        estimation = lmin
+                        break
+                except Exception as e:
+                    print(e)
+                    loclen, err, relerr = 0, 0, 0
+
+        out.write(f"({i+1}/{n}) L={length}, Loclen={loclen:.2f}, Err={relerr:.2f}")
+    return int(estimation)
+
+
+def get_lengths(model, e, w, lmin=100, lmax=1000, n_points=20, step=5, n_avrg=200):
+    loclen_est = estimate(model, e, w, lmin, lmax, n_avrg=n_avrg)
+    l0 = int(max(loclen_est, lmin))
+    l1 = l0 + n_points * step
+    lengths = np.arange(l0, l1, step)
+    return lengths
+
+# =============================================================================
 # CALCULATIONS
 # =============================================================================
 
 
-def lt_array(model, omega, lengths, n_avrg=100, header=None):
+def _lt_array(model, omega, lengths, n_avrg=100, header=None):
     n = lengths.shape[0]
     arr = np.zeros((n, n_avrg+1))
     sigmas, gammas = model.prepare(omega)
@@ -195,7 +258,7 @@ def lt_array(model, omega, lengths, n_avrg=100, header=None):
     return arr
 
 
-def append_trans(model, omega, arr, n_up, header=""):
+def _append_trans(model, omega, arr, n_up, header=""):
     lengths = arr[:, 0]
     n = lengths.shape[0]
     new_arr = np.zeros((n, n_up))
@@ -209,7 +272,7 @@ def append_trans(model, omega, arr, n_up, header=""):
     return np.append(arr, new_arr, axis=1)
 
 
-def update_lt(model, omega, existing, n_avrg, new_lengths=None, pre_txt="", post_txt=""):
+def _update_lt(model, omega, existing, n_avrg, new_lengths=None, pre_txt="", post_txt=""):
     arr = existing
     ex_n_avrg = arr[0, 1:].shape[0]
     updated = False
@@ -237,81 +300,61 @@ def calculate_lt(model, lengths, disorder, n_avrg, omega=eta, existing=None, pre
     model.set_disorder(disorder)
     if existing is None:
         header = pre_txt + "Calculating new" + post_txt
-        return lt_array(model, omega, lengths, n_avrg, header)
+        return _lt_array(model, omega, lengths, n_avrg, header)
     else:
         ex_lengths = existing[:, 0]
         new_lengths = np.array([l for l in lengths if l not in ex_lengths])
-        arr = update_lt(model, omega, existing, n_avrg, new_lengths, pre_txt, post_txt)
+        arr = _update_lt(model, omega, existing, n_avrg, new_lengths, pre_txt, post_txt)
         return arr
 
-# =============================================================================
-# INITIALIZATION
-# =============================================================================
+
+def _print_header(txt):
+    print()
+    print("-" * len(txt))
+    print(txt)
+    print("-" * len(txt))
 
 
-def lengtharray(l0, l1, n, scale="lin"):
-    if scale == "log":
-        l0, l1 = np.log10(l0), np.log10(l1)
-        lengths = np.logspace(l0, l1, n, dtype="int")
+def init_lengths(lengths, existing, model, e, w, lmin=50, lmax=2000, n=20, step=5, n_avrg=200):
+    if lengths is None:
+        if existing is None:
+            loclen_est = estimate(model, e, w, lmin, lmax, n_avrg=n_avrg)
+            l0 = int(max(loclen_est, lmin))
+            l1 = l0 + n * step
+            out = np.arange(l0, l1, step)
+            print(f"-> Configured range: {out[0]}-{out[-1]}")
+        else:
+            out = existing[:, 0]
     else:
-        lengths = np.linspace(l0, l1, n, dtype="int")
-    return np.unique(lengths)
+        out = lengths
+    return out
 
 
-def estimate(model, e, w, lmin=100, lmax=1000, n=40, fitmin=5, fitmax=10, scale="log", n_avrg=200):
+def disorder_lt(path, basis, h, w_values, lengths=None, e=0, n_avrg=250):
     omega = e + eta
-    lengths = lengtharray(lmin, lmax, n, scale)
-    trans = np.zeros(n)
-    loclen, err, relerr = 0, 0, 0
-    estimation = 0
-    length = 0
-    model.set_disorder(w)
-    sigmas, gammas = model.prepare(omega)
-    with ConsoleLine(header=f"Estimating") as out:
-        for i in range(n):
-            length = lengths[i]
-            info = f"L={length}, Loclen={loclen:.2f}, Err={relerr:.2f}"
+    # initialize data
+    data = LT_Data(path)
 
+    # calculate dataset
+    header = f"Calculating L-T-Dataset (e={e}, h={h}, soc={basis.soc}, n={n_avrg})"
+    _print_header(header)
+    model = TbDevice.square((2, h), basis.eps, basis.hop)
 
-            # Calculate mean transmission
-            model.reshape(length)
+    n = len(w_values)
+    for i in range(n):
+        w = w_values[i]
+        key = f"w={w}"
+        print(f"{i+1}/{n} (disorder: {w}) ")
 
-            t = np.zeros(n_avrg)
-            for j in range(n_avrg):
-                #p.update()
-                p = f"({i+1}/{n}) {100 * j / n_avrg:5.1f}% "
-                out.write(p + info)
-                t[j] = model.transmission(omega, sigmas=sigmas, gammas=gammas)
-            trans[i] = np.log10(np.mean(t))
+        existing = data.get(key, None)
+        sys_lengths = init_lengths(lengths, existing, model, e, w, n_avrg=500)
 
-            # Check localization estimate and error
-            if i >= fitmin:
-                try:
-                    loclen, err = loc_length(lengths[:i], trans[:i], n_fit=fitmax)
-                    loclen = abs(loclen)
-                    relerr = abs(err) / loclen
-                    if relerr <= 0.2:
-                        estimation = loclen
-                        break
-                    if relerr <= 1 and 2 * loclen < length:
-                        estimation = lmin
-                        break
-                except Exception as e:
-                    print(e)
-                    loclen, err, relerr = 0, 0, 0
-
-        out.write(f"({i+1}/{n}) L={length}, Loclen={loclen:.2f}, Err={relerr:.2f}")
-
-    return int(estimation)
-
-
-def get_lengths(model, e, w, lmin=100, lmax=1000, n_points=20, step=5, n_avrg=200):
-    loclen_est = estimate(model, e, w, lmin, lmax, n_avrg=n_avrg)
-    l0 = int(max(loclen_est, lmin))
-    l1 = l0 + n_points * step
-    lengths = np.arange(l0, l1, step)
-    return lengths
-
+        arr = calculate_lt(model, sys_lengths, w, n_avrg, omega, existing=existing)
+        data.update({key: arr})
+        data.save()
+        #print()
+    print()
+    return data
 
 # =============================================================================
 # ANALYSIS

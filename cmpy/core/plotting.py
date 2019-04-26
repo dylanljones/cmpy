@@ -69,6 +69,18 @@ class Plot:
         if zticks is not None:
             self.ax.set_zticklabels(zticks)
 
+    def lines(self, x=None, y=None, *args, **kwargs):
+        if x is not None:
+            if not hasattr(x, "__len__"):
+                x = [x]
+            for _x in x:
+                self.ax.axhline(_x, *args, **kwargs)
+        if y is not None:
+            if not hasattr(y, "__len__"):
+                y = [y]
+            for _y in y:
+                self.ax.axvline(_y, *args, **kwargs)
+
     def plot(self, *args, **kwargs):
         return self.ax.plot(*args, **kwargs)[0]
 
