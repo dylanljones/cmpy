@@ -312,7 +312,7 @@ class TightBinding:
         self._cached_slice_energies = slice_energies
         self._cached_slice = ham
 
-    def slice_hamiltonian(self, w_eps=0., blocked_disorder=True):
+    def slice_hamiltonian(self, w_eps=0., blocked_disorder=False):
         """ Get the slice hamiltonian of the model and add disorder
 
         Notes

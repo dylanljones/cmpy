@@ -11,11 +11,13 @@ import os, shutil
 import numpy as np
 import matplotlib.pyplot as plt
 from cmpy import *
-from cmpy.tightbinding import TbDevice, Folder, LT_Data, calculate_lt, loc_length
+from cmpy.tightbinding import TbDevice, Folder, LT_Data
+from cmpy.tightbinding import disorder_lt, calculate_lt, loc_length
 from cmpy.tightbinding.basis import *
 
 TEST_DIR = os.path.join(DATA_DIR, "Tests")
 P3_PATH = os.path.join(TEST_DIR, "Localization", "p3-basis")
+P3_PATH_2 = os.path.join(TEST_DIR, "Localization", "p3-basis_2")
 create_dir(P3_PATH)
 
 
@@ -221,14 +223,14 @@ def calculate():
     soc_values = 1, 2, 3, 4, 5, 7, 10
     heights = [1, 4, 8, 16]
     w_values = np.arange(16) + 1
-    calculate_test_data(soc_values, heights, w_values, n_avrg=250)
+    calculate_test_data(soc_values, heights, w_values, n_avrg=100)
 
 
 def calculate_test_data(soc_values, heights, w_values, n_avrg=100):
     for soc in soc_values:
         for h in heights:
             # Init path and model-config
-            dirpath = os.path.join(P3_PATH, f"soc={soc}")
+            dirpath = os.path.join(P3_PATH_2, f"soc={soc}")
             create_dir(dirpath)
             path = os.path.join(dirpath, f"test-h={h}-soc={soc}.npz")
             basis = p3_basis(eps_p=0, t_pps=1, t_ppp=1, soc=soc)
@@ -237,10 +239,10 @@ def calculate_test_data(soc_values, heights, w_values, n_avrg=100):
 
 
 def main():
-    recalculate_sets(P3_PATH)
+    #recalculate_sets(P3_PATH)
     # test_cycling()
     # plot_scaling()
-    # calculate()
+    calculate()
     # show_loclen()
 
 
