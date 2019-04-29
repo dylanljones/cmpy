@@ -72,7 +72,7 @@ class Lattice:
         return latt
 
     @classmethod
-    def cubic_lattice(cls, shape=(1, 1, 1), name="A", a=1):
+    def cubic(cls, shape=(1, 1, 1), name="A", a=1):
         """ cubic lattice prefab with one atom at the origin of the unit cell
 
         Parameters
@@ -418,7 +418,7 @@ class Lattice:
             idx = indices[i_site]
 
         # Get relevant index range to only look for neighbours
-        # in proximity of site (larger then highest distance)
+        # in proximity of site (larger than highest distance)
         n_dist = len(self.distances)
         offset = int((n_dist + 1) * self.slice_sites)
         i0 = max(i_site - offset, 0)
@@ -461,7 +461,7 @@ class Lattice:
 
         # Build lattice indices from translation vectors
         indices = index_array(n_vecs, self.n_base)
-        # get all cached sites (existing and new)
+        # get all sites (cached and new)
         if self.indices is not None:
             all_sites = np.append(self.indices, indices, axis=0)
         else:

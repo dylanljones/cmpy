@@ -288,7 +288,7 @@ def _update_lt(model, omega, existing, n_avrg, new_lengths=None, pre_txt="", pos
     n_up = n_avrg - ex_n_avrg
     if n_up > 0:
         header = pre_txt + "Updating avrg-num" + post_txt
-        arr = append_trans(model, omega, arr, n_up, header)
+        arr = _append_trans(model, omega, arr, n_up, header)
         updated = True
 
     if not updated:
