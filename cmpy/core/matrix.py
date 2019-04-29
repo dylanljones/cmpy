@@ -522,8 +522,9 @@ class Hamiltonian(Matrix):
         #         mp.line(row=r, color="0.6")
         #     for c in col_idx:
         #         mp.line(col=c, color="0.6")
-        # if ticklabels is not None:
-        #     mp.set_ticklabels(ticklabels, ticklabels)
+        if ticklabels is not None:
+            mp.set_ticklabels(ticklabels, ticklabels)
+        mp.tight()
         if show:
             mp.show()
         return mp

@@ -73,6 +73,14 @@ class State:
             parts.append(string)
         return " ".join(parts)
 
+    def latex_string(self):
+        parts = list()
+        for i in range(self.n):
+            string = r"$\uparrow$" if self[0, i] else "."
+            string += r"$\downarrow$" if self[1, i] else "."
+            parts.append(string)
+        return " ".join(parts)
+
     def __repr__(self):
         return f"State({self.repr})"
 
@@ -91,17 +99,30 @@ class Basis:
 
     def __init__(self, n_sites):
         spin_states = list(product([0, 1], repeat=n_sites))
-        self.states = [State(up, down) for up, down in product(spin_states, repeat=2)]
+        self._all_states = [State(up, down) for up, down in product(spin_states, repeat=2)]
+
+        self.n = 0
+        self.s = 0
+        self.states = list()
 
     @staticmethod
     def spin(up_state, down_state):
         return 1/2 * (sum(up_state) - sum(down_state))
 
+    def state_strings(self):
+        return [str(s) for s in self.states]
+
+    def state_latex_strings(self):
+        return [s.latex_string() for s in self.states]
+
     def get_states(self, n=None, spin=None):
-        sector_states = self.states
+        self.n = n
+        self.s = spin
+        sector_states = self._all_states
         for state in sector_states[:]:
             if (n is not None) and (state.num != n):
                 sector_states.remove(state)
             elif (spin is not None) and (abs(state.spin) != spin):
                 sector_states.remove(state)
+        self.states = sector_states
         return sector_states

@@ -11,24 +11,12 @@ import os, shutil
 import numpy as np
 import matplotlib.pyplot as plt
 from cmpy import *
-from cmpy.tightbinding import *
+from cmpy.tightbinding import TbDevice, Folder, LT_Data, calculate_lt, loc_length
 from cmpy.tightbinding.basis import *
 
 TEST_DIR = os.path.join(DATA_DIR, "Tests")
-TEST_LOC = os.path.join(TEST_DIR, "Localization")
-create_dir(TEST_LOC)
-
-
-def calculate_test_data(soc_values, heights, w_values, n_avrg=100):
-    for soc in soc_values:
-        for h in heights:
-            # Init path and model-config
-            dirpath = os.path.join(TEST_LOC, "p3-basis", f"soc={soc}")
-            create_dir(dirpath)
-            path = os.path.join(dirpath, f"test-h={h}-soc={soc}.npz")
-            basis = p3_basis(eps_p=0, t_pps=1, t_ppp=1, soc=soc)
-            # calculate
-            disorder_lt(path, basis, h, w_values, n_avrg=n_avrg)
+P3_PATH = os.path.join(TEST_DIR, "Localization", "p3-basis")
+create_dir(P3_PATH)
 
 
 def sort_files():
@@ -80,20 +68,25 @@ def show_loclen(*socs):
             data = LT_Data(path)
             sort_keys(data)
             h = data.info()["h"]
-            w, ll = list(), list()
+            w, ll, errs = list(), list(), list()
             for k in data:
                 l, t = data.get_set(k, mean=True)
                 w.append(data.key_value(k))
-                ll.append(loc_length(l, np.log10(t))[0])
-            data_list.append((h, w, ll))
+                lam, lam_err = loc_length(l, np.log10(t))
+                ll.append(lam)
+                errs.append(lam_err)
+            data_list.append((h, w, ll, errs))
 
         plot = Plot()
+        plot.set_scales(yscale="log")
         plot.set_title(dirname)
-        plot.set_labels(r"Disorder $w$", r"$\log_{10}(\xi / M)$")
-        for h, w, ll in sorted(data_list, key=lambda x: x[0]):
-
-            plot.plot(w, np.log10(ll), label=f"M={h:.0f}")
+        plot.set_labels(r"Disorder $w$", r"$\xi / M$")   #r"$\log_{10}(\xi / M)$")
+        for h, w, ll, errs in sorted(data_list, key=lambda x: x[0]):
+            #ll = np.log10(ll)
+            #errs = np.log10(errs)
+            plot.ax.errorbar(w, ll, yerr=errs, label=f"M={h:.0f}")
         plot.legend()
+        plot.tight()
     plot.show()
 
 
@@ -113,32 +106,12 @@ def beta_strong(g, g0):
     return np.log(g / g0)
 
 
-def plot_scaling():
-    model = TbDevice.square((2, 1))
-    model.set_disorder(0.5)
-    lengths = np.arange(2, 200, 5)
-
-    t0 = model.normal_transmission()
-    g0 = conductance(t0)
-
-    t = model.transmission_loss(lengths, n_avrg=200, flatten=True)
-    g = conductance(t)
-
-    plot = Plot()
-    plot.lines(x=0, y=0, color="0.5", lw=0.5)
-    plot.set_limits(xlim=(-4, 4), ylim=(-4, 1))
-    x = np.log(g)
-    idx = np.argsort(x)
-    plot.ax.plot(x[idx], beta_func(g)[idx])
-    plot.ax.plot(g, beta_strong(g, g0))
-    plot.show()
-
-
 def check_edge(latt, n_vec, i_dim):
     offset = len(latt.distances)
     x = n_vec[i_dim]
     return x < offset or x > latt.shape[i_dim] - 1 - offset
 
+# =============================================================================
 
 def get_cycle_dist(latt, n1, alpha1, n2, alpha2, d):
     dist = None
@@ -204,10 +177,44 @@ def test_cycling():
 
         model._cached_slice = ham
 
-    #model.set_disorder(1)
+    # model.set_disorder(1)
     lengths = np.arange(50, 100, 10)
     trans = model.transmission_loss(lengths, n_avrg=10, flatten=True)
     plot_transmission_loss(lengths, trans)
+
+# =============================================================================
+
+
+def recalculate_sets(dirpath):
+    for root, _, files in os.walk(dirpath):
+        for fn in files:
+            path = os.path.join(root, fn)
+            data = LT_Data(path)
+            print(data)
+
+
+
+# =============================================================================
+
+def plot_scaling():
+    model = TbDevice.square((2, 1))
+    model.set_disorder(0.5)
+    lengths = np.arange(2, 200, 5)
+
+    t0 = model.normal_transmission()
+    g0 = conductance(t0)
+
+    t = model.transmission_loss(lengths, n_avrg=200, flatten=True)
+    g = conductance(t)
+
+    plot = Plot()
+    plot.lines(x=0, y=0, color="0.5", lw=0.5)
+    plot.set_limits(xlim=(-4, 4), ylim=(-4, 1))
+    x = np.log(g)
+    idx = np.argsort(x)
+    plot.ax.plot(x[idx], beta_func(g)[idx])
+    plot.ax.plot(g, beta_strong(g, g0))
+    plot.show()
 
 
 def calculate():
@@ -217,10 +224,23 @@ def calculate():
     calculate_test_data(soc_values, heights, w_values, n_avrg=250)
 
 
+def calculate_test_data(soc_values, heights, w_values, n_avrg=100):
+    for soc in soc_values:
+        for h in heights:
+            # Init path and model-config
+            dirpath = os.path.join(P3_PATH, f"soc={soc}")
+            create_dir(dirpath)
+            path = os.path.join(dirpath, f"test-h={h}-soc={soc}.npz")
+            basis = p3_basis(eps_p=0, t_pps=1, t_ppp=1, soc=soc)
+            # calculate
+            disorder_lt(path, basis, h, w_values, n_avrg=n_avrg)
+
+
 def main():
+    recalculate_sets(P3_PATH)
     # test_cycling()
     # plot_scaling()
-    calculate()
+    # calculate()
     # show_loclen()
 
 

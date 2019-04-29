@@ -105,6 +105,7 @@ class MatrixPlot(Plot):
 
     def __init__(self, cmap="viridis"):
         super().__init__()
+        self.im = None
         self.array = None
         self.shape = 0, 0
         self.cmap = cm.get_cmap(cmap)
@@ -148,7 +149,7 @@ class MatrixPlot(Plot):
             self._draw_grid()
         else:
             xx, yy = np.meshgrid(range(n+1), range(m+1))
-            self.ax.pcolormesh(xx, -yy, self.array.T)
+            self.im = self.ax.pcolormesh(xx, -yy, self.array.T)
         numbering = not np.any([x > numbering_max for x in self.shape])
         self._set_ticks(numbering)
         self.ax.set_xlim(0, self.shape[1])
@@ -180,9 +181,11 @@ class MatrixPlot(Plot):
             self.ax.set_yticks([-rows+0.5, -0.5])
             self.ax.set_yticklabels([str(rows), "1"])
 
-    def set_ticklabels(self, labels):
-        self.ax.set_xticklabels(labels, rotation = 45, ha="right")
-        self.ax.set_yticklabels(labels[::-1])
+    def set_ticklabels(self, xlabels=None, ylabels=None):
+        if xlabels is not None:
+            self.ax.set_xticklabels(xlabels, rotation = 45, ha="right")
+        if ylabels is not None:
+            self.ax.set_yticklabels(ylabels[::-1])
 
     @staticmethod
     def _get_x(col):

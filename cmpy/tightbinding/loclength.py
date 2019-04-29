@@ -135,11 +135,18 @@ class LT_Data(Data):
 
     def get_set(self, key, mean=True):
         arr = self[key]
-        lengths = arr[:, 0]
-        trans = arr[:, 1:]
+        lengths, trans = arr[:, 0], arr[:, 1:]
         if mean:
             trans = np.mean(trans, axis=1)
         return lengths, trans
+
+    def get_lengths(self, key):
+        arr = self[key]
+        return arr[:, 0]
+
+    def get_trans(self, key, mean=True):
+        arr = self[key]
+        return np.mean(arr[:, 1:], axis=1) if mean else arr[:, 1:]
 
     def sort_lengths(self, key):
         arr = self[key]

@@ -10,7 +10,8 @@ import numpy as np
 from scipy import linalg as la
 from scipy.integrate import quad
 import matplotlib.pyplot as plt
-from cmpy import eta
+from cmpy import eta, Hamiltonian
+from cmpy.hubbard import Basis, HubbardModel
 
 t = 1
 u = t * 10
@@ -61,7 +62,7 @@ def test_gf():
     plt.legend()
     plt.show()
 
-# ================================================================
+# =============================================================================
 
 
 def rho(e):
@@ -77,20 +78,21 @@ def gf_lattice(omega, sigma, a=-np.inf, b=np.inf):
     return res[0]
 
 
-def test_int():
-    n = 100
-    sigma = 0
-    omegas = np.linspace(-10, 10, n)
-    gf_latt = np.zeros(n)
-    for i in range(n):
-        gf_latt[i] = gf_lattice(omegas[i], sigma)
-    plt.plot(omegas.real, gf_latt)
-    plt.show()
+# =============================================================================
+
+
+def test_hubbard():
+    model = HubbardModel()
+    ham = model.hamiltonian(2)
+    plot = ham.show(ticklabels=model.basis.state_latex_strings())
+    plot.show()
+
+    ham2 = Hamiltonian([[0, -2*t], [-2*t, u]])
+    print(ham2.eigvals())
 
 
 def main():
-    print(gf_lattice(0, 1))
-    test_int()
+    test_hubbard()
 
 
 if __name__ == "__main__":

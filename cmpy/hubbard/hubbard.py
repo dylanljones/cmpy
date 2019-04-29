@@ -6,14 +6,14 @@ author: Dylan
 project: cmpy
 version: 1.0
 """
-from cmpy.core import Hamiltonian, square_lattice
+from cmpy.core import Lattice, Hamiltonian
 from .basis import Basis
 
 
 class HubbardModel:
 
     def __init__(self, eps=0., t=1., u=None, mu=None):
-        self.lattice = square_lattice()
+        self.lattice = Lattice.square()
         self.basis = None
         self.states = list()
 
@@ -48,4 +48,6 @@ class HubbardModel:
         return ham
 
     def __repr__(self):
-        return f"Hubbard(\u03b5={self.eps}, t={self.t}, U={self.u}, \u03bc={self.mu})"
+        eps = u"\u03b5".encode()
+        mu = u"\u03bc".encode()
+        return f"Hubbard({eps}={self.eps}, t={self.t}, U={self.u}, {mu}={self.mu})"
