@@ -12,4 +12,4 @@ from .lattice import Lattice
 from . import greens
 from .plotting import *
 from .printing import *
-from .data_manager import *
+from .data import *

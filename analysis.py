@@ -8,10 +8,10 @@ version: 1.0
 """
 import re
 import matplotlib.pyplot as plt
-from cmpy import Plot
+from cmpy import Plot, Folder
 from cmpy.tightbinding.loclength import *
 
-folder = Folder(ROOT)
+ROOT = os.path.join(DATA_DIR, "localization")
 
 
 def _label(key, loclength=None, err=None, n_avrg=None):

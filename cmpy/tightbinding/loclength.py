@@ -6,10 +6,11 @@ project: tightbinding
 version: 1.0
 """
 import os
-from os.path import abspath, dirname, join
 import numpy as np
 from scipy.optimize import curve_fit
-from ..core import eta, Progress, ConsoleLine, Symbols, DATA_DIR
+from ..core import eta
+from ..core import Progress, ConsoleLine, Symbols
+from ..core import Folder, Data
 from .basis import s_basis, p3_basis, sp3_basis
 from .device import TbDevice
 
@@ -18,92 +19,6 @@ DEFAULT_MODE = "lin"
 # =============================================================================
 # DATA
 # =============================================================================
-
-ROOT = join(DATA_DIR, "localization")
-S_PATH = join(ROOT, "s-basis")
-P3_PATH = join(ROOT, "p3-basis")
-SP3_PATH = join(ROOT, "sp3-basis")
-
-
-def create_dir(path):
-    if not os.path.isdir(path):
-        os.makedirs(path)
-
-
-create_dir(S_PATH)
-create_dir(P3_PATH)
-create_dir(SP3_PATH)
-
-
-class Folder:
-
-    def __init__(self, path):
-        self.root = path
-        if not os.path.isdir(path):
-            os.makedirs(path)
-
-    def find(self, *txts):
-        paths = list()
-        if not txts:
-            return self.files
-        for root, _, files in os.walk(self.root):
-            for name in files:
-                if all([x in name for x in txts]):
-                    paths.append(os.path.join(root, name))
-        return paths
-
-    def listdir(self):
-        paths = list()
-        for name in os.listdir(self.root):
-            paths.append(os.path.join(self.root, name))
-        return paths
-
-    @property
-    def dirs(self):
-        dirs = list()
-        for path in self.listdir():
-            if os.path.isdir(path):
-                dirs.append(path)
-        return dirs
-
-    @property
-    def files(self):
-        files = list()
-        for path in self.listdir():
-            if os.path.isfile(path):
-                files.append(path)
-        return files
-
-
-class Data(dict):
-
-    def __init__(self, path=None):
-        super().__init__()
-        self.path = ""
-        if path is not None:
-            self.open(path)
-
-    @property
-    def filename(self):
-        fn = os.path.split(self.path)[1]
-        return os.path.splitext(fn)[0]
-
-    @property
-    def keylist(self):
-        return list(self.keys())
-
-    def save(self):
-        np.savez(self.path, **self)
-
-    def open(self, path):
-        self.path = path
-        if os.path.isfile(self.path):
-            self._read()
-
-    def _read(self):
-        npzfile = np.load(self.path)
-        for key, data in npzfile.items():
-            super().update({key: data})
 
 
 class LT_Data(Data):
@@ -158,7 +73,7 @@ class LT_Data(Data):
             self.sort_lengths(key)
 
     def get_disord_model(self, key):
-        basis_name = os.path.split(dirname(self.path))[1]
+        basis_name = os.path.split(os.path.dirname(self.path))[1]
         info = self.info()
         if basis_name == "s-basis":
             basis = s_basis()
@@ -194,6 +109,9 @@ def _lengtharray(l0, l1, n, scale="lin"):
 
 def estimate(model, e, w, lmin=100, lmax=1000, n=40, fitmin=5, fitmax=10, scale="log", n_avrg=200,
              header=None):
+    if w == 0:
+        raise ValueError("Can't estimate localization-length without any disorder")
+
     omega = e + eta
     lengths = _lengtharray(lmin, lmax, n, scale)
     trans = np.zeros(n)

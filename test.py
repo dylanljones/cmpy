@@ -21,77 +21,6 @@ P3_PATH_2 = os.path.join(TEST_DIR, "Localization", "p3-basis_2")
 create_dir(P3_PATH)
 
 
-def sort_files():
-    new_root = os.path.join(TEST_DIR, "Localization", "p3-basis")
-    for fn in os.listdir(PROJECT_DIR):
-        if fn.endswith(".npz"):
-            path = os.path.join(PROJECT_DIR, fn)
-            soc = int(search_string_value(fn, "soc="))
-
-            new_dir = os.path.join(new_root, f"soc={soc}")
-            create_dir(new_dir)
-
-            new_path = os.path.join(new_dir, fn)
-            shutil.copyfile(path, new_path)
-
-
-def sort_paths(paths, query="h="):
-    heights = [int(re.search(query + r"(\d+)", p).group(1)) for p in paths]
-    idx = np.argsort(heights)
-    return [paths[i] for i in idx]
-
-
-def sort_keys(data):
-    keys, values = list(), list()
-    for k, v in data.items():
-        keys.append(k)
-        values.append(v)
-    key_vals = [data.key_value(k) for k in keys]
-    idx = np.argsort(key_vals)
-    data.clear()
-    for i in idx:
-        data.update({keys[i]: values[i]})
-    data.save()
-
-
-def search_string_value(string, header):
-    return re.search(header + r"(\d+)", string).group(1)
-
-
-def show_loclen(*socs):
-    root = os.path.join(TEST_DIR, "Localization", "p3-basis")
-    for dirname in os.listdir(root):
-        dirpath = os.path.join(root, dirname)
-        if len(socs) and not any([f"soc={s}" in dirname for s in socs]):
-            continue
-
-        data_list = list()
-        for path in list_files(dirpath):
-            data = LT_Data(path)
-            sort_keys(data)
-            h = data.info()["h"]
-            w, ll, errs = list(), list(), list()
-            for k in data:
-                l, t = data.get_set(k, mean=True)
-                w.append(data.key_value(k))
-                lam, lam_err = loc_length(l, np.log10(t))
-                ll.append(lam)
-                errs.append(lam_err)
-            data_list.append((h, w, ll, errs))
-
-        plot = Plot()
-        plot.set_scales(yscale="log")
-        plot.set_title(dirname)
-        plot.set_labels(r"Disorder $w$", r"$\xi / M$")   #r"$\log_{10}(\xi / M)$")
-        for h, w, ll, errs in sorted(data_list, key=lambda x: x[0]):
-            #ll = np.log10(ll)
-            #errs = np.log10(errs)
-            plot.ax.errorbar(w, ll, yerr=errs, label=f"M={h:.0f}")
-        plot.legend()
-        plot.tight()
-    plot.show()
-
-
 def conductance(t):
     return t / (1 - t)
 
@@ -184,17 +113,6 @@ def test_cycling():
     trans = model.transmission_loss(lengths, n_avrg=10, flatten=True)
     plot_transmission_loss(lengths, trans)
 
-# =============================================================================
-
-
-def recalculate_sets(dirpath):
-    for root, _, files in os.walk(dirpath):
-        for fn in files:
-            path = os.path.join(root, fn)
-            data = LT_Data(path)
-            print(data)
-
-
 
 # =============================================================================
 
@@ -219,31 +137,10 @@ def plot_scaling():
     plot.show()
 
 
-def calculate():
-    soc_values = 1, 2, 3, 4, 5, 7, 10
-    heights = [1, 4, 8, 16]
-    w_values = np.arange(16) + 1
-    calculate_test_data(soc_values, heights, w_values, n_avrg=100)
-
-
-def calculate_test_data(soc_values, heights, w_values, n_avrg=100):
-    for soc in soc_values:
-        for h in heights:
-            # Init path and model-config
-            dirpath = os.path.join(P3_PATH_2, f"soc={soc}")
-            create_dir(dirpath)
-            path = os.path.join(dirpath, f"test-h={h}-soc={soc}.npz")
-            basis = p3_basis(eps_p=0, t_pps=1, t_ppp=1, soc=soc)
-            # calculate
-            disorder_lt(path, basis, h, w_values, n_avrg=n_avrg)
-
-
 def main():
-    #recalculate_sets(P3_PATH)
-    # test_cycling()
+    test_cycling()
     # plot_scaling()
-    calculate()
-    # show_loclen()
+
 
 
 if __name__ == "__main__":
