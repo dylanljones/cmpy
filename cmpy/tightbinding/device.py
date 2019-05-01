@@ -141,6 +141,7 @@ class TbDevice(TightBinding):
         super().__init__(vectors, lattice)
         self.lead = None
         self.w_eps = 0
+        self.blocked_disorder = True
 
         self._cached_omega = None
         self._cached_sigmas = None
@@ -269,17 +270,22 @@ class TbDevice(TightBinding):
         dev.hoppings = self.hoppings
         dev.lead = self.lead
         dev.w_eps = self.w_eps
+        dev.blocked_disorder = self.blocked_disorder
         return dev
 
-    def set_disorder(self, w_eps):
+    def set_disorder(self, w_eps, blocked=True):
         """ Set the amoount of disorder of the on-site energies
 
         Parameters
         ----------
         w_eps: float
             disorder amount
+        blocked: bool, default: True
+            If True, the same disorder will be used for all
+            orbitals of a site
         """
         self.w_eps = w_eps
+        self.blocked_disorder = blocked
 
     def clear_cache(self):
         """Clear all cached objects"""
@@ -357,17 +363,14 @@ class TbDevice(TightBinding):
         ----------
         omega: float, optional
             Energy of the system, default is zero (plus broadening)
-        sigmas: tuple, optional
+        sigmas: tuple, default: None
             Self-energies of the leads, default is None.
             If not given, sigmas will be calculated
-        gammas: tuple, optional
+        gammas: tuple, default: None
             Broadening matrices of the leads, default is None.
             If not given, gammas will be calculated
-        rec_thresh: int, optional
-            Threshold to use recursive greens function algorithm, default is 500.
-        compressed: bool, optional
-            if True, build up slice-hamiltonian for each iteration of the RGF-Algorithm.
-            default: True.
+        rec_thresh: int, default: 500
+            Threshold to use recursive greens function algorithm
 
         Returns
         -------
@@ -378,29 +381,31 @@ class TbDevice(TightBinding):
             sigmas, gammas = self.prepare(omega)
         blocksize = self.slice_elements
 
+        w_b = self.blocked_disorder
         # =================
         # Use RGF-algorithm
         # =================
         if self.n_elements > rec_thresh:
             # Calculate lower left corner of greens function (rgf)
+            # ====================================================
             n_blocks = self.lattice.shape[0]
             h_hop = self.slice_hopping()
             h_hop_adj = np.conj(h_hop).T
             e = np.eye(blocksize) * omega
 
             # Calculate gf block using left interface of the hamiltonain with self energy added
-            h_eff = self.slice_hamiltonian(self.w_eps) + sigmas[0]
+            h_eff = self.slice_hamiltonian(self.w_eps, w_b) + sigmas[0]
             g_nn = la.inv(e - h_eff, overwrite_a=True, check_finite=False)
             g_1n = g_nn
 
             # Calculate gf block using bulk blocks of the hamiltonain
             for i in range(1, n_blocks-1):
-                h_eff = self.slice_hamiltonian(self.w_eps) + h_hop @ g_nn @ h_hop_adj
+                h_eff = self.slice_hamiltonian(self.w_eps, w_b) + h_hop @ g_nn @ h_hop_adj
                 g_nn = la.inv(e - h_eff, overwrite_a=True, check_finite=False)
                 g_1n = g_1n @ h_hop_adj @ g_nn
 
             # Calculate gf block using right interface of the hamiltonain with self energy added
-            h_eff = self.slice_hamiltonian(self.w_eps) + sigmas[1] + h_hop @ g_nn @ h_hop_adj
+            h_eff = self.slice_hamiltonian(self.w_eps, w_b) + sigmas[1] + h_hop @ g_nn @ h_hop_adj
             g_nn = la.inv(e - h_eff, overwrite_a=True, check_finite=False)
             g_1n = g_1n @ h_hop_adj @ g_nn
 
@@ -425,7 +430,7 @@ class TbDevice(TightBinding):
         # Use full Hamiltonian
         # ====================
         else:
-            ham = self.hamiltonian(self.w_eps)
+            ham = self.hamiltonian(self.w_eps, w_b)
             n = self.n_elements
             # Add self energy at the corners (interface) of the hamiltonian
             ham.add(0, 0, sigmas[0])

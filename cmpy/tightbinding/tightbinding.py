@@ -312,7 +312,7 @@ class TightBinding:
         self._cached_slice_energies = slice_energies
         self._cached_slice = ham
 
-    def slice_hamiltonian(self, w_eps=0., blocked_disorder=False):
+    def slice_hamiltonian(self, w_eps=0., blocked_disorder=True):
         """ Get the slice hamiltonian of the model and add disorder
 
         Notes
@@ -417,7 +417,7 @@ class TightBinding:
             ham.config_blocks(blocksize)
         self._cached_ham = ham
 
-    def hamiltonian(self, w_eps=0., blocksize=None):
+    def hamiltonian(self, w_eps=0., blocked_disorder=True, blocksize=None):
         """ Get the full hamiltonian of the model and add disorder
 
         Notes
@@ -451,10 +451,18 @@ class TightBinding:
         #     ham = ham + delta
 
         n = self.lattice.n
-        if w_eps:
+        if blocked_disorder:
+            if w_eps:
+                for i in range(n):
+                    _, alpha = self.lattice.get(i)
+                    # Site energies
+                    eps = shuffle(self.energies[alpha], w_eps)
+                    ham.set_energy(i, eps)
+        else:
             for i in range(n):
                 _, alpha = self.lattice.get(i)
-                # Site energies
-                eps = shuffle(self.energies[alpha], w_eps)
-                ham.set_energy(i, eps)
+                ham.set_energy(i, self.energies[alpha])
+            n_el = ham.n
+            delta = np.eye(n_el) * np.random.uniform(-w_eps, w_eps, size=(n_el, ))
+            ham = ham + delta
         return ham

@@ -18,7 +18,6 @@ from cmpy.tightbinding.basis import *
 TEST_DIR = os.path.join(DATA_DIR, "Tests")
 P3_PATH = os.path.join(TEST_DIR, "Localization", "p3-basis")
 P3_PATH_2 = os.path.join(TEST_DIR, "Localization", "p3-basis_2")
-create_dir(P3_PATH)
 
 
 def conductance(t):
@@ -138,7 +137,10 @@ def plot_scaling():
 
 
 def main():
-    test_cycling()
+    model = TbDevice.square_p3((2, 2))
+    ham = model.hamiltonian(1, True)
+    ham.show()
+    # test_cycling()
     # plot_scaling()
 
 

@@ -205,7 +205,7 @@ def _update_lt(model, omega, existing, n_avrg, new_lengths=None, pre_txt="", pos
     # Update missing length data-points
     if new_lengths is not None and new_lengths.shape[0]:
         header = pre_txt + "Appending lengths" + post_txt
-        new_arr = lt_array(model, omega, new_lengths, ex_n_avrg, header)
+        new_arr = _lt_array(model, omega, new_lengths, ex_n_avrg, header)
         arr = np.append(arr, new_arr, axis=0)
         updated = True
 

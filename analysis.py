@@ -8,7 +8,7 @@ version: 1.0
 """
 import re
 import matplotlib.pyplot as plt
-from cmpy import Plot, Folder
+from cmpy import Plot, Folder, DATA_DIR
 from cmpy.tightbinding.loclength import *
 
 ROOT = os.path.join(DATA_DIR, "localization")
