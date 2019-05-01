@@ -141,7 +141,6 @@ class TbDevice(TightBinding):
         super().__init__(vectors, lattice)
         self.lead = None
         self.w_eps = 0
-        self.blocked_disorder = True
 
         self._cached_omega = None
         self._cached_sigmas = None
@@ -381,7 +380,6 @@ class TbDevice(TightBinding):
             sigmas, gammas = self.prepare(omega)
         blocksize = self.slice_elements
 
-        w_b = self.blocked_disorder
         # =================
         # Use RGF-algorithm
         # =================
@@ -394,18 +392,18 @@ class TbDevice(TightBinding):
             e = np.eye(blocksize) * omega
 
             # Calculate gf block using left interface of the hamiltonain with self energy added
-            h_eff = self.slice_hamiltonian(self.w_eps, w_b) + sigmas[0]
+            h_eff = self.slice_hamiltonian(self.w_eps) + sigmas[0]
             g_nn = la.inv(e - h_eff, overwrite_a=True, check_finite=False)
             g_1n = g_nn
 
             # Calculate gf block using bulk blocks of the hamiltonain
             for i in range(1, n_blocks-1):
-                h_eff = self.slice_hamiltonian(self.w_eps, w_b) + h_hop @ g_nn @ h_hop_adj
+                h_eff = self.slice_hamiltonian(self.w_eps) + h_hop @ g_nn @ h_hop_adj
                 g_nn = la.inv(e - h_eff, overwrite_a=True, check_finite=False)
                 g_1n = g_1n @ h_hop_adj @ g_nn
 
             # Calculate gf block using right interface of the hamiltonain with self energy added
-            h_eff = self.slice_hamiltonian(self.w_eps, w_b) + sigmas[1] + h_hop @ g_nn @ h_hop_adj
+            h_eff = self.slice_hamiltonian(self.w_eps) + sigmas[1] + h_hop @ g_nn @ h_hop_adj
             g_nn = la.inv(e - h_eff, overwrite_a=True, check_finite=False)
             g_1n = g_1n @ h_hop_adj @ g_nn
 
@@ -430,7 +428,7 @@ class TbDevice(TightBinding):
         # Use full Hamiltonian
         # ====================
         else:
-            ham = self.hamiltonian(self.w_eps, w_b)
+            ham = self.hamiltonian(self.w_eps)
             n = self.n_elements
             # Add self energy at the corners (interface) of the hamiltonian
             ham.add(0, 0, sigmas[0])

@@ -108,7 +108,7 @@ def plot_all_loclen(*socs):
 
 
 def calculate_test_data(n_avrg=250):
-    fpath = "p3-basis"
+    fpath = "p3-basis_2"
     soc_values = 1, 2, 3, 4, 5, 7, 10
     heights = [1, 4, 8, 16]
     w_values = np.arange(16) + 1

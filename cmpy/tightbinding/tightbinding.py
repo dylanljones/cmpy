@@ -44,6 +44,8 @@ class TightBinding:
         self.energies = list()
         self.hoppings = list()
 
+        self._blocked_disorder = False
+
         # Cached hamiltonian objects for more performance
         self._cached_ham = None
         self._cached_slice = None
@@ -312,7 +314,7 @@ class TightBinding:
         self._cached_slice_energies = slice_energies
         self._cached_slice = ham
 
-    def slice_hamiltonian(self, w_eps=0., blocked_disorder=True):
+    def slice_hamiltonian(self, w_eps=0.):
         """ Get the slice hamiltonian of the model and add disorder
 
         Notes
@@ -333,7 +335,7 @@ class TightBinding:
         ham = self._cached_slice
 
         n = self.lattice.slice_sites
-        if blocked_disorder:
+        if self._blocked_disorder:
             for i in range(n):
                 eps = self._cached_slice_energies[i]
                 if w_eps != 0:
@@ -417,7 +419,7 @@ class TightBinding:
             ham.config_blocks(blocksize)
         self._cached_ham = ham
 
-    def hamiltonian(self, w_eps=0., blocked_disorder=True, blocksize=None):
+    def hamiltonian(self, w_eps=0., blocksize=None):
         """ Get the full hamiltonian of the model and add disorder
 
         Notes
@@ -451,7 +453,7 @@ class TightBinding:
         #     ham = ham + delta
 
         n = self.lattice.n
-        if blocked_disorder:
+        if self._blocked_disorder:
             if w_eps:
                 for i in range(n):
                     _, alpha = self.lattice.get(i)
