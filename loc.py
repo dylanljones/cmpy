@@ -122,9 +122,9 @@ def rename():
 
 
 def main():
-    # calculate()
+    calculate()
     #calculate_s_basis()
-    show_loclen("p3-basis")
+    # show_loclen("p3-basis")
 
 
 

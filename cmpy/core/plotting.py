@@ -10,9 +10,14 @@ Plotting utilities
 ==================
 
 """
+import os
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import cm, colors
+from .data import IMG_DIR
+
+GOLDEN_MEAN = (np.sqrt(5) - 1.0) / 2.0
 
 
 class Plot:
@@ -24,6 +29,19 @@ class Plot:
         self.set_limits(xlim, ylim)
         self.set_labels(xlabel, ylabel)
         self.set_title(title)
+
+    def set_figsize(self, width_pt=246.0, ratio=GOLDEN_MEAN):
+        # Convert size to inches
+
+        # Get the width from LaTeX using \showthe\columnwidth
+        width = width_pt * (1.0 / 72.27)  # convert width pts to inches
+        height = width * ratio  # height in inches
+
+        self.fig.set_size_inches(width, height)
+
+    @staticmethod
+    def update_rcparam(key, value):
+        mpl.rcParams[key] = value
 
     @property
     def xlim(self):
@@ -99,6 +117,10 @@ class Plot:
         if tight:
             self.tight()
         plt.show()
+
+    def save(self, *relpaths):
+        file = os.path.join(IMG_DIR, *relpaths)
+        self.fig.savefig(file)
 
 
 class MatrixPlot(Plot):

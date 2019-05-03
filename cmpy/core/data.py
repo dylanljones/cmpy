@@ -1,4 +1,4 @@
-## -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Created on 25 Apr 2019
 @author: Dylan Jones
@@ -7,13 +7,14 @@ project: cmpy
 version: 1.0
 
 """
-import re
 import os
 from os.path import dirname
 import numpy as np
 
 PROJECT_DIR = dirname(dirname(dirname(os.path.abspath(__file__))))
 DATA_DIR = os.path.join(PROJECT_DIR, "_data")
+IMG_DIR = os.path.join(PROJECT_DIR, "_imgs")
+
 
 class Folder:
 
@@ -118,3 +119,6 @@ class Data(dict):
         npzfile = np.load(self.path)
         for key, data in npzfile.items():
             super().update({key: data})
+
+
+Folder(IMG_DIR)
