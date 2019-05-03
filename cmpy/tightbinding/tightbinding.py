@@ -9,7 +9,7 @@ version: 1.0
 import numpy as np
 from cmpy.core import Lattice, Hamiltonian
 from cmpy.core import distance, chain, vlinspace
-from cmpy.core import Progress
+from cmpy.core import Progress, plot_bands
 
 
 def shuffle(obj, disorder):
@@ -113,7 +113,7 @@ class TightBinding:
 
         Parameters
         ----------
-        hoppings: list
+        hoppings: iterable
             hopping energies for the first n neighbors. Elements can be
             either scalar or array, butr must match orbit number of on-site
             energies
@@ -276,6 +276,10 @@ class TightBinding:
                     e_vals[j] = disp
                 band_sections.append(e_vals)
         return band_sections
+
+    def plot_bands(self, points, pointnames, n_e=1000, thresh=1e-9, scale=True, verbose=True, show=True):
+        bands = self.bands(points, n_e, thresh, scale, verbose)
+        plot_bands(bands, pointnames, show)
 
     # =========================================================================
     # Hamiltonians

@@ -286,7 +286,7 @@ class Lattice:
         dist_idx: int, default
             index of distance to neighbours, defauzlt is 0 (nearest neighbours).
         """
-        n, alpha = idx[:-1], idx[-1]
+        n, alpha = np.array(idx[:-1]), idx[-1]
         transformed = list()
         for idx in self._base_neighbors[alpha][dist_idx]:
             idx_t = idx.copy()
@@ -394,7 +394,7 @@ class Lattice:
         n, alpha = self.get(i)
         return self.get_position(n, alpha)
 
-    def _cached_neighbours(self, i_site, idx=None, indices=None):
+    def _cached_neighbours(self, i_site, site_idx=None, indices=None):
         """ Get indices of cached neighbors
 
         Parameters
@@ -414,8 +414,8 @@ class Lattice:
         """
         if indices is None:
             indices = self.indices
-        if idx is None:
-            idx = indices[i_site]
+        if site_idx is None:
+            site_idx = indices[i_site]
 
         # Get relevant index range to only look for neighbours
         # in proximity of site (larger than highest distance)
@@ -430,7 +430,7 @@ class Lattice:
         for i_dist in range(n_dist):
             # Get neighbour indices of site for distance level
             dist_neighbours = list()
-            for idx in self.get_neighbours(idx, i_dist):
+            for idx in self.get_neighbours(site_idx, i_dist):
                 # Find site of neighbour and store if in cache
                 hop_idx = np.where(np.all(site_window == idx, axis=1))[0]
                 if len(hop_idx):

@@ -58,8 +58,11 @@ def read_loclen_data(subfolder):
             ll.append(lam)
             errs.append(lam_err)
         w = np.array(w)
+
+        # Normalizing data
         ll = np.array(ll) / h
         errs = np.array(errs) / h
+
         data_list.append((h, w, ll, errs))
     return data_list
 
@@ -128,9 +131,9 @@ def calculate_test_data(n_avrg=250):
 
 
 def main():
-    calculate_test_data(250)
+    #calculate_test_data(500)
     #plot_all_loclen()
-    # show_loclen()
+    show_loclen(0, 1, 2, 3, 4, 5)
 
 
 if __name__ == "__main__":

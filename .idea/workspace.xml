@@ -3,38 +3,14 @@
   <component name="ChangeListManager">
     <list default="true" id="4921e4e2-0ab8-4280-ab9e-d16b3150c3ff" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=1/disorder-h=1-soc=1.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=1/disorder-h=1-soc=1.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=1/disorder-h=16-soc=1.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=1/disorder-h=16-soc=1.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=1/disorder-h=4-soc=1.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=1/disorder-h=4-soc=1.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=1/disorder-h=8-soc=1.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=1/disorder-h=8-soc=1.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=10/disorder-h=1-soc=10.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=10/disorder-h=1-soc=10.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=10/disorder-h=16-soc=10.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=10/disorder-h=16-soc=10.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=10/disorder-h=4-soc=10.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=10/disorder-h=4-soc=10.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=10/disorder-h=8-soc=10.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=10/disorder-h=8-soc=10.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=2/disorder-h=1-soc=2.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=2/disorder-h=1-soc=2.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=2/disorder-h=16-soc=2.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=2/disorder-h=16-soc=2.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=2/disorder-h=4-soc=2.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=2/disorder-h=4-soc=2.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=2/disorder-h=8-soc=2.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=2/disorder-h=8-soc=2.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=3/disorder-h=1-soc=3.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=3/disorder-h=1-soc=3.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=3/disorder-h=16-soc=3.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=3/disorder-h=16-soc=3.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=3/disorder-h=4-soc=3.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=3/disorder-h=4-soc=3.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=3/disorder-h=8-soc=3.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=3/disorder-h=8-soc=3.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=4/disorder-h=1-soc=4.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=4/disorder-h=1-soc=4.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=4/disorder-h=16-soc=4.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=4/disorder-h=16-soc=4.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=4/disorder-h=4-soc=4.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=4/disorder-h=4-soc=4.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=4/disorder-h=8-soc=4.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=4/disorder-h=8-soc=4.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=5/disorder-h=1-soc=5.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=5/disorder-h=1-soc=5.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=5/disorder-h=16-soc=5.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=5/disorder-h=16-soc=5.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=5/disorder-h=4-soc=5.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=5/disorder-h=4-soc=5.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=5/disorder-h=8-soc=5.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=5/disorder-h=8-soc=5.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=7/disorder-h=1-soc=7.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=7/disorder-h=1-soc=7.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=7/disorder-h=16-soc=7.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=7/disorder-h=16-soc=7.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=7/disorder-h=4-soc=7.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=7/disorder-h=4-soc=7.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=7/disorder-h=8-soc=7.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis/soc=7/disorder-h=8-soc=7.npz" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=1/disorder-h=1-soc=1.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=1/disorder-h=1-soc=1.npz" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=1/disorder-h=16-soc=1.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=1/disorder-h=16-soc=1.npz" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=1/disorder-h=4-soc=1.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=1/disorder-h=4-soc=1.npz" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=1/disorder-h=8-soc=1.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=1/disorder-h=8-soc=1.npz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=10/disorder-h=1-soc=10.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=10/disorder-h=1-soc=10.npz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=10/disorder-h=16-soc=10.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=10/disorder-h=16-soc=10.npz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=10/disorder-h=4-soc=10.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=10/disorder-h=4-soc=10.npz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=10/disorder-h=8-soc=10.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=10/disorder-h=8-soc=10.npz" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=2/disorder-h=1-soc=2.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=2/disorder-h=1-soc=2.npz" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=2/disorder-h=16-soc=2.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=2/disorder-h=16-soc=2.npz" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=2/disorder-h=4-soc=2.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=2/disorder-h=4-soc=2.npz" afterDir="false" />
@@ -48,13 +24,18 @@
       <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=4/disorder-h=4-soc=4.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=4/disorder-h=4-soc=4.npz" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=4/disorder-h=8-soc=4.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=4/disorder-h=8-soc=4.npz" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=5/disorder-h=1-soc=5.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=5/disorder-h=1-soc=5.npz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=5/disorder-h=16-soc=5.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=5/disorder-h=16-soc=5.npz" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=5/disorder-h=4-soc=5.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=5/disorder-h=4-soc=5.npz" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/analysis.py" beforeDir="false" afterPath="$PROJECT_DIR$/analysis.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cmpy/tightbinding/device.py" beforeDir="false" afterPath="$PROJECT_DIR$/cmpy/tightbinding/device.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cmpy/tightbinding/loclength.py" beforeDir="false" afterPath="$PROJECT_DIR$/cmpy/tightbinding/loclength.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=5/disorder-h=8-soc=5.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=5/disorder-h=8-soc=5.npz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=7/disorder-h=1-soc=7.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=7/disorder-h=1-soc=7.npz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=7/disorder-h=16-soc=7.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=7/disorder-h=16-soc=7.npz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=7/disorder-h=4-soc=7.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=7/disorder-h=4-soc=7.npz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=7/disorder-h=8-soc=7.npz" beforeDir="false" afterPath="$PROJECT_DIR$/_data/Tests/Localization/p3-basis_2/soc=7/disorder-h=8-soc=7.npz" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmpy/core/lattice.py" beforeDir="false" afterPath="$PROJECT_DIR$/cmpy/core/lattice.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmpy/tightbinding/tightbinding.py" beforeDir="false" afterPath="$PROJECT_DIR$/cmpy/tightbinding/tightbinding.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/loc_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/loc_test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scaling.py" beforeDir="false" afterPath="$PROJECT_DIR$/scaling.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/test.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test_loc.py" beforeDir="false" afterPath="$PROJECT_DIR$/loc_test.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -70,8 +51,32 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/test.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="401">
-              <caret line="144" selection-start-line="144" selection-end-line="144" />
+            <state relative-caret-position="332">
+              <caret line="24" column="34" selection-start-line="24" selection-start-column="34" selection-end-line="24" selection-end-column="34" />
+              <folding>
+                <element signature="e#97#106#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/scaling.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="563">
+              <caret line="136" selection-start-line="136" selection-end-line="136" />
+              <folding>
+                <element signature="e#112#143#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/loc_test.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="368">
+              <caret line="130" column="25" selection-start-line="130" selection-start-column="25" selection-end-line="130" selection-end-column="25" />
               <folding>
                 <element signature="e#97#106#0" expanded="true" />
               </folding>
@@ -80,43 +85,10 @@
         </entry>
       </file>
       <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/loc_test.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="477">
-              <caret line="113" column="32" lean-forward="true" selection-start-line="113" selection-start-column="32" selection-end-line="113" selection-end-column="32" />
-              <folding>
-                <element signature="e#97#106#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/cmpy/tightbinding/loclength.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="342">
-              <caret line="254" column="14" selection-start-line="254" selection-start-column="14" selection-end-line="254" selection-end-column="14" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/analysis.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="486">
-              <caret line="105" column="39" selection-start-line="105" selection-start-column="39" selection-end-line="105" selection-end-column="39" />
-              <folding>
-                <element signature="e#111#120#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/cmpy/tightbinding/tightbinding.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-1593">
-              <caret line="314" column="63" selection-start-line="314" selection-start-column="59" selection-end-line="314" selection-end-column="63" />
+            <state relative-caret-position="133">
+              <caret line="214" column="11" selection-start-line="214" selection-start-column="8" selection-end-line="214" selection-end-column="11" />
               <folding>
                 <element signature="e#97#115#0" expanded="true" />
               </folding>
@@ -125,12 +97,12 @@
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/cmpy/tightbinding/device.py">
+        <entry file="file://$PROJECT_DIR$/cmpy/core/lattice.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="254">
-              <caret line="314" selection-start-line="314" selection-end-line="314" />
+            <state relative-caret-position="336">
+              <caret line="616" column="37" selection-start-line="616" selection-start-column="37" selection-end-line="616" selection-end-column="37" />
               <folding>
-                <element signature="e#97#115#0" expanded="true" />
+                <element signature="e#97#113#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -181,20 +153,21 @@
         <option value="$PROJECT_DIR$/compress.py" />
         <option value="$PROJECT_DIR$/cmpy/core/matrix.py" />
         <option value="$PROJECT_DIR$/loc.py" />
-        <option value="$PROJECT_DIR$/cmpy/core/lattice.py" />
         <option value="$PROJECT_DIR$/test_loc.py" />
         <option value="$PROJECT_DIR$/analysis.py" />
         <option value="$PROJECT_DIR$/cmpy/tightbinding/device.py" />
-        <option value="$PROJECT_DIR$/cmpy/tightbinding/tightbinding.py" />
-        <option value="$PROJECT_DIR$/test.py" />
         <option value="$PROJECT_DIR$/cmpy/tightbinding/loclength.py" />
+        <option value="$PROJECT_DIR$/cmpy/tightbinding/tightbinding.py" />
+        <option value="$PROJECT_DIR$/scaling.py" />
+        <option value="$PROJECT_DIR$/cmpy/core/lattice.py" />
         <option value="$PROJECT_DIR$/loc_test.py" />
+        <option value="$PROJECT_DIR$/test.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
     <option name="x" value="-7" />
-    <option name="width" value="974" />
+    <option name="width" value="1334" />
     <option name="height" value="1047" />
   </component>
   <component name="ProjectView">
@@ -214,6 +187,12 @@
               <item name="cmpy" type="b2602c69:ProjectViewProjectNode" />
               <item name="cmpy" type="462c0819:PsiDirectoryNode" />
               <item name="cmpy" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="cmpy" type="b2602c69:ProjectViewProjectNode" />
+              <item name="cmpy" type="462c0819:PsiDirectoryNode" />
+              <item name="cmpy" type="462c0819:PsiDirectoryNode" />
+              <item name="core" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="cmpy" type="b2602c69:ProjectViewProjectNode" />
@@ -386,15 +365,14 @@
     </history-entry>
   </component>
   <component name="ToolWindowManager">
-    <frame x="-7" y="0" width="974" height="1047" extended-state="0" />
-    <editor active="true" />
+    <frame x="-7" y="0" width="1334" height="1047" extended-state="0" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.49662617" visible="true" weight="0.21581197" />
-      <window_info id="Structure" order="1" sideWeight="0.5033738" side_tool="true" weight="0.22933644" />
+      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.49662617" weight="0.22008547" />
+      <window_info id="Structure" order="1" sideWeight="0.5033738" side_tool="true" weight="0.22916667" />
       <window_info id="Favorites" order="2" sideWeight="0.5008157" side_tool="true" weight="0.18921477" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" weight="0.32932165" />
-      <window_info anchor="bottom" id="Run" order="2" visible="true" weight="0.29212254" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.34792122" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.39934355" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -408,13 +386,13 @@
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
     </layout>
     <layout-to-restore>
-      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.49662617" visible="true" weight="0.18162394" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.49662617" visible="true" weight="0.22008547" />
       <window_info id="Structure" order="1" sideWeight="0.5033738" side_tool="true" weight="0.22933644" />
       <window_info id="Favorites" order="2" sideWeight="0.5008157" side_tool="true" weight="0.18921477" />
       <window_info anchor="bottom" id="Message" order="0" />
-      <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" visible="true" weight="0.16849016" />
-      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
+      <window_info anchor="bottom" id="Find" order="1" weight="0.32932165" />
+      <window_info anchor="bottom" id="Run" order="2" visible="true" weight="0.17396061" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.39934355" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" />
@@ -557,21 +535,17 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/scaling.py" />
     <entry file="file://$PROJECT_DIR$/loc.py" />
-    <entry file="file://$PROJECT_DIR$/cmpy/core/lattice.py">
+    <entry file="file://$PROJECT_DIR$/cmpy/tightbinding/loclength.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="27">
-          <caret line="354" selection-start-line="354" selection-end-line="355" />
-          <folding>
-            <element signature="e#97#113#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="4446">
+          <caret line="254" column="14" selection-start-line="254" selection-start-column="14" selection-end-line="254" selection-end-column="14" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/analysis.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="486">
+        <state relative-caret-position="1836">
           <caret line="105" column="39" selection-start-line="105" selection-start-column="39" selection-end-line="105" selection-end-column="39" />
           <folding>
             <element signature="e#111#120#0" expanded="true" />
@@ -579,49 +553,62 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/cmpy/tightbinding/loclength.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="342">
-          <caret line="254" column="14" selection-start-line="254" selection-start-column="14" selection-end-line="254" selection-end-column="14" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/cmpy/tightbinding/device.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="254">
-          <caret line="314" selection-start-line="314" selection-end-line="314" />
+        <state relative-caret-position="5526">
+          <caret line="313" selection-start-line="313" selection-end-line="313" />
           <folding>
             <element signature="e#97#115#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/cmpy/tightbinding/tightbinding.py">
+    <entry file="file://$PROJECT_DIR$/scaling.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1593">
-          <caret line="314" column="63" selection-start-line="314" selection-start-column="59" selection-end-line="314" selection-end-column="63" />
+        <state relative-caret-position="563">
+          <caret line="136" selection-start-line="136" selection-end-line="136" />
           <folding>
-            <element signature="e#97#115#0" expanded="true" />
+            <element signature="e#112#143#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/test.py">
+    <entry file="file://$PROJECT_DIR$/cmpy/core/lattice.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="401">
-          <caret line="144" selection-start-line="144" selection-end-line="144" />
+        <state relative-caret-position="336">
+          <caret line="616" column="37" selection-start-line="616" selection-start-column="37" selection-end-line="616" selection-end-column="37" />
           <folding>
-            <element signature="e#97#106#0" expanded="true" />
+            <element signature="e#97#113#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/loc_test.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="477">
-          <caret line="113" column="32" lean-forward="true" selection-start-line="113" selection-start-column="32" selection-end-line="113" selection-end-column="32" />
+        <state relative-caret-position="368">
+          <caret line="130" column="25" selection-start-line="130" selection-start-column="25" selection-end-line="130" selection-end-column="25" />
           <folding>
             <element signature="e#97#106#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/test.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="332">
+          <caret line="24" column="34" selection-start-line="24" selection-start-column="34" selection-end-line="24" selection-end-column="34" />
+          <folding>
+            <element signature="e#97#106#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/cmpy/tightbinding/tightbinding.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="133">
+          <caret line="214" column="11" selection-start-line="214" selection-start-column="8" selection-end-line="214" selection-end-column="11" />
+          <folding>
+            <element signature="e#97#115#0" expanded="true" />
           </folding>
         </state>
       </provider>
