@@ -18,9 +18,6 @@ NAMES = r"$\Gamma$", r"$X$", r"$M$"
 
 
 def main():
-    os.rename(".gitignore-latex", ".gitignore")
-    return
-
     model = TbDevice.square((2, 1))
     ham = model.hamiltonian()
 
