@@ -30,10 +30,6 @@ class Folder:
     def files(self):
         return self.listfiles()
 
-    @property
-    def walk_files(self):
-        return sum([files for _, _, files in self.walk()])
-
     def build_path(self, *rel_names):
         return os.path.join(self.path, *rel_names)
 
@@ -65,6 +61,12 @@ class Folder:
                 dirs = [os.path.join(root, name) for name in dirs]
                 files = [os.path.join(root, name) for name in files]
             yield root, dirs, files
+
+    def walk_files(self):
+        files = list()
+        for _, _, fpaths in self.walk():
+            files += fpaths
+        return files
 
     def find(self, *txts, deep=True):
         paths = list()

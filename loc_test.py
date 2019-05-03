@@ -131,9 +131,9 @@ def calculate_test_data(n_avrg=250):
 
 
 def main():
-    #calculate_test_data(500)
+    calculate_test_data(500)
     #plot_all_loclen()
-    show_loclen(0, 1, 2, 3, 4, 5)
+    #show_loclen(0, 1, 2, 3, 4, 5)
 
 
 if __name__ == "__main__":
