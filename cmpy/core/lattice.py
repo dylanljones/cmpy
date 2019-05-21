@@ -101,6 +101,10 @@ class Lattice:
         """ int: number of sites in unit-cell"""
         return len(self.atoms)
 
+    @property
+    def n_dist(self):
+        return len(self.distances)
+
     def copy(self):
         """ Create new lattice with equivalent setup
 
@@ -172,7 +176,7 @@ class Lattice:
         pos = np.asarray(pos)
         n = np.asarray(np.floor(pos @ np.linalg.inv(self.vectors)), dtype="int")
         r_alpha = pos - (self.vectors @ n)
-        alpha = np.where((self.atom_positions == r_alpha).all(axis=1))[0]
+        alpha = np.where((self.atom_positions == r_alpha).all(axis=1))[0][0]
         idx = n, alpha
         return idx
 
@@ -476,7 +480,6 @@ class Lattice:
             # Get neighbour indices of site
             neighbour_indices = self._cached_neighbours(site, idx, all_sites)
             neighbours.append(neighbour_indices)
-
         return indices, neighbours
 
     def build(self, shape=None):
@@ -619,3 +622,42 @@ class Lattice:
         if show:
             plot.show()
         return plot
+
+
+def square_lattice(shape=(1, 1), name="A", a=1.):
+    """ square lattice prefab with one atom at the origin of the unit cell
+
+    Parameters
+    ----------
+    shape: tuple, optional
+        shape to build lattice, default: (1, 1)
+        if None, the lattice won't be built on initialization
+    name: str, optional
+        name of the atom, default: "A"
+    a: float, optional
+        lattice constant, default: 1
+
+    Returns
+    -------
+    latt: Lattice
+    """
+    latt = Lattice(np.eye(2) * a)
+    latt.add_atom(name=name)
+    latt.calculate_distances(1)
+    if shape is not None:
+        latt.build(shape)
+    return latt
+
+
+def hexagonal_lattice(shape=(2, 1), atom1="A", atom2="B", a=1.):
+    vectors = a * np.array([[np.sqrt(3), np.sqrt(3) / 2],
+                            [0, 3 / 2]])
+
+    latt = Lattice(vectors)
+    latt.add_atom(atom1)
+    latt.add_atom(atom2, pos=[0, a])
+
+    latt.calculate_distances(1)
+    if shape is not None:
+        latt.build(shape)
+    return latt

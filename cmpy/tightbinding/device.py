@@ -102,13 +102,13 @@ class Lead:
         """
         omegas = np.asarray(omegas)
         n = omegas.shape[0]
-        dos = np.zeros(n)
-        name = "surface" if mode == "s" else "center"
+        dos = np.zeros(n, dtype="float")
+        name = "surface" if mode == "s" else "bulk"
         for i in prange(n, header=f"Calculating {name}-dos", enabled=verbose):
             self.calculate(omegas[i])
             if mode == "s":
                 g = self.gf_l
-            elif mode == "c":
+            elif mode == "b":
                 g = self.gf_b
             else:
                 raise ValueError(f"Mode not supported: {mode}")
@@ -185,32 +185,8 @@ class TbDevice(TightBinding):
         return self
 
     @classmethod
-    def square_sp3(cls, shape=(2, 1), basis=sp3_basis(), name="A", a=1., wideband=False):
-        """ square device prefab with one atom at the origin of the unit cell with p orbitals
-
-        Parameters
-        ----------
-        shape: tuple, optional
-            shape to build lattice, the default is (1, 1)
-            if None, the lattice won't be built on initialization
-        basis: Basis, optional
-            energy basis of one atom, if None, use default sp3-configuration
-        name: str, optional
-            name of the atom, the default is "A"
-        a: float, optional
-            lattice constant, default: 1
-        wideband: bool, optional
-            if True, use wide band approximation, the default is False
-
-        Returns
-        -------
-        latt: Lattice
-        """
-        return cls.square(shape, basis=basis, name=name, a=a, wideband=wideband)
-
-    @classmethod
-    def square_p3(cls, shape=(2, 1), eps_p=0., t_pps=1., t_ppp=1., soc=0.,
-                  name="A", a=1., wideband=False):
+    def square_p3(cls, shape=(2, 1), eps_p=0., t_pps=1., t_ppp=1., d=None, spin=True, soc=0.,
+                  ordering="spin", name="A", a=1., wideband=False):
         """ square device prefab with one atom at the origin of the unit cell with s and p orbitals
 
         Parameters
@@ -218,8 +194,20 @@ class TbDevice(TightBinding):
         shape: tuple, optional
             shape to build lattice, the default is (1, 1)
             if None, the lattice won't be built on initialization
-        basis: Basis, optional
-            energy basis of one atom, if None, use default p3-configuration
+        eps_p: float, optional, default: 0.
+            on-site energy of p orbital
+        t_pps: float, default: 0.75
+            symmetric hopping energy between the p orbitals
+        t_ppp: float, default: -0.25
+            antisymmetric hopping energy between the p orbitals
+        d: array_like, default: None
+            direction vector of hopping
+        spin: bool, default: True
+            Flag if both spin channels should be used
+        soc: float, default: 1
+            Spin-orbit-coupling strength
+        ordering: string, default: "spin"
+            ordering parameter for states
         name: str, optional
             name of the atom, the default is "A"
         a: float, optional
@@ -231,8 +219,66 @@ class TbDevice(TightBinding):
         -------
         latt: Lattice
         """
-        basis = p3_basis(eps_p, t_pps=t_pps, t_ppp=t_ppp, soc=soc)
+        basis = p3_basis(eps_p, t_pps, t_ppp, d, spin, soc, ordering)
         return cls.square(shape, basis=basis, name=name, a=a, wideband=wideband)
+
+    @classmethod
+    def square_sp3(cls, shape=(2, 1), eps_s=0,  eps_p=0, t_sss=-1, t_sps=0.75, t_pps=0.75, t_ppp=-0.25, d=None,
+                 spin=True, soc=0, ordering="spin", name="A", a=1., wideband=False):
+        """ square device prefab with one atom at the origin of the unit cell with p orbitals
+
+        Parameters
+        ----------
+        shape: tuple, optional
+            shape to build lattice, the default is (1, 1)
+            if None, the lattice won't be built on initialization
+        eps_s: float, optional, default: 0.
+            on-site energy of p orbital
+        eps_p: float, optional, default: 3.
+            on-site energy of p orbital
+        t_sss: float, default: -1.
+            symmetric hopping energy between the s orbitals
+        t_sps: float, default: 0.75
+            symmetric hopping energy between the s and p orbitals
+        t_pps: float, default: 0.75
+            symmetric hopping energy between the p orbitals
+        t_ppp: float, default: -0.25
+            antisymmetric hopping energy between the p orbitals
+        d: array_like, default: None
+            direction vector of hopping
+        spin: bool, default: True
+            Flag if both spin channels should be used
+        soc: float, default: 1
+            Spin-orbit-coupling strength
+        ordering: string, default: "spin"
+            ordering parameter for states
+        name: str, optional
+            name of the atom, the default is "A"
+        a: float, optional
+            lattice constant, default: 1
+        wideband: bool, optional
+            if True, use wide band approximation, the default is False
+
+        Returns
+        -------
+        latt: Lattice
+        """
+        basis = sp3_basis(eps_s,  eps_p, v_sss, v_sps, v_pps, v_ppp, d, spin, soc, ordering)
+        return cls.square(shape, basis=basis, name=name, a=a, wideband=wideband)
+
+
+    @classmethod
+    def sc(cls, shape=(2, 1, 1), eps=0., t=1., basis=None, name="A", a=1., wideband=False):
+        self = cls(np.eye(3))
+        if basis is not None:
+            eps = basis.eps
+            t = basis.hop
+        self.add_atom(name, energy=eps)
+        self.set_hopping(t)
+        if shape is not None:
+            self.build(shape)
+            self.load_lead(wideband)
+        return self
 
     @property
     def wideband(self):
@@ -269,22 +315,17 @@ class TbDevice(TightBinding):
         dev.hoppings = self.hoppings
         dev.lead = self.lead
         dev.w_eps = self.w_eps
-        dev.blocked_disorder = self.blocked_disorder
         return dev
 
-    def set_disorder(self, w_eps, blocked=True):
+    def set_disorder(self, w_eps):
         """ Set the amoount of disorder of the on-site energies
 
         Parameters
         ----------
         w_eps: float
             disorder amount
-        blocked: bool, default: True
-            If True, the same disorder will be used for all
-            orbitals of a site
         """
         self.w_eps = w_eps
-        self.blocked_disorder = blocked
 
     def clear_cache(self):
         """Clear all cached objects"""
@@ -315,6 +356,17 @@ class TbDevice(TightBinding):
     def show(self):
         """ Plot the lattice of the device"""
         self.lattice.show()
+
+    def device_dos(self, omega, local=False):
+        ham = self.hamiltonian_eff(omega)
+        gf = ham.greens(omega, only_diag=True)
+        dos = -1/np.pi * gf.imag
+        if local is False:
+            dos = np.sum(dos)
+        return dos
+
+    def bulk_dos(self, omegas):
+        return self.lead.dos(omegas, mode="b")
 
     # =========================================================================
 
@@ -350,6 +402,16 @@ class TbDevice(TightBinding):
             self._cached_gammas = gammas
 
         return self._cached_sigmas, self._cached_gammas
+
+    def hamiltonian_eff(self, omega=eta):
+        sigmas = self.prepare(omega)[0]
+        ham = self.hamiltonian(self.w_eps)
+        n = self.n_elements
+        # Add self energy at the corners (interface) of the hamiltonian
+        ham.add(0, 0, sigmas[0])
+        i = n - self.slice_elements
+        ham.add(i, i, sigmas[1])
+        return ham
 
     def transmission(self, omega=eta, sigmas=None, gammas=None, rec_thresh=500):
         """ Calculate the transmission of the tight binding device
@@ -455,9 +517,26 @@ class TbDevice(TightBinding):
         trans: np.ndarray
         """
         n = omegas.shape[0]
+        hamiltonian = self.hamiltonian(self.w_eps)
+
+        n_el = self.n_elements
+        blocksize = self.slice_elements
+        idx_n = n_el - blocksize
+
         trans = np.zeros(n, dtype="float")
         for i in prange(n, header="Calculating transmission", enabled=verbose):
-            trans[i] = self.transmission(omegas[i])
+            omega = omegas[i]
+            sigmas, gammas = self.prepare(omega)
+            ham = hamiltonian.copy()
+            # Add self energy at the corners (interface) of the hamiltonian
+            ham.add(0, 0, sigmas[0])
+            ham.add(idx_n, idx_n, sigmas[1])
+            # calculate greens-function by inverting full hamiltonian
+            g = greens.greens(ham, omega)
+            # Get lower left block of gf
+            g_1n = g[-blocksize:, :blocksize]
+            t = np.trace(gammas[1] @ g_1n @ gammas[0] @ g_1n.conj().T).real
+            trans[i] = t
         return trans
 
     def mean_transmission(self, omega=eta, sigmas=None, gammas=None, n=100,
@@ -566,6 +645,9 @@ class TbDevice(TightBinding):
         self.set_disorder(w)
 
         return t
+
+    # =========================================================================
+
 
     def plot_transmission_hist(self, omega=eta, n=1000, show=True):
         """ Plot the histogram of the transmission for the disordered system

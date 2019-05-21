@@ -37,7 +37,7 @@ def get_soc(orb1, orb2, s1, s2):
 
 class Basis:
 
-    def __init__(self, *orbitals, spin=True):
+    def __init__(self, *orbitals, spin=True, ordering="spin"):
         """ Initialize the Basis object
 
         Parameters
@@ -52,6 +52,10 @@ class Basis:
             orbs += [orb + " down" for orb in orbitals]
         else:
             orbs = orbitals
+
+        if ordering == "orb":
+            orbs = sorted(orbs)
+
         self.spin = spin
         self.orbs = orbs
         self.soc = None
@@ -135,8 +139,8 @@ class Basis:
                 h_soc[i, j] = get_soc(orb1, orb2, s1, s2)
         self._soc = h_soc * coupling
 
-    def show(self):
-        header = list()
+    def labels(self):
+        labels = list()
         for orb in self.orbs:
             if self.spin:
                 orb, s = orb.split(" ")
@@ -144,17 +148,21 @@ class Basis:
                     orb += r"\uparrow"
                 elif s == "down":
                     orb += r"\downarrow"
-            header.append(f"${orb}$")
+            labels.append(f"${orb}$")
+        return labels
+
+    def show(self):
+        labels = self.labels()
         eps = Matrix(self.eps)
         plot1 = eps.show(False)
         plot1.ax.set_title("Site-hamiltonian")
-        plot1.set_ticklabels(header, header)
+        plot1.set_ticklabels(labels, labels)
         plot1.fig.tight_layout()
 
         hop = Matrix(self.hop)
         plot2 = hop.show(False)
         plot2.fig.tight_layout()
-        plot2.set_ticklabels(header, header)
+        plot2.set_ticklabels(labels, labels)
         plot2.ax.set_title("Hopping-hamiltonian")
         plt.show()
 
@@ -175,7 +183,7 @@ class Basis:
         return string
 
 
-def s_basis(eps=0., t=1.):
+def s_basis(eps=0, t=1, spin=False):
     """ Basis object for a system with s orbitals
 
     Parameters
@@ -184,83 +192,188 @@ def s_basis(eps=0., t=1.):
         on-site energy of s orbital, default: 0.
     t: float, optional
         hopping energy between the s orbitals, default: 1.
+    spin: bool, default: True
+        Flag if both spin channels should be used
 
     Returns
     -------
     basis: Basis
     """
-    b = Basis("s", spin=False)
+    b = Basis("s", spin=spin)
     b.set_energy("s", eps)
     b.set_hopping("s", "s", t)
     return b
 
 
-def p3_basis(eps_p=3, t_pps=0.75, t_ppp=-0.25, soc=1.):
-    """ Basis object for a system with p_x, p_y, and p_z orbitals
+def p3_basis_2c(eps_p=0, t_pps=1, t_ppp=1, d=None, spin=True, soc=0, ordering="spin"):
+    """ Two-center basis object for a system with p_x, p_y, and p_z orbitals
 
     Parameters
     ----------
-    eps_p: float, optional
-        on-site energy of p orbital, default: 0.
-    t_sps: float, optional
-        symmetric hopping energy between the s and p orbitals, default: 0.75
-    t_pps: float, optional
-        symmetric hopping energy between the p orbitals, default: 0.75
-    t_ppp: float, optional
-        antisymmetric hopping energy between the p orbitals, default: -0.25
-    soc: float, optional
-        Spin-orbit-coupling strength, default: 1.
+    eps_p: float, optional, default: 0.
+        on-site energy of p orbital
+    t_pps: float, default: 0.75
+        symmetric hopping energy between the p orbitals
+    t_ppp: float, default: -0.25
+        antisymmetric hopping energy between the p orbitals
+    d: array_like, default: None
+        direction vector of hopping
+    spin: bool, default: True
+        Flag if both spin channels should be used
+    soc: float, default: 1
+        Spin-orbit-coupling strength
+    ordering: string, default: "spin"
+        ordering parameter for states
 
     Returns
     -------
     basis: Basis
     """
-    b = Basis("p_x", "p_y", "p_z", spin=True)
-    # Site energies
-    b.set_energy("p", eps_p)
-    # Hopping parameters
-    b.set_hopping("p_x", "p_x", t_pps)
-    b.set_hopping("p_y", "p_y", t_pps)
-    b.set_hopping("p_z", "p_z", t_ppp)
-    # spin orbit coupling
-    b.set_soc(soc)
-    return b
+    d = np.ones(3) if d is None else d
+    dx, dy, dz = d
+
+    basis = Basis("p_x", "p_y", "p_z", ordering=ordering, spin=spin)
+    basis.set_energy("p", eps_p)
+    basis.set_hopping("p_x", "p_x", dx ** 2 + (1 - dx ** 2) * t_ppp)
+    basis.set_hopping("p_y", "p_y", dy ** 2 + (1 - dy ** 2) * t_ppp)
+    basis.set_hopping("p_z", "p_z", dz ** 2 + (1 - dz ** 2) * t_ppp)
+    basis.set_hopping("p_x", "p_y", dx * dy * (t_pps - t_ppp))
+    basis.set_hopping("p_y", "p_z", dy * dz * (t_pps - t_ppp))
+    basis.set_hopping("p_z", "p_x", dz * dx * (t_pps - t_ppp))
+    if spin and soc:
+        basis.set_soc(soc)
+    return basis
 
 
-def sp3_basis(eps_s=0, eps_p=3, t_sss=-1., t_sps=0.75, t_pps=0.75, t_ppp=-0.25, soc=1.):
-    """ Basis object for a system with s, p_x, p_y, and p_z orbitals
+def p3_basis(eps_p=0, t_pps=1, t_ppp=1, d=None, spin=True, soc=0, ordering="spin"):
+    return p3_basis_2c(eps_p, t_pps, t_ppp, d, spin, soc, ordering)
+
+
+def sp3_basis_2c(eps_s=0,  eps_p=0, t_sss=-1, t_sps=0.75, t_pps=0.75, t_ppp=-0.25, d=None,
+                 spin=True, soc=0, ordering="spin"):
+    """ Two-center basis object for a system with p_x, p_y, and p_z orbitals
 
     Parameters
     ----------
-    eps_s: float, optional
-        on-site energy of s orbital, default: 0.
-    eps_p: float, optional
-        on-site energy of p orbital, default: 3.
-    t_sss: float, optional
-        symmetric hopping energy between the s orbitals, default: -1.
-    t_sps: float, optional
-        symmetric hopping energy between the s and p orbitals, default: 0.75
-    t_pps: float, optional
-        symmetric hopping energy between the p orbitals, default: 0.75
-    t_ppp: float, optional
-        antisymmetric hopping energy between the p orbitals, default: -0.25
-    soc: float, optional
-        Spin-orbit-coupling strength, default: 1.
+
+    eps_s: float, optional, default: 0.
+        on-site energy of p orbital
+    eps_p: float, optional, default: 3.
+        on-site energy of p orbital
+    t_sss: float, default: -1.
+        symmetric hopping energy between the s orbitals
+    t_sps: float, default: 0.75
+        symmetric hopping energy between the s and p orbitals
+    t_pps: float, default: 0.75
+        symmetric hopping energy between the p orbitals
+    t_ppp: float, default: -0.25
+        antisymmetric hopping energy between the p orbitals
+    d: array_like, default: None
+        direction vector of hopping
+    spin: bool, default: True
+        Flag if both spin channels should be used
+    soc: float, default: 1
+        Spin-orbit-coupling strength
+    ordering: string, default: "spin"
+        ordering parameter for states
 
     Returns
     -------
     basis: Basis
     """
-    b = Basis("s", "p_x", "p_y", "p_z", spin=True)
-    # Site energies
-    b.set_energy("s", eps_s)
-    b.set_energy("p", eps_p)
-    # Hopping parameters
-    b.set_hopping("s", "s", t_sss)
-    b.set_hopping("s", "p_x", t_sps)
-    b.set_hopping("p_x", "p_x", t_pps)
-    b.set_hopping("p_y", "p_y", t_pps)
-    b.set_hopping("p_z", "p_z", t_ppp)
-    # spin orbit coupling
-    b.set_soc(soc)
-    return b
+    d = np.ones(3) if d is None else d
+    dx, dy, dz = d
+
+    basis = Basis("s", "p_x", "p_y", "p_z", ordering=ordering, spin=spin)
+    basis.set_energy("s", eps_s)
+    basis.set_energy("p", eps_p)
+    basis.set_hopping("s", "s", t_sss)
+    basis.set_hopping("s", "p_x", dx * t_sps)
+    basis.set_hopping("s", "p_x", dy * t_sps)
+    basis.set_hopping("s", "p_x", dz * t_sps)
+    basis.set_hopping("p_x", "p_x", dx ** 2 + (1 - dx ** 2) * t_ppp)
+    basis.set_hopping("p_y", "p_y", dy ** 2 + (1 - dy ** 2) * t_ppp)
+    basis.set_hopping("p_z", "p_z", dz ** 2 + (1 - dz ** 2) * t_ppp)
+    basis.set_hopping("p_x", "p_y", dx * dy * (t_pps - t_ppp))
+    basis.set_hopping("p_y", "p_z", dy * dz * (t_pps - t_ppp))
+    basis.set_hopping("p_z", "p_x", dz * dx * (t_pps - t_ppp))
+
+    if spin and soc:
+        basis.set_soc(soc)
+    return basis
+
+
+def sp3_basis(eps_s=0,  eps_p=0, v_sss=-1, v_sps=0.75, v_pps=0.75, v_ppp=-0.25, d=None,
+              spin=True, soc=0, ordering="spin"):
+    return sp3_basis_2c(eps_s,  eps_p, v_sss, v_sps, v_pps, v_ppp, d, spin, soc, ordering)
+
+#
+#
+# def p3_basis(eps_p=0, t_pps=0.75, t_ppp=-0.25, soc=1., ordering="spin"):
+#     """ Basis object for a system with p_x, p_y, and p_z orbitals
+#
+#     Parameters
+#     ----------
+#     eps_p: float, optional
+#         on-site energy of p orbital, default: 0.
+#     t_pps: float, optional
+#         symmetric hopping energy between the p orbitals, default: 0.75
+#     t_ppp: float, optional
+#         antisymmetric hopping energy between the p orbitals, default: -0.25
+#     soc: float, optional
+#         Spin-orbit-coupling strength, default: 1.
+#
+#     Returns
+#     -------
+#     basis: Basis
+#     """
+#     b = Basis("p_x", "p_y", "p_z", spin=True, ordering=ordering)
+#     # Site energies
+#     b.set_energy("p", eps_p)
+#     # Hopping parameters
+#     b.set_hopping("p_x", "p_x", t_pps)
+#     b.set_hopping("p_y", "p_y", t_pps)
+#     b.set_hopping("p_z", "p_z", t_ppp)
+#     # spin orbit coupling
+#     b.set_soc(soc)
+#     return b
+#
+#
+# def sp3_basis(eps_s=0, eps_p=3, t_sss=-1., t_sps=0.75, t_pps=0.75, t_ppp=-0.25,
+#               soc=1., ordering="spin"):
+#     """ Basis object for a system with s, p_x, p_y, and p_z orbitals
+#
+#     Parameters
+#     ----------
+#     eps_s: float, optional
+#         on-site energy of s orbital, default: 0.
+#     eps_p: float, optional
+#         on-site energy of p orbital, default: 3.
+#     t_sss: float, optional
+#         symmetric hopping energy between the s orbitals, default: -1.
+#     t_sps: float, optional
+#         symmetric hopping energy between the s and p orbitals, default: 0.75
+#     t_pps: float, optional
+#         symmetric hopping energy between the p orbitals, default: 0.75
+#     t_ppp: float, optional
+#         antisymmetric hopping energy between the p orbitals, default: -0.25
+#     soc: float, optional
+#         Spin-orbit-coupling strength, default: 1.
+#
+#     Returns
+#     -------
+#     basis: Basis
+#     """
+#     b = Basis("s", "p_x", "p_y", "p_z", spin=True, ordering=ordering)
+#     # Site energies
+#     b.set_energy("s", eps_s)
+#     b.set_energy("p", eps_p)
+#     # Hopping parameters
+#     b.set_hopping("s", "s", t_sss)
+#     b.set_hopping("s", "p_x", t_sps)
+#     b.set_hopping("p_x", "p_x", t_pps)
+#     b.set_hopping("p_y", "p_y", t_pps)
+#     b.set_hopping("p_z", "p_z", t_ppp)
+#     # spin orbit coupling
+#     b.set_soc(soc)
+#     return b

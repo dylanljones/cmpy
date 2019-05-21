@@ -48,7 +48,7 @@ class LT_Data(Data):
         else:
             return arr[:, 1:].shape[1]
 
-    def get_set(self, key, mean=True):
+    def get_set(self, key, mean=False):
         arr = self[key]
         lengths, trans = arr[:, 0], arr[:, 1:]
         if mean:
@@ -88,7 +88,6 @@ class LT_Data(Data):
         h = int(self.key_value(key))
         model = TbDevice.square((2, h), basis.eps, basis.hop)
         return model, e + eta
-
 
     def __str__(self):
         return f"LT-Data({self.info_str()})"
@@ -294,11 +293,11 @@ def findx(array, x0):
 
 
 def _exp_func(x, l, a):
-    return a * np.exp(-x/l)
+    return a * np.exp(-2*x/l)
 
 
 def _lin_func(x, l, y0):
-    return - 1/l * x + y0
+    return - (2 * x / l) + y0
 
 
 def fit(lengths, trans, p0=None, n_fit=None, mode=DEFAULT_MODE):

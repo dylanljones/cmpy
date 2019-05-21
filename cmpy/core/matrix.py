@@ -269,7 +269,7 @@ class Matrix(np.ndarray):
 
     # ==============================================================================================
 
-    def show(self, show=True):
+    def show(self, show=True, cmap=None):
         """ Plot the matrix
 
         Parameters
@@ -277,7 +277,8 @@ class Matrix(np.ndarray):
         show: bool, optional
             if True, call plt.show(), default: True
         """
-        mp = MatrixPlot()
+
+        mp = MatrixPlot(cmap=cmap)
         mp.load(self)
         # Draw block lines
 
@@ -497,12 +498,12 @@ class Hamiltonian(Matrix):
         dos: np.ndarray
         """
         greens = self.greens(omegas, only_diag=True)
-        dos = -1/np.pi * np.sum(greens.imag, axis=1)
+        dos = -1/np.pi * np.sum(greens.imag, axis=0)
         return dos
 
     # ==============================================================================================
 
-    def show(self, show=True, ticklabels=None, show_blocks=False):
+    def show(self, show=True, ticklabels=None, cmap=None, show_blocks=False):
         """ Plot the Hamiltonian
 
         Parameters
@@ -514,14 +515,14 @@ class Hamiltonian(Matrix):
         show_blocks: bool, optional
             if True, show blocks of the orbitals, default is False
         """
-        mp = super().show(False)
-        # if show_blocks and self.n_orbs > 1:
-        #     row_idx = [i * self.n_orbs for i in range(1, self.n_sites)]
-        #     col_idx = [i * self.n_orbs for i in range(1, self.n_sites)]
-        #     for r in row_idx:
-        #         mp.line(row=r, color="0.6")
-        #     for c in col_idx:
-        #         mp.line(col=c, color="0.6")
+        mp = super().show(False, cmap=cmap)
+        if show_blocks and self.n_orbs > 1:
+            row_idx = [i * self.n_orbs for i in range(1, self.n_sites)]
+            col_idx = [i * self.n_orbs for i in range(1, self.n_sites)]
+            for r in row_idx:
+                mp.line(row=r, color="0.6")
+            for c in col_idx:
+                mp.line(col=c, color="0.6")
         if ticklabels is not None:
             mp.set_ticklabels(ticklabels, ticklabels)
         mp.tight()

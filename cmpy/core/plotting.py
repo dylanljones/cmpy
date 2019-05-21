@@ -12,36 +12,103 @@ Plotting utilities
 """
 import os
 import numpy as np
-import matplotlib as mpl
+from matplotlib import gridspec
 import matplotlib.pyplot as plt
 from matplotlib import cm, colors
+from mpl_toolkits.mplot3d import Axes3D
 from .data import IMG_DIR
+
 
 GOLDEN_MEAN = (np.sqrt(5) - 1.0) / 2.0
 
 
 class Plot:
 
-    def __init__(self, xlim=None, xlabel=None, ylim=None, ylabel=None, title=None, proj=None):
+    TEXTWIDTH = 455.2
+
+    def __init__(self, xlim=None, xlabel=None, ylim=None, ylabel=None, title=None, proj=None, create=True):
         self.fig = plt.figure()
-        self.ax = self.fig.add_subplot(111, projection=proj)
+        self._axs, self.ax_idx = list(), 0
+        if create:
+            if proj == "3d":
+                self._axs.append(Axes3D(self.fig))
+            else:
+                self.add_subplot()
+            # self.ax = self.fig.add_subplot(111) if proj is None else Axes3D(self.fig)
+            self.set_limits(xlim, ylim)
+            self.set_labels(xlabel, ylabel)
+            self.set_title(title)
 
-        self.set_limits(xlim, ylim)
-        self.set_labels(xlabel, ylabel)
-        self.set_title(title)
+    @classmethod
+    def banddos(cls, elim=None, ratio=3):
+        self = cls(create=False)
+        gs = gridspec.GridSpec(1, 2, width_ratios=[ratio, 1])
+        self._axs.append(self.fig.add_subplot(gs[0]))
+        self._axs.append(self.fig.add_subplot(gs[1]))
+        self.switch_axis(0)
+        self.set_labels("$k$", "$E$")
+        self.switch_axis(1)
+        self.set_labels("$n(E)$")
+        if elim is not None:
+            self.set_limits(ylim=elim)
+            self.switch_axis(0)
+            self.set_limits(ylim=elim)
+        return self
 
-    def set_figsize(self, width_pt=246.0, ratio=GOLDEN_MEAN):
-        # Convert size to inches
+    @property
+    def axs(self):
+        return self._axs
 
+    @property
+    def ax(self):
+        return self._axs[self.ax_idx]
+
+    def get_axis(self, idx):
+        return self._axs[idx]
+
+    def switch_axis(self, idx):
+        self.ax_idx = idx
+
+    def add_subplot(self, num=111, *args, **kwargs):
+        ax = self.fig.add_subplot(num, *args, **kwargs)
+        idx = len(self._axs)
+        self._axs.append(ax)
+        self.switch_axis(idx)
+
+    def set_figsize(self, width=None, textwidth=1., ratio=None):
+        ratio = GOLDEN_MEAN if ratio is None else ratio
         # Get the width from LaTeX using \showthe\columnwidth
+        # and set value of TEXTWIDTH to it
+
+        # Convert size to inches
+        width_pt = textwidth * self.TEXTWIDTH if width is None else width
         width = width_pt * (1.0 / 72.27)  # convert width pts to inches
         height = width * ratio  # height in inches
 
         self.fig.set_size_inches(width, height)
 
     @staticmethod
-    def update_rcparam(key, value):
-        mpl.rcParams[key] = value
+    def enable_latex():
+        plt.rcParams.update({'text.usetex': True})
+
+    def format_latex(self, textwidth=1., ratio=GOLDEN_MEAN, latex_font="lmodern",
+                     fontsize=11, labelsize=None, legendsize=None, ticksize=8):
+
+        self.set_figsize(textwidth=textwidth, ratio=ratio)
+        latex_preamble = [r"\usepackage{" + latex_font + "}"]
+        labelsize = fontsize if labelsize is None else labelsize
+        legendsize = fontsize if legendsize is None else legendsize
+        ticksize = fontsize if ticksize is None else ticksize
+        params = {'text.usetex': True,
+                  'text.latex.preamble': latex_preamble,
+                  'axes.labelsize': labelsize,
+                  'font.size': fontsize,
+                  'legend.fontsize': legendsize,
+                  'xtick.labelsize': ticksize,
+                  'ytick.labelsize': ticksize,
+                  }
+        plt.rcParams.update(params)
+        self.tight()
 
     @property
     def xlim(self):
@@ -79,6 +146,14 @@ class Plot:
         if zlabel is not None:
             self.ax.set_zlabel(zlabel)
 
+    def set_ticks(self, xticks=None, yticks=None, zticks=None):
+        if xticks is not None:
+            self.ax.set_xticks(xticks)
+        if yticks is not None:
+            self.ax.set_yticks(yticks)
+        if zticks is not None:
+            self.ax.set_zticks(zticks)
+
     def set_ticklabels(self, xticks=None, yticks=None, zticks=None):
         if xticks is not None:
             self.ax.set_xticklabels(xticks)
@@ -92,21 +167,48 @@ class Plot:
             if not hasattr(x, "__len__"):
                 x = [x]
             for _x in x:
-                self.ax.axhline(_x, *args, **kwargs)
+                self.ax.axvline(_x, *args, **kwargs)
         if y is not None:
             if not hasattr(y, "__len__"):
                 y = [y]
             for _y in y:
-                self.ax.axvline(_y, *args, **kwargs)
+                self.ax.axhline(_y, *args, **kwargs)
+
+    def text(self, pos, text, va="center", ha="center"):
+        self.ax.text(*pos, text, va=va, ha=ha)
+
+    def fill(self, x, y1, y2=0, alpha=0.25, *args, **kwargs):
+        self.ax.fill_between(x, y1, y2, alpha=alpha, *args, **kwargs)
+
+    # =========================================================================
 
     def plot(self, *args, **kwargs):
         return self.ax.plot(*args, **kwargs)[0]
 
+    def plotfill(self, x, y, color="C0", alpha=0.25, **kwargs):
+        self.fill(x, y, color=color, alpha=alpha)
+        return self.ax.plot(x, y, color=color, **kwargs)[0]
+
+    def contour(self, *args, **kwargs):
+        return self.ax.contour(*args, **kwargs)
+
+    def colormesh(self, *args, **kwargs):
+        return self.ax.pcolormesh(*args, **kwargs)
+
+    def histogram(self, data, bins=None, **kwargs):
+        self.ax.hist(data, bins=bins, **kwargs)
+
+    # =========================================================================
+
     def tight(self, *args, **kwargs):
         self.fig.tight_layout(*args, **kwargs)
 
-    def legend(self):
-        self.ax.legend()
+    def legend(self, *args, **kwargs):
+        self.ax.legend(*args, **kwargs)
+
+    def grid(self, **kwargs):
+        self.ax.set_axisbelow(True)
+        self.ax.grid(**kwargs)
 
     @staticmethod
     def draw(sleep=1e-10):
@@ -118,9 +220,11 @@ class Plot:
             self.tight()
         plt.show()
 
-    def save(self, *relpaths):
+    def save(self, *relpaths, dpi=600):
+        self.ax.set_rasterized(True)
         file = os.path.join(IMG_DIR, *relpaths)
-        self.fig.savefig(file)
+        self.fig.savefig(file, dpi=dpi)
+        print(f"Figure {file} saved")
 
 
 class MatrixPlot(Plot):
@@ -134,7 +238,7 @@ class MatrixPlot(Plot):
         self.norm = None
 
     def load(self, array):
-        self.array = np.abs(array)
+        self.array = array.real + array.imag
         self.shape = self.array.shape
         self.norm = colors.Normalize(vmin=np.min(self.array), vmax=np.max(self.array))
         self._draw()
@@ -171,7 +275,7 @@ class MatrixPlot(Plot):
             self._draw_grid()
         else:
             xx, yy = np.meshgrid(range(n+1), range(m+1))
-            self.im = self.ax.pcolormesh(xx, -yy, self.array.T)
+            self.im = self.ax.pcolormesh(xx, -yy, self.array.T, cmap=self.cmap)
         numbering = not np.any([x > numbering_max for x in self.shape])
         self._set_ticks(numbering)
         self.ax.set_xlim(0, self.shape[1])
@@ -220,14 +324,11 @@ class MatrixPlot(Plot):
     def _get_xy(self, row, col):
         return self._get_x(col), self._get_y(row)
 
-    @staticmethod
-    def show():
-        plt.show()
-
 
 class LatticePlot(Plot):
 
     def __init__(self, dim=2):
+        dim = 2 if dim < 2 else dim
         proj = '3d' if dim == 3 else None
         super().__init__(proj=proj)
 
@@ -236,6 +337,10 @@ class LatticePlot(Plot):
         self._limits = np.zeros((dim, 2))
 
     def draw_site(self, atype, pos):
+
+        if len(pos) == 1:
+            pos = [pos[0], 0]
+
         if atype in self._colors:
             col = self._colors[atype]
         else:
@@ -268,6 +373,110 @@ class LatticePlot(Plot):
     def draw_line(self, points, color="black", **kwargs):
         points = np.asarray(points)
         self.ax.plot(*points.T, color=color, zorder=0, **kwargs)
+
+
+def plot_transmission(omegas, *transmission, show=True):
+    omegas = omegas.real
+    t_lim = max([max(t) for t in transmission]) + 0.05
+
+    fig, ax = plt.subplots()
+    ax.set_title("Transmission")
+    ax.set_xlim(min(omegas), max(omegas))
+    ax.set_xlabel(r"$\omega$")
+    ax.set_ylim(-0.05, t_lim)
+    ax.axhline(y=0, lw=0.5, color="0.5")
+    ax.set_ylabel(r"$T(\omega)$")
+
+    for trans in transmission:
+        ax.plot(omegas, trans)
+
+    fig.tight_layout()
+    if show:
+        plt.show()
+    return fig, ax
+
+
+def plot_transmission_loss(lengths, trans, norm=1, mode="lin", show=True):
+    fig, ax = plt.subplots()
+
+    if mode == "exp":
+        ax.set_yscale("log")
+        ylabel = r"$T/T_0$"
+    else:
+        trans = np.log10(trans)
+        ylabel = r"$\log(T/T_0)$"
+
+    ax.plot(lengths, trans)
+
+    ax.set_xlim(0, lengths[-1] + 10)
+    ax.set_xlabel("N")
+    ax.set_ylabel(ylabel)
+    if show:
+        plt.show()
+    return fig, ax
+
+
+def build_bands(band_sections, point_names):
+    bands = band_sections[0]
+    ticks = [0, bands.shape[0]]
+    for i in range(1, len(band_sections)):
+        bands = np.append(bands, band_sections[i], axis=0)
+        ticks.append(bands.shape[0])
+    ticklabels = list(point_names) + [point_names[0]]
+    return bands, ticks, ticklabels
+
+
+def plot_bands(band_sections, point_names, show=True):
+    bands, ticks, ticklabels = build_bands(band_sections, point_names)
+    plot = Plot()
+    plot.plot(bands)
+    plot.set_labels(r"$k$", r"$E(k)$")
+    plot.set_limits(xlim=(ticks[0], ticks[-1]))
+    plot.set_ticks(xticks=ticks)
+    plot.set_ticklabels(xticks=ticklabels)
+    plot.lines(x=ticks[1:-1], y=0, lw=0.5, color="0.5")
+    plot.tight()
+    if show:
+        plot.show()
+    return plot
+
+
+def plot_dos(omegas, *dos, show=True):
+    omegas = omegas.real
+    xlim = min(omegas), max(omegas)
+    plot = Plot(xlim=xlim, xlabel=r"$E$", ylabel=r"$n(E)$")
+    plot.lines(y=0, lw=0.5, color="0.5")
+    for dos_curve in dos:
+        plot.plot(omegas, dos_curve)
+    plot.tight()
+    if show:
+        plot.show()
+    return plot
+
+
+def plot_banddos(omegas, band_sections, point_names, dos, show=True):
+    energy = omegas.real
+    bands, ticks, ticklabels = build_bands(band_sections, point_names)
+    elim = energy[0], energy[-1]
+    Plot.enable_latex()
+    plot = Plot.banddos(elim=elim, ratio=2)
+    plot.switch_axis(0)
+    plot.grid(axis="x")
+    plot.set_limits((ticks[0], ticks[1]))
+    plot.set_ticks(ticks)
+    plot.set_ticklabels(ticklabels)
+    plot.lines(x=ticks[1:-1], y=0, lw=0.5, color="0.5")
+    plot.plot(bands)
+
+    plot.switch_axis(1)
+    plot.set_limits((0, max(dos)*1.2))
+    plot.set_ticklabels(yticks=[])
+    plot.lines(y=0, lw=0.5, color="0.5")
+    plot.plotfill(dos, energy, color="k", lw=1, alpha=0.15)
+
+    if show:
+        plot.show()
+    return plot
 
 
 def band_dos_plot(omegas, dos, band_sections, point_names, show=True):
@@ -318,93 +527,3 @@ def band_dos_plot(omegas, dos, band_sections, point_names, show=True):
     if show:
         plt.show()
     return fig
-
-
-def plot_transmission(omegas, *transmission, show=True):
-    omegas = omegas.real
-    t_lim = max([max(t) for t in transmission]) + 0.05
-
-    fig, ax = plt.subplots()
-    ax.set_title("Transmission")
-    ax.set_xlim(min(omegas), max(omegas))
-    ax.set_xlabel(r"$\omega$")
-    ax.set_ylim(-0.05, t_lim)
-    ax.axhline(y=0, lw=0.5, color="0.5")
-    ax.set_ylabel(r"$T(\omega)$")
-
-    for trans in transmission:
-        ax.plot(omegas, trans)
-
-    fig.tight_layout()
-    if show:
-        plt.show()
-    return fig, ax
-
-
-def plot_transmission_loss(lengths, trans, norm=1, mode="lin", show=True):
-    fig, ax = plt.subplots()
-
-    if mode == "exp":
-        ax.set_yscale("log")
-        ylabel = r"$T/T_0$"
-    else:
-        trans = np.log10(trans)
-        ylabel = r"$\log(T/T_0)$"
-
-    ax.plot(lengths, trans)
-
-    ax.set_xlim(0, lengths[-1] + 10)
-    ax.set_xlabel("N")
-    ax.set_ylabel(ylabel)
-    if show:
-        plt.show()
-    return fig, ax
-
-
-def plot_dos(omegas, *dos, show=True):
-    omegas = omegas.real
-
-    fig, ax = plt.subplots()
-    ax.set_title("Density of states")
-    for dos_curve in dos:
-        ax.plot(omegas, dos_curve)
-    ax.axhline(y=0, lw=0.5, color="0.5")
-    ax.set_xlim(min(omegas), max(omegas))
-    ax.set_xlabel(r"$\omega$")
-    ax.set_ylabel(r"$\rho(\omega)$")
-
-    fig.tight_layout()
-    if show:
-        plt.show()
-    return fig, ax
-
-
-def plot_bands(band_sections, point_names, show=True):
-    point_names = list(point_names)
-    point_names.append(point_names[0])
-
-    fig, ax = plt.subplots()
-    ax.set_title("Band structure")
-    n_sections = len(band_sections)
-    x0, ticks = 0, [0]
-    for i in range(n_sections):
-        section = band_sections[i]
-        x = x0 + np.arange(section.shape[0])
-        ax.plot(x, section, color="black")
-        x0 = max(x) + 1
-        ticks.append(x0)
-
-    ax.set_xlabel(r"$k$")
-    ax.set_xlim(0, ticks[-1])
-    ax.set_xticks(ticks)
-
-    ax.set_xticklabels(point_names)
-    ax.axhline(y=0, lw=0.5, color="r")
-    for x_p in ticks[1:-1]:
-        ax.axvline(x=x_p, lw=0.5, color="0.5")
-    ax.set_ylabel(r"$E(k)$")
-
-    fig.tight_layout()
-    if show:
-        plt.show()
-    return fig, ax

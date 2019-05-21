@@ -62,16 +62,17 @@ def read_loclen_data(subfolder):
         h = data.info()["h"]
         w, ll, errs = list(), list(), list()
         for k in data:
-            l, t = data.get_set(k, mean=True)
+            l, t = data.get_set(k, mean=False)
             w.append(data.key_value(k))
-            lam, lam_err = loc_length(l, np.log10(t))
-            ll.append(lam)
-            errs.append(lam_err)
+            t = np.mean(np.log(t), axis=1)
+            lam, lam_err = loc_length(l, t)
+            ll.append(lam / h)
+            errs.append(lam_err / h)
         w = np.array(w)
 
         # Normalizing data
-        ll = np.array(ll) / h
-        errs = np.array(errs) / h
+        ll = np.array(ll)
+        errs = np.array(errs)
 
         data_list.append((h, w, ll, errs))
     return data_list
@@ -104,6 +105,7 @@ def calculate(n_avrg=500):
             basis = p3_basis(eps_p=0, t_pps=1, t_ppp=1, soc=soc)
             calculate_disorder_lt(basis, w_values, h, n_avrg=n_avrg)
 
+
 def calculate_s_basis(n_avrg=500):
     heights = [1, 4, 8, 16]
     w_values = np.arange(16) + 1
@@ -112,21 +114,10 @@ def calculate_s_basis(n_avrg=500):
         calculate_disorder_lt(basis, w_values, h, n_avrg=n_avrg)
 
 
-def rename():
-    folder = Folder(ROOT, "p3-basis")
-    for path in folder.walk_files():
-        root, name = os.path.split(path)
-        name = name[:9] + "e=0-" + name[9:]
-        os.rename(path, os.path.join(root, name))
-
-
-
 def main():
-    calculate()
-    #calculate_s_basis()
-    # show_loclen("p3-basis")
-
-
+    # calculate()
+    # calculate_s_basis()
+    show_loclen("p3-basis")
 
 
 if __name__ == "__main__":

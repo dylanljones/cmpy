@@ -6,35 +6,36 @@ author: Dylan
 project: cmpy
 version: 1.0
 """
-import re
-import os, shutil
-import numpy as np
-import matplotlib.pyplot as plt
 from cmpy import *
 from cmpy.tightbinding import *
 
 POINTS = [0, 0], [np.pi, 0], [np.pi, np.pi]
 NAMES = r"$\Gamma$", r"$X$", r"$M$"
 
+# =========================================================================
+
+
+def resultstring(value, error, dec=2):
+    return f"{value:.{dec}f}{Symbols.pm}{error:.{dec}f}"
+
 
 def main():
-    model = TbDevice.square((2, 1))
-    ham = model.hamiltonian()
+    model = TbDevice.square((5, 1))
+    model.set_disorder(0.5)
 
-    n = 1000
-    omegas = np.linspace(-5, 5, n)
-    y = np.zeros(n)
-    for i in range(n):
-        gf = greens.greens(ham, omegas[i] + 0.01j)
-        dos = -1/np.pi * np.trace(gf.imag)
-        y[i] = dos
+    lengths = np.arange(100, 200, 5)
+    trans = model.transmission_loss(lengths, flatten=False, n_avrg=1000)
+    trans = np.mean(np.log(trans), axis=1)
+
+    ll, llerr, fit_data = loc_length_fit(lengths, trans)
+
+    print(f"{Symbols.Lambda}=" + resultstring(ll, llerr))
 
     plot = Plot()
-    plot.set_figsize(width_pt=455.24411)
+    plot.plot(*fit_data, ls="--", color="k")
+    plot.plot(lengths, trans)
 
-    plot.plot(omegas, y)
-    plot.save("Test.eps")
-    # plot.show()
+    plot.show()
 
 
 if __name__ == "__main__":
