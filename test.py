@@ -21,10 +21,10 @@ def resultstring(value, error, dec=2):
 
 def main():
     model = TbDevice.square((5, 1))
-    model.set_disorder(0.5)
+    model.set_disorder(1)
 
-    lengths = np.arange(100, 200, 5)
-    trans = model.transmission_loss(lengths, flatten=False, n_avrg=1000)
+    lengths = np.arange(50, 200, 5)
+    trans = model.transmission_loss(lengths, flatten=False, n_avrg=200)
     trans = np.mean(np.log(trans), axis=1)
 
     ll, llerr, fit_data = loc_length_fit(lengths, trans)

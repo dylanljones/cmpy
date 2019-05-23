@@ -3,6 +3,8 @@ __pycache__/
 .idea/
 
 
+.plots.py
+
 # LaTeX temporary files
 *.aux
 *.log

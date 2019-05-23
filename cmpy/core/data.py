@@ -34,6 +34,9 @@ class Folder:
     def build_path(self, *rel_names):
         return os.path.join(self.path, *rel_names)
 
+    def mtime(self):
+        return os.path.getmtime(self.path)
+
     def listdirs(self, full=True):
         res = list()
         for name in os.listdir(self.path):

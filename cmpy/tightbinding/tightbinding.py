@@ -350,7 +350,7 @@ class TightBinding:
                 eps = self._cached_slice_energies[i]
                 ham.set_energy(i, eps)
             n_el = ham.n
-            delta = np.eye(n_el) * np.random.uniform(-w_eps, w_eps, size=(n_el))
+            delta = np.eye(n_el) * np.random.uniform(-w_eps/2, w_eps/2, size=(n_el))
             ham = ham + delta
         return ham
 
@@ -469,6 +469,6 @@ class TightBinding:
                 _, alpha = self.lattice.get(i)
                 ham.set_energy(i, self.energies[alpha])
             n_el = ham.n
-            delta = np.eye(n_el) * np.random.uniform(-w_eps, w_eps, size=(n_el, ))
+            delta = np.eye(n_el) * np.random.uniform(-w_eps/2, w_eps/2, size=(n_el, ))
             ham = ham + delta
         return ham

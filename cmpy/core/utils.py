@@ -234,11 +234,12 @@ def shuffle(obj, disorder):
     -------
     shuffled: array_like
     """
+
     if len(obj.shape) == 0:
-        return obj + np.random.uniform(-disorder, +disorder)
+        return obj + np.random.uniform(-disorder/2, +disorder/2)
     else:
         shuffled = obj.copy()
-        delta = np.random.uniform(-disorder, +disorder)
+        delta = np.random.uniform(-disorder/2, +disorder/2)
         for i in range(shuffled.shape[0]):
             shuffled[i, i] += delta
         return shuffled

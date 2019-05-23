@@ -35,7 +35,8 @@ class LT_Data(Data):
         info = dict()
         for string in parts:
             key, val = str(string).split("=")
-            info.update({key: float(val)})
+            if val != "None":
+                info.update({key: float(val)})
         return info
 
     def info_str(self):
@@ -130,11 +131,11 @@ def estimate(model, e, w, lmin=100, lmax=1000, n=40, fitmin=5, fitmax=10, scale=
             model.reshape(length)
             t = np.zeros(n_avrg)
             for j in range(n_avrg):
-                #p.update()
+                # p.update()
                 p = f"({i+1}/{n}) {100 * j / n_avrg:5.1f}% "
                 out.write(p + info)
                 t[j] = model.transmission(omega, sigmas=sigmas, gammas=gammas)
-            trans[i] = np.log10(np.mean(t))
+            trans[i] = np.mean(np.log(t))
 
             # Check localization estimate and error
             if i >= fitmin:

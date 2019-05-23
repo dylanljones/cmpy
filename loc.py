@@ -12,7 +12,7 @@ from cmpy import DATA_DIR, Folder, Plot
 from cmpy.tightbinding import LT_Data, disorder_lt, loc_length
 from cmpy.tightbinding.basis import s_basis, p3_basis, sp3_basis
 
-ROOT = os.path.join(DATA_DIR, "Localization")
+ROOT = os.path.join(DATA_DIR, "Localization2")
 
 
 def calculate_disorder_lt(basis, w_values, h, lengths=None, e=0, n_avrg=250):
@@ -67,7 +67,7 @@ def read_loclen_data(subfolder):
             t = np.mean(np.log(t), axis=1)
             lam, lam_err = loc_length(l, t)
             ll.append(lam / h)
-            errs.append(lam_err / h)
+            errs.append(lam_err)
         w = np.array(w)
 
         # Normalizing data
@@ -96,10 +96,20 @@ def show_loclen(relpath="p3-basis", *socs):
     plot.show()
 
 
+def show_dataset(data):
+    plot = Plot(xlabel="$L$", ylabel=r"$\langle \ln T \rangle$")
+    for k in data:
+        lengths, trans = data.get_set(k, mean=False)
+        trans = np.mean(np.log(trans), axis=1)
+        plot.plot(lengths, trans)
+    return plot
+    #plot.show()
+
+
 def calculate(n_avrg=500):
-    soc_values = 0, 1, 2, 3, 4, 5
+    soc_values = 0, 1, 2, 3, 4
     heights = [1, 4, 8, 16]
-    w_values = [2.5, 3.5, 4.5] #np.arange(16) + 1
+    w_values = np.arange(10) + 1
     for soc in soc_values:
         for h in heights:
             basis = p3_basis(eps_p=0, t_pps=1, t_ppp=1, soc=soc)
