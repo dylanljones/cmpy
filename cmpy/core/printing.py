@@ -93,7 +93,6 @@ def matrix_string(array, element_width=None, col_header=None, row_header=None):
         line = "[" if row_header is None else f"{row_header[i]:{w_h}}["
         for j in range(array.shape[1]):
             val = array[i, j]
-            print(val)
             if val == 0:
                 s = "  "
             elif np.imag(val) == 0:

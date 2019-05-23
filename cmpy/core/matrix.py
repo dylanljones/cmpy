@@ -305,7 +305,7 @@ class Matrix(np.ndarray):
             for j in range(self.shape[1]):
                 val = self[i, j]
                 if np.imag(val) == 0:
-                    s = str(np.real(val))
+                    s = str(np.real(val)) + " "
                 elif np.real(val) == 0:
                     s = str(np.imag(val)) + "j"
                 else:

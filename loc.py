@@ -125,7 +125,7 @@ def calculate_s_basis(n_avrg=500):
 
 
 def main():
-    # calculate()
+    calculate()
     # calculate_s_basis()
     show_loclen("p3-basis")
 

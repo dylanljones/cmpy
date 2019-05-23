@@ -34,57 +34,82 @@ def get_soc(orb1, orb2, s1, s2):
     s = SOC[orb1, orb2]
     return s[s1, s2]
 
+class State:
+
+    def __init__(self, orb, spin=None):
+        self.orb = orb
+        self.spin = spin
+
+    def is_orbit(self, orb):
+        return self.orb == orb
+
+    def is_spin(self, spin):
+        return self.spin == spin
+
+    def is_state(self, orb, spin):
+        return self.is_orbit(orb) and self.is_spin(spin)
+
+    def __str__(self):
+        return f"{self.orb} {self.spin}"
+
+    def __repr__(self):
+        return f"State({self.orb}, {self.spin})"
+
 
 class Basis:
 
     def __init__(self, *orbitals, spin=True, ordering="spin"):
-        """ Initialize the Basis object
-
-        Parameters
-        orbitals: array_like
-            orbital names of the basis
-        spin: bool, optional
-            if True, use two spin channels, default: True
-        """
-        if spin:
-            orbs = list()
-            orbs += [orb + " up" for orb in orbitals]
-            orbs += [orb + " down" for orb in orbitals]
-        else:
-            orbs = orbitals
-
-        if ordering == "orb":
-            orbs = sorted(orbs)
-
-        self.spin = spin
-        self.orbs = orbs
         self.soc = None
+        self.spin = spin
+        if spin:
+            states = [State(orb, "up") for orb in orbitals]
+            states += [State(orb, "down") for orb in orbitals]
+        else:
+            states = [State(orb) for orb in orbitals]
+        self.states = states
+        self.sort_states(ordering)
 
-        n = len(orbs)
+        n = len(self.states)
         self.n = n
         self._eps = np.zeros((n, n), dtype="complex")
         self._soc = np.zeros((n, n), dtype="complex")
-        self.hop = np.zeros((n, n), dtype="complex")
+        self._hop = np.zeros((n, n), dtype="complex")
+
+    def sort_states(self, mode="spin"):
+        if mode == "spin":
+            states = self.states
+            states.sort(key=lambda s: s.spin)
+            self.states = states[::-1]
+        elif mode == "orb":
+            states = self.states
+            states.sort(key=lambda s: s.orb)
+            self.states = states
+        else:
+            raise ValueError(f"ERROR: Sort-mode {mode} not recognized (Allowed modes: spin, orb)")
 
     @property
     def eps(self):
         """ np.ndarray: on-site energies of all orbitals"""
-        # print(self._soc)
         return self._eps + self._soc
 
-    def find_orbit(self, orb):
+    @property
+    def hop(self):
+        """ np.ndarray: hopping energies of all orbitals"""
+        return self._hop
+
+    def find(self, txt):
         """ Find indices of orbitals that match query
 
         Parameters
         ----------
-        orb: str
+        txt: str
             search string
 
         Returns
         -------
         indices: list
         """
-        return [i for i in range(self.n) if self.orbs[i].startswith(orb)]
+        return [i for i in range(self.n) if str(self.states[i]).startswith(txt)]
 
     def set_energy(self, orb, energy):
         """ Set on-site energy for a orbital
@@ -97,7 +122,7 @@ class Basis:
             energy value of orbital
         """
         for i in range(self.n):
-            if self.orbs[i].startswith(orb):
+            if self.states[i].orb.startswith(orb):
                 self._eps[i, i] = energy
 
     def set_hopping(self, orb1, orb2, hopping):
@@ -112,8 +137,8 @@ class Basis:
         hopping: float
             hopping energy between the orbitals
         """
-        indices_i = self.find_orbit(orb1)
-        indices_j = self.find_orbit(orb2)
+        indices_i = self.find(orb1)
+        indices_j = self.find(orb2)
         for i, j in zip(indices_i, indices_j):
             self.hop[i, j] = hopping
             if i != j:
@@ -134,16 +159,19 @@ class Basis:
             raise ValueError("SOC requires two different spin-types")
         for i in range(n):
             for j in range(n):
-                orb1, s1 = self.orbs[i].split(" ")
-                orb2, s2 = self.orbs[j].split(" ")
+                state1, state2 = self.states[i], self.states[j]
+                orb1, s1 = state1.orb, state1.spin
+                orb2, s2 = state2.orb, state2.spin
                 h_soc[i, j] = get_soc(orb1, orb2, s1, s2)
         self._soc = h_soc * coupling
 
+    # =========================================================================
+
     def labels(self):
         labels = list()
-        for orb in self.orbs:
+        for state in self.states:
             if self.spin:
-                orb, s = orb.split(" ")
+                orb, s = state.orb, state.spin
                 if s == "up":
                     orb += r"\uparrow"
                 elif s == "down":
@@ -157,22 +185,23 @@ class Basis:
         plot1 = eps.show(False)
         plot1.ax.set_title("Site-hamiltonian")
         plot1.set_ticklabels(labels, labels)
-        plot1.fig.tight_layout()
+        plot1.tight()
 
         hop = Matrix(self.hop)
         plot2 = hop.show(False)
         plot2.fig.tight_layout()
         plot2.set_ticklabels(labels, labels)
         plot2.ax.set_title("Hopping-hamiltonian")
+        plot2.tight()
         plt.show()
 
     def site_string(self, width=None):
-        header = [orb.split(" ")[0] for orb in self.orbs]
+        header = [s.orb for s in self.states]
         string = matrix_string(self.eps, width, col_header=header, row_header=header)
         return string
 
     def hop_string(self, width=None):
-        header = [orb.split(" ")[0] for orb in self.orbs]
+        header = [s.orb for s in self.states]
         string = matrix_string(self.hop, width, col_header=header, row_header=header)
         return string
 
