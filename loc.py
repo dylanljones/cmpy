@@ -12,7 +12,7 @@ from cmpy import DATA_DIR, Folder, Plot
 from cmpy.tightbinding import LT_Data, disorder_lt, loc_length
 from cmpy.tightbinding.basis import s_basis, p3_basis, sp3_basis
 
-ROOT = os.path.join(DATA_DIR, "Localization2")
+ROOT = os.path.join(DATA_DIR, "Localization")
 
 
 def calculate_disorder_lt(basis, w_values, h, lengths=None, e=0, n_avrg=250):
@@ -64,8 +64,12 @@ def read_loclen_data(subfolder):
         for k in data:
             l, t = data.get_set(k, mean=False)
             w.append(data.key_value(k))
-            t = np.mean(np.log(t), axis=1)
-            lam, lam_err = loc_length(l, t)
+            try:
+                t = np.mean(np.log(t), axis=1)
+                lam, lam_err = loc_length(l, t)
+            except Exception as e:
+                print(k)
+
             ll.append(lam / h)
             errs.append(lam_err)
         w = np.array(w)
@@ -106,6 +110,14 @@ def show_dataset(data):
     #plot.show()
 
 
+def calculate_s_basis(n_avrg=500):
+    heights = [1, 4, 8, 16]
+    w_values = np.arange(10) + 1
+    for h in heights:
+        basis = s_basis(eps=0., t=1.)
+        calculate_disorder_lt(basis, w_values, h, n_avrg=n_avrg)
+
+
 def calculate(n_avrg=500):
     soc_values = 0, 1, 2, 3, 4
     heights = [1, 4, 8, 16]
@@ -115,17 +127,20 @@ def calculate(n_avrg=500):
             basis = p3_basis(eps_p=0, t_pps=1, t_ppp=1, soc=soc)
             calculate_disorder_lt(basis, w_values, h, n_avrg=n_avrg)
 
-
-def calculate_s_basis(n_avrg=500):
+def calculate_single_soc(n_avrg=500):
+    soc = 1
     heights = [1, 4, 8, 16]
-    w_values = np.arange(10) + 1
+    w_values = np.arange(3, 6, 0.25)
     for h in heights:
-        basis = s_basis(eps=0., t=1.)
+        basis = p3_basis(eps_p=0, t_pps=1, t_ppp=1, soc=soc)
         calculate_disorder_lt(basis, w_values, h, n_avrg=n_avrg)
 
 
 def main():
+
+
     # calculate()
+    calculate_single_soc()
     # calculate_s_basis()
     show_loclen("p3-basis")
 

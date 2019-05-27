@@ -9,90 +9,82 @@ version: 1.0
 import numpy as np
 from scipy import linalg as la
 from scipy.integrate import quad
-import matplotlib.pyplot as plt
-from cmpy import eta, Hamiltonian
+from cmpy import eta, greens
+from cmpy import Hamiltonian, Matrix, Plot, prange
 from cmpy.hubbard import Basis, HubbardModel
 
 t = 1
 u = t * 10
 mu = u / 2
 
-w = np.sqrt((u/2)**2 + 4 * t**2)
+w = np.sqrt((u/2)**2 + 4*t**2)
 e0 = u/2 - w
 
-
-def spectral(g):
-    return -1/np.pi * g.imag
+# =============================================================================
 
 
-def self_energy(omega, g, sign=1):
-    return omega + mu + sign * t - (1/g)  # la.inv(g)
-
-
-def gf(omega, sign=1):
-    t1 = (0.5 + sign * (t / w)) / (omega + mu - (e0 + sign * t))
-    t2 = (0.5 - sign * (t / w)) / (omega + mu - (u + sign * t - e0))
-    return t1 + t2
-
-
-def test_gf():
-    n = 1000
-    omegas = np.linspace(-10, 10, n) + eta
-
-    gf_p = np.zeros(n, dtype="complex")
-    gf_n = np.zeros(n, dtype="complex")
+def greens_function(omegas, ham):
+    n = len(omegas)
+    gf = np.zeros(n)
     for i in range(n):
-        gf_p[i] = gf(omegas[i], +1)
-        gf_n[i] = gf(omegas[i], -1)
+        eigvals = ham.eigvals()
 
-    fig, ax = plt.subplots()
+    return gf
 
-    col = "C0"
-    spec = spectral(gf_p)
-    ax.plot(omegas.real, spec / np.max(spec), label=r"$A (P=+1, k=0)$", color=col)
-    sigma = - self_energy(omegas, gf_p, 1).imag
-    ax.plot(omegas.real, sigma / np.max(sigma), label=r"$\Sigma$", color=col, ls="--")
-
-    col = "C1"
-    spec = spectral(gf_n)
-    ax.plot(omegas.real, spec / np.max(spec), label=r"$A (P=-1, k=\pi)$", color=col)
-    sigma = - self_energy(omegas, gf_n, -1).imag
-    ax.plot(omegas.real, sigma / np.max(sigma), label=r"$\Sigma$", color=col, ls="--")
-
-    plt.legend()
-    plt.show()
-
-# =============================================================================
-
-
-def rho(e):
-    return np.sqrt(4 * t**2 - e**2) / (2 * np.pi * t**2)
-
-
-def int_func(e, omega, sigma_latt):
-    return rho(e) / (omega + mu - e - sigma_latt)
-
-
-def gf_lattice(omega, sigma, a=-np.inf, b=np.inf):
-    res = quad(int_func, a, b, args=(omega, sigma))
-    return res[0]
-
-
-# =============================================================================
 
 
 def test_hubbard():
-    model = HubbardModel()
-    ham = model.hamiltonian(2)
+    omegas = np.linspace(-5, 5, 100)
+    model = HubbardModel(eps=0, t=1, u=u, mu=mu)
+    ham = model.hamiltonian(n=2, spin=0)
+
+    eigvals, eigvecs = ham.eig()
+    print(np.sort(eigvals.real))
     plot = ham.show(ticklabels=model.basis.state_latex_strings())
     plot.show()
 
-    ham2 = Hamiltonian([[0, -2*t], [-2*t, u]])
-    print(ham2.eigvals())
+    gf = greens_function(omegas + eta, ham)
+    return
+    plot = Plot()
+    plot.plot(omegas, gf)
+    plot.show()
 
+    eigvals, eigvecs = ham.eig()
+    print(eigvals)
+    print(e0)
+
+
+def gf_lehmann(omega, ham):
+    eigvals = ham.eigvals()
+    n = len(eigvals)
+    gf = 0
+    for i in range(n):
+        for j in range(n):
+            if i != j:
+                gf += 1 / (omega - (eigvals[i] - eigvals[j]))
+    return gf
+
+
+def test_gf():
+    olim = -5, 5
+    ham = Hamiltonian.zeros(3)
+    ham.set_hopping(0, 1, 1)
+    ham.set_hopping(1, 2, 1)
+
+    n = 100
+    omegas = np.linspace(*olim, n) + eta
+    gf = np.zeros(n, dtype="complex")
+    gf2 = np.zeros(n, dtype="complex")
+    for i in range(n):
+        gf[i] = np.trace(greens.greens(ham, omegas[i]))
+        gf2[i] = gf_lehmann(omegas[i], ham)
+    plot = Plot()
+    plot.plot(omegas.real, -gf.imag)
+    plot.plot(omegas.real, -gf2.imag)
+    plot.show()
 
 def main():
-    test_hubbard()
+    test_gf()
 
 
 if __name__ == "__main__":
