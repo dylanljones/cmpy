@@ -118,14 +118,14 @@ def calculate(n_avrg=500):
 
 def calculate_s_basis(n_avrg=500):
     heights = [1, 4, 8, 16]
-    w_values = np.arange(16) + 1
+    w_values = np.arange(10) + 1
     for h in heights:
         basis = s_basis(eps=0., t=1.)
         calculate_disorder_lt(basis, w_values, h, n_avrg=n_avrg)
 
 
 def main():
-    calculate()
+    # calculate()
     # calculate_s_basis()
     show_loclen("p3-basis")
 
