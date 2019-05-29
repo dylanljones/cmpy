@@ -267,6 +267,10 @@ class Matrix(np.ndarray):
         """ np.ndarray: eigenvalues of the matrix """
         return la.eigvalsh(self, eigvals=num_range)
 
+    def eigvecs(self, num_range=None):
+        """ np.ndarray: eigenvalues of the matrix """
+        return la.eig(self)[1]
+
     # ==============================================================================================
 
     def show(self, show=True, cmap=None):

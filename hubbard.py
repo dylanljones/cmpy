@@ -55,21 +55,34 @@ def test_hubbard():
 
 
 def gf_lehmann(omega, ham):
-    eigvals = ham.eigvals()
+    eigvals, eigvecs = ham.eig()
     n = len(eigvals)
     gf = 0
     for i in range(n):
         for j in range(n):
             if i != j:
-                gf += 1 / (omega - (eigvals[i] - eigvals[j]))
+                weight = (np.dot(eigvecs[i], eigvecs[j]))**2
+                print(weight)
+                gf += weight / (omega + mu - (eigvals[j] - eigvals[i]))
     return gf
 
 
 def test_gf():
     olim = -5, 5
-    ham = Hamiltonian.zeros(3)
-    ham.set_hopping(0, 1, 1)
-    ham.set_hopping(1, 2, 1)
+    model = HubbardModel(eps=0, t=1, u=u, mu=mu)
+    ham = model.hamiltonian(n=2, spin=0)
+    eigvals, eigvecs = ham.eig()
+
+    print(np.dot(eigvecs[0], eigvecs[1]))
+
+
+    for i in range(len(eigvals)):
+        print(eigvals[i])
+        print(eigvecs[i])
+        print()
+    return
+
+    ham.show()
 
     n = 100
     omegas = np.linspace(*olim, n) + eta
@@ -83,8 +96,16 @@ def test_gf():
     plot.plot(omegas.real, -gf2.imag)
     plot.show()
 
+
 def main():
-    test_gf()
+    # test_gf()
+    ham = Hamiltonian([[0, -2*t], [-2*t, u]])
+    print(ham.eigvals())
+    print(ham.eigvecs())
+
+
+
+
 
 
 if __name__ == "__main__":
