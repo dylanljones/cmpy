@@ -118,6 +118,9 @@ class Plot:
     def ylim(self):
         return self.ax.get_ylim()
 
+    def set_equal_aspect(self):
+        self.ax.set_aspect("equal", "box")
+
     def set_scales(self, xscale=None, yscale=None, zscale=None):
         if xscale is not None:
             self.ax.set_xscale(xscale)

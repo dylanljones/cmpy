@@ -137,8 +137,6 @@ def calculate_single_soc(n_avrg=500):
 
 
 def main():
-
-
     # calculate()
     calculate_single_soc()
     # calculate_s_basis()
