@@ -10,7 +10,7 @@ import numpy as np
 from scipy import linalg as la
 import matplotlib.pyplot as plt
 from cmpy.core import greens, eta
-from cmpy.core import prange, Progress, Symbols
+from cmpy.core import prange, Progress, Symbols, normalize
 from .basis import sp3_basis, p3_basis
 from .tightbinding import TightBinding
 
@@ -228,7 +228,7 @@ class TbDevice(TightBinding):
         """ square device prefab with one atom at the origin of the unit cell with p orbitals
 
         Parameters
-        ----------
+        ----------def occupation()
         shape: tuple, optional
             shape to build lattice, the default is (1, 1)
             if None, the lattice won't be built on initialization
@@ -357,16 +357,23 @@ class TbDevice(TightBinding):
         """ Plot the lattice of the device"""
         self.lattice.show()
 
-    def device_dos(self, omega, local=False):
-        ham = self.hamiltonian_eff(omega)
-        gf = ham.greens(omega, only_diag=True)
-        dos = -1/np.pi * gf.imag
-        if local is False:
-            dos = np.sum(dos)
-        return dos
-
     def bulk_dos(self, omegas):
         return self.lead.dos(omegas, mode="b")
+
+    def ldos(self, omega):
+        ham = self.hamiltonian_eff(omega)
+        gf = ham.greens(omega, only_diag=True)
+        return -1/np.pi * gf.imag
+
+    def dos(self, omegas):
+        return np.sum(self.ldos(omegas, banded), axis=1)
+
+    def occupation(self, omega, banded=False):
+        return normalize(self.ldos(omega, banded))
+
+    def inverse_participation_ratio(self, omega=eta):
+        ldos = self.ldos(omega)
+        return np.sum(np.power(ldos, 2)) / (np.sum(ldos) ** 2)
 
     # =========================================================================
 

@@ -15,6 +15,21 @@ import numpy as np
 eta = 1e-7j
 
 
+def normalize(array):
+    """ Normalizes a given array
+
+    Parameters
+    ----------
+    array: array_like
+        Un-normalized array
+
+    Returns
+    -------
+    arr_normalized: np.ndarray
+    """
+    return np.asarray(array) / np.linalg.norm(array, ord=1)
+
+
 def vlinspace(start, stop, n=1000):
     """ Vector linspace
 

@@ -12,14 +12,14 @@ from .basis import Basis
 
 class HubbardModel:
 
-    def __init__(self, eps=0., t=1., u=None, mu=None):
+    def __init__(self, eps=0., t=1., u=10, mu=None):
         self.lattice = Lattice.square()
         self.basis = None
         self.states = list()
 
         self.eps = eps
         self.t = t
-        self.u = 10 * t if u is None else u
+        self.u = u
         self.mu = self.u / 2 if mu is None else mu
 
         self.build(x=2)
@@ -48,6 +48,6 @@ class HubbardModel:
         return ham
 
     def __repr__(self):
-        eps = u"\u03b5".encode()
+        eps = u"\u03b5".encode("utf-8")
         mu = u"\u03bc".encode()
         return f"Hubbard({eps}={self.eps}, t={self.t}, U={self.u}, {mu}={self.mu})"
