@@ -3,7 +3,7 @@
 Created on 14 Oct 2018
 @author: Dylan Jones
 
-project: cmpy
+project: cmpy2
 version: 1.0
 
 Printing utilities
@@ -34,7 +34,7 @@ def format_num(num, unit="b", div=1024):
         if abs(num) < div:
             return f"{num:.1f} {scale}{unit}"
         num /= div
-    return f"{num:.1f} Z{unit}"
+    return f"{num:.1f} {unit}"
 
 
 def short_time_str(secs):

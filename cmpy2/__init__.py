@@ -3,8 +3,7 @@
 Created on 26 Mar 2019
 author: Dylan
 
-project: cmpy
+project: cmpy2
 version: 1.0
 """
 from .core import *
-from .tightbinding import *

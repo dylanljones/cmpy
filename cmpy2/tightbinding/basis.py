@@ -3,12 +3,12 @@
 Created on 1 Dec 2018
 @author: Dylan Jones
 
-project: cmpy
+project: cmpy2
 version: 1.0
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from cmpy.core import Matrix, matrix_string
+from cmpy2.core import Matrix, matrix_string
 
 SPINS = "up", "down"
 ORBS = "p_x", "p_y", "p_z"
@@ -33,6 +33,7 @@ def get_soc(orb1, orb2, s1, s2):
         s1, s2 = SPINS.index(s1), SPINS.index(s2)
     s = SOC[orb1, orb2]
     return s[s1, s2]
+
 
 class State:
 

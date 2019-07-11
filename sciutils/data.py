@@ -1,19 +1,26 @@
 # -*- coding: utf-8 -*-
 """
-Created on 25 Apr 2019
-@author: Dylan Jones
+Created on  06 2019
+author: dylan
 
-project: cmpy
+project: sciutils
 version: 1.0
-
 """
 import os
-from os.path import dirname
+import pickle
 import numpy as np
 
-PROJECT_DIR = dirname(dirname(dirname(os.path.abspath(__file__))))
-DATA_DIR = os.path.join(PROJECT_DIR, "_data")
-IMG_DIR = os.path.join(PROJECT_DIR, "_imgs")
+
+def save_pkl(file, *args, info=None):
+    data = list(args) + [info]
+    with open(file, "wb") as f:
+        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+
+
+def load_pkl(file):
+    with open(file, "rb") as f:
+        result = pickle.load(f)
+    return result
 
 
 class Folder:
@@ -31,11 +38,14 @@ class Folder:
     def files(self):
         return self.listfiles()
 
-    def build_path(self, *rel_names):
+    def build_relpath(self, *rel_names):
         return os.path.join(self.path, *rel_names)
 
     def mtime(self):
         return os.path.getmtime(self.path)
+
+    def ctime(self):
+        return os.path.getctime(self.path)
 
     def listdirs(self, full=True):
         res = list()
@@ -95,11 +105,11 @@ class Folder:
 
 class Data(dict):
 
-    def __init__(self, path=None):
+    def __init__(self, *paths):
         super().__init__()
         self.path = ""
-        if path is not None:
-            self.open(path)
+        if paths:
+            self.open(os.path.join(*paths))
 
     @property
     def filename(self):
@@ -113,8 +123,8 @@ class Data(dict):
     def save(self):
         np.savez(self.path, **self)
 
-    def open(self, path):
-        self.path = path
+    def open(self, *paths):
+        self.path = os.path.join(*paths)
         if os.path.isfile(self.path):
             self._read()
 
@@ -122,6 +132,3 @@ class Data(dict):
         npzfile = np.load(self.path)
         for key, data in npzfile.items():
             super().update({key: data})
-
-
-Folder(IMG_DIR)

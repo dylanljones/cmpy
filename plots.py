@@ -10,11 +10,11 @@ import os
 import time
 import numpy as np
 from scipy import linalg as la
-from cmpy import prange, Progress, greens, DATA_DIR, Folder
-from cmpy.core.plotting import Plot, plot_banddos, build_bands
-from cmpy.tightbinding import TbDevice, p3_basis, s_basis
-from cmpy.tightbinding import LT_Data, loc_length, loc_length_fit
-from cmpy import eta
+from cmpy2 import prange, Progress, greens, DATA_DIR, Folder
+from cmpy2.core.plotting import Plot, plot_banddos, build_bands
+from cmpy2.tightbinding import TbDevice, p3_basis, s_basis
+from cmpy2.tightbinding import LT_Data, loc_length, loc_length_fit
+from cmpy2 import eta
 
 DPI = 600
 POINTS = [0, 0], [np.pi, 0], [np.pi, np.pi]

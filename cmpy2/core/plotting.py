@@ -18,7 +18,6 @@ from matplotlib import cm, colors
 from mpl_toolkits.mplot3d import Axes3D
 from .data import IMG_DIR
 
-
 GOLDEN_MEAN = (np.sqrt(5) - 1.0) / 2.0
 
 

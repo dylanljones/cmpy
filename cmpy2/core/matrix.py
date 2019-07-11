@@ -3,7 +3,7 @@
 Created on 25 Jan 2019
 @author: Dylan Jones
 
-project: cmpy
+project: cmpy2
 version: 1.0
 """
 import numpy as np
@@ -145,7 +145,7 @@ class Matrix(np.ndarray):
         Parameters
         ----------
         block_size: tuple or int
-            row and columns size of the block. If only a int is given
+            row and column size of the block. If only a int is given
             block shape will be square
         """
         # Convert to tuple if int
@@ -502,7 +502,7 @@ class Hamiltonian(Matrix):
         dos: np.ndarray
         """
         greens = self.greens(omegas, only_diag=True)
-        dos = -1/np.pi * np.sum(greens.imag, axis=0)
+        dos = -1/np.pi * np.sum(greens.imag, axis=1)
         return dos
 
     # ==============================================================================================

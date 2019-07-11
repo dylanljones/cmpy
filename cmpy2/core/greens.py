@@ -3,16 +3,15 @@
 Created on 14 Feb 2019
 author: Dylan
 
-project: cmpy
+project: cmpy2
 version: 1.0
 """
 import numpy as np
 from scipy import linalg as la
-from sciutils import eig_banded
 
 
-def gf(ham, omega, expand=True):
-    """ Calculate the Green's function for a given non-interacting hamiltonian
+def greens(ham, omega):
+    """ Calculate the Green's function for a given hamiltonian
 
     Parameters
     ----------
@@ -20,16 +19,12 @@ def gf(ham, omega, expand=True):
         energy value to calculate the Green's function
     ham: array_like
         hamiltonian
-    expand: bool, default: True
-        Flag if energy has to be converted to matrix form
-
     Returns
     -------
     gf: array_like
     """
-    if expand:
-        omega = np.eye(ham.shape[0]) * omega
-    return la.inv(omega - ham, overwrite_a=True, check_finite=False)
+    e = np.eye(ham.shape[0]) * omega
+    return la.inv(e - ham, overwrite_a=True)
 
 
 def advanced_gf(omega, ham, sigma_l, sigma_r):
@@ -50,47 +45,6 @@ def advanced_gf(omega, ham, sigma_l, sigma_r):
     gf: array_like
     """
     return la.inv(omega * np.eye(ham.shape[0]) - ham - sigma_l - sigma_r)
-
-
-def gf_lehmann(ham, omega, mu=0., only_diag=True, banded=False):
-    """ Calculate the greens function of the given Hamiltonian
-
-    Parameters
-    ----------
-    ham: array_like
-        Hamiltonian matrix
-    omega: complex or array_like
-        Energy e+eta of the greens function (must be complex!)
-    mu: float, default: 0
-        Chemical potential of the system
-    only_diag: bool, default: True
-        only return diagonal elements of the greens function if True
-    banded: bool, default: False
-        Use the upper diagonal matrix for solving the eigenvalue problem.
-        Uses full diagonalization as default
-
-    Returns
-    -------
-    greens: np.ndarray
-    """
-    scalar = False
-    if not hasattr(omega, "__len__"):
-        scalar = True
-        omega = [omega]
-    omega = np.asarray(omega)
-
-    # Calculate eigenvalues and -vectors of hamiltonian
-    if banded:
-        eigvals, eigvecs = eig_banded(ham)
-    else:
-        eigvals, eigvecs = np.linalg.eig(ham)
-    eigenvectors_adj = np.conj(eigvecs).T
-
-    # Calculate greens-function
-    subscript_str = "ij,...j,ji->...i" if only_diag else "ik,...k,kj->...ij"
-    arg = np.subtract.outer(omega + mu, eigvals)
-    greens = np.einsum(subscript_str, eigenvectors_adj, 1 / arg, eigvecs)
-    return greens if not scalar else greens[0]
 
 
 def rda(ham, t, omega, thresh=0.):
@@ -116,8 +70,7 @@ def rda(ham, t, omega, thresh=0.):
     gf_c: array_like
     gf_r: array_like
     """
-    omega = omega * np.eye(ham.shape[0])
-
+    eye = np.eye(ham.shape[0])
     alpha = t
     beta = np.conj(t).T
     h_l = ham.copy()
@@ -125,9 +78,9 @@ def rda(ham, t, omega, thresh=0.):
     h_r = ham.copy()
     while True:
         # calculate greens-functions
-        gf_l = gf(h_l, omega, expand=False)
-        gf_b = gf(h_b, omega, expand=False)
-        gf_r = gf(h_l, omega, expand=False)
+        gf_l = la.inv(omega * eye - h_l)
+        gf_b = la.inv(omega * eye - h_b)
+        gf_r = la.inv(omega * eye - h_r)
 
         # Recalculate hamiltonians
         h_l = h_l + alpha @ gf_b @ beta
@@ -144,3 +97,33 @@ def rda(ham, t, omega, thresh=0.):
         beta = beta @ gf_b @ beta
 
     return gf_l, gf_b, gf_r
+
+
+def rgf(ham, omega):
+    """ Recursive green's function
+
+    Calculate green's function using the recursive green's function formalism.
+
+    Parameters
+    ----------
+    ham: Hamiltonian
+        hamiltonian of model, must allready be blocked
+    omega: float
+        energy-value to calculate the Green's functions
+
+    Returns
+    -------
+    gf_1n: array_like
+        lower left block of greens function
+    """
+
+    e = np.eye(ham.block_size[0]) * omega
+    n_blocks = ham.block_shape[0]
+
+    g_nn = la.inv(e - ham.get_block(0, 0), overwrite_a=True)
+    g_1n = g_nn
+    for i in range(1, n_blocks):
+        h = ham.get_block(i, i) + ham.get_block(i, i-1) @ g_nn @ ham.get_block(i-1, i)
+        g_nn = la.inv(e - h, overwrite_a=True)
+        g_1n = g_1n @ ham.get_block(i-1, i) @ g_nn
+    return g_1n

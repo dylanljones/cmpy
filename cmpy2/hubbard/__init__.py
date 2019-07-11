@@ -3,7 +3,7 @@
 Created on 29 Mar 2019
 author: Dylan
 
-project: cmpy
+project: cmpy2
 version: 1.0
 """
 from .basis import Basis

@@ -3,15 +3,15 @@
 Created on 29 Mar 2019
 author: Dylan
 
-project: cmpy
+project: cmpy2
 version: 1.0
 """
 import numpy as np
 from scipy import linalg as la
 from scipy.integrate import quad
-from cmpy import eta, greens
-from cmpy import Hamiltonian, Matrix, Plot, prange
-from cmpy.hubbard import Basis, HubbardModel
+from cmpy2 import eta, greens
+from cmpy2 import Hamiltonian, Matrix, Plot, prange
+from cmpy2.hubbard import Basis, HubbardModel
 
 t = 1
 u = t * 10
@@ -32,8 +32,7 @@ def greens_function(omegas, ham):
     return gf
 
 
-
-def test_hubbard():
+def run_hubbard():
     omegas = np.linspace(-5, 5, 100)
     model = HubbardModel(eps=0, t=1, u=u, mu=mu)
     ham = model.hamiltonian(n=2, spin=0)
@@ -67,14 +66,13 @@ def gf_lehmann(omega, ham):
     return gf
 
 
-def test_gf():
+def gf():
     olim = -5, 5
     model = HubbardModel(eps=0, t=1, u=u, mu=mu)
     ham = model.hamiltonian(n=2, spin=0)
     eigvals, eigvecs = ham.eig()
 
     print(np.dot(eigvecs[0], eigvecs[1]))
-
 
     for i in range(len(eigvals)):
         print(eigvals[i])
@@ -99,10 +97,15 @@ def test_gf():
 
 def main():
     # test_gf()
-    ham = Hamiltonian([[0, -2*t], [-2*t, u]])
-    print(ham.eigvals())
-    print(ham.eigvecs())
+    model = HubbardModel(eps=0, t=1, u=u, mu=mu)
+    ham = model.hamiltonian(n=2, spin=0)
 
+    omegas = np.linspace(-10, 10, 100)
+    gf = ham.greens(omegas + eta)
+    spec = -1/np.pi * np.sum(gf, axis=1).imag
+    plot = Plot()
+    plot.plot(omegas, spec)
+    plot.show()
 
 
 

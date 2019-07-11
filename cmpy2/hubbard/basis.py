@@ -59,7 +59,7 @@ class State:
                 return diff
 
     def __eq__(self, other):
-            return np.all(self.arr == other.arr)
+        return np.all(self.arr == other.arr)
 
     def __getitem__(self, item):
         return self.arr[item]

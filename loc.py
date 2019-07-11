@@ -8,9 +8,10 @@ version: 1.0
 """
 import os
 import numpy as np
-from cmpy import DATA_DIR, Folder, Plot
-from cmpy.tightbinding import LT_Data, disorder_lt, loc_length
-from cmpy.tightbinding.basis import s_basis, p3_basis, sp3_basis
+from cmpy2 import DATA_DIR, Folder, Plot
+from cmpy2.tightbinding import LT_Data, LoclenData, disorder_lt, loc_length
+from cmpy2.tightbinding import LoclenData, save_localization_data, get_loclen_files
+from cmpy2.tightbinding.basis import s_basis, p3_basis, sp3_basis
 
 ROOT = os.path.join(DATA_DIR, "Localization")
 
@@ -23,6 +24,8 @@ def calculate_disorder_lt(basis, w_values, h, lengths=None, e=0, n_avrg=250):
         rel_parts.append("s-basis")
     else:
         soc = basis.soc
+        if soc is None:
+            soc = 0
         filename = f"disorder-e={e}-h={h}-soc={soc}.npz"
         if basis.n == 6:
             rel_parts.append("p3-basis")
@@ -67,11 +70,11 @@ def read_loclen_data(subfolder):
             try:
                 t = np.mean(np.log(t), axis=1)
                 lam, lam_err = loc_length(l, t)
+                ll.append(lam / h)
+                errs.append(lam_err)
             except Exception as e:
                 print(k)
 
-            ll.append(lam / h)
-            errs.append(lam_err)
         w = np.array(w)
 
         # Normalizing data
@@ -127,6 +130,7 @@ def calculate(n_avrg=500):
             basis = p3_basis(eps_p=0, t_pps=1, t_ppp=1, soc=soc)
             calculate_disorder_lt(basis, w_values, h, n_avrg=n_avrg)
 
+
 def calculate_single_soc(n_avrg=500):
     soc = 1
     heights = [1, 4, 8, 16]
@@ -136,11 +140,27 @@ def calculate_single_soc(n_avrg=500):
         calculate_disorder_lt(basis, w_values, h, n_avrg=n_avrg)
 
 
+def get_loclen(basis=None, soc=None, e=None):
+    files = list()
+    for path in get_loclen_files(ROOT, basis, soc, e):
+        files.append(LoclenData(path))
+    return files
+
+
 def main():
+    # save_localization_data(ROOT)
+
     # calculate()
-    calculate_single_soc()
+    # calculate_single_soc()
     # calculate_s_basis()
-    show_loclen("p3-basis")
+    # show_loclen("p3-basis", 1)
+
+    data = get_loclen("s-basis")[0]
+    arr = data["h=16"]
+    w, ll, llerr = arr
+    n = len(w)
+    for i in range(n):
+        print(f"{w[i]:<6} {ll[i]:5.2f} +- {llerr[i]:5.2f}")
 
 
 if __name__ == "__main__":
