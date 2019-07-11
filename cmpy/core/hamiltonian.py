@@ -103,6 +103,30 @@ class Hamiltonian(Matrix):
         """
         return np.sum(self.ldos(omega, banded), axis=1)
 
+    def show(self, show=True, ticklabels=None, cmap="Greys", show_values=False):
+        """ Plot the Hamiltonian
+
+        Parameters
+        ----------
+        show: bool, optional
+            if True, call plt.show(), default: True
+        ticklabels: array_like, optional
+            Lables of the states of the hamiltonian
+        cmap: str, default: "Greys"
+            colormap used in the plot
+        show_values: bool, default: False
+            if True, print values in boxes
+        show_blocks: bool, optional
+            if True, show blocks of the orbitals, default is False
+        """
+        mp = super().show(False, cmap=cmap, show_values=show_values)
+        if ticklabels is not None:
+            mp.set_basislabels(ticklabels, ticklabels)
+        mp.tight()
+        if show:
+            mp.show()
+        return mp
+
 
 class TbHamiltonian(Hamiltonian):
 

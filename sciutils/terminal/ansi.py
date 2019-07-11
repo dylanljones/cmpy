@@ -218,5 +218,7 @@ def enable_ansi(std_id=STDOUT, warn=False):
         else:
             raise OSError("Only windows supported")
 
-
-enable_ansi(warn=WARN)
+try:
+    enable_ansi(warn=WARN)
+except OSError:
+    pass

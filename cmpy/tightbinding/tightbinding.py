@@ -58,7 +58,7 @@ def occupation_map(lattice, occ, margins=0.5, upsample=None):
         xx, yy = np.meshgrid(x_int, y_int)
         zz = interpolate.griddata(positions, occ, (xx, yy), method=method)
         return xx, yy, zz
-
+from itertools import product
 
 # =========================================================================
 # TIGHT-BINDING BASIS-STATE
@@ -635,6 +635,12 @@ class TightBinding:
     def inverse_participation_ratio(self, omega=eta):
         ldos = self.ldos(omega)
         return np.sum(np.power(ldos, 2)) / (np.sum(ldos) ** 2)
+
+    def mean_ipr(self, omega=eta, n_avrg=100):
+        ipr = np.zeros(n_avrg)
+        for i in range(n_avrg):
+            ipr[i] = self.inverse_participation_ratio(omega)
+        return np.mean(ipr)
 
     # def dispersion(self, k):
     #     """ Calculate dispersion of the model in k-space

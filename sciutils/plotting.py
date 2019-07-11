@@ -496,3 +496,11 @@ class MatrixPlot(Plot):
         x1, y1 = x0 + size[0], y0 + size[1]
         points = (x0, y0), (x0, y1), (x1, y1), (x1, y0)
         self.draw_segment(points, cycle=True, color=color, lw=lw, **kwargs)
+
+    def set_basislabels(self, xlabels=None, ylabels=None):
+        if xlabels is not None:
+            xlabels = [""] + xlabels
+            self.ax.set_xticklabels(xlabels, rotation = 45, ha="right")
+        if ylabels is not None:
+            ylabels = [""] + ylabels
+            self.ax.set_yticklabels(ylabels)

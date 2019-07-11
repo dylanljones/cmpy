@@ -6,5 +6,5 @@ author: dylan
 project: cmpy2
 version: 1.0
 """
-from .tightbinding import TightBinding, State
+from .tightbinding import TightBinding, State, eta
 from .transport import TbDevice, gamma

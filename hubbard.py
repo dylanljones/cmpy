@@ -9,9 +9,9 @@ version: 1.0
 import numpy as np
 from scipy import linalg as la
 from scipy.integrate import quad
-from cmpy2 import eta, greens
-from cmpy2 import Hamiltonian, Matrix, Plot, prange
-from cmpy2.hubbard import Basis, HubbardModel
+from sciutils import Plot, eta
+from cmpy import Hamiltonian, greens
+from cmpy.hubbard import HubbardModel
 
 t = 1
 u = t * 10
@@ -23,89 +23,17 @@ e0 = u/2 - w
 # =============================================================================
 
 
-def greens_function(omegas, ham):
-    n = len(omegas)
-    gf = np.zeros(n)
-    for i in range(n):
-        eigvals = ham.eigvals()
-
-    return gf
-
-
-def run_hubbard():
-    omegas = np.linspace(-5, 5, 100)
+def main():
     model = HubbardModel(eps=0, t=1, u=u, mu=mu)
-    ham = model.hamiltonian(n=2, spin=0)
-
-    eigvals, eigvecs = ham.eig()
-    print(np.sort(eigvals.real))
-    plot = ham.show(ticklabels=model.basis.state_latex_strings())
-    plot.show()
-
-    gf = greens_function(omegas + eta, ham)
-    return
-    plot = Plot()
-    plot.plot(omegas, gf)
-    plot.show()
-
-    eigvals, eigvecs = ham.eig()
-    print(eigvals)
-    print(e0)
-
-
-def gf_lehmann(omega, ham):
-    eigvals, eigvecs = ham.eig()
-    n = len(eigvals)
-    gf = 0
-    for i in range(n):
-        for j in range(n):
-            if i != j:
-                weight = (np.dot(eigvecs[i], eigvecs[j]))**2
-                print(weight)
-                gf += weight / (omega + mu - (eigvals[j] - eigvals[i]))
-    return gf
-
-
-def gf():
-    olim = -5, 5
-    model = HubbardModel(eps=0, t=1, u=u, mu=mu)
-    ham = model.hamiltonian(n=2, spin=0)
-    eigvals, eigvecs = ham.eig()
-
-    print(np.dot(eigvecs[0], eigvecs[1]))
-
-    for i in range(len(eigvals)):
-        print(eigvals[i])
-        print(eigvecs[i])
-        print()
-    return
-
-    ham.show()
+    ham = model.hamiltonian(n=2)
+    ham.show(ticklabels=model.state_labels)
 
     n = 100
-    omegas = np.linspace(*olim, n) + eta
-    gf = np.zeros(n, dtype="complex")
-    gf2 = np.zeros(n, dtype="complex")
-    for i in range(n):
-        gf[i] = np.trace(greens.greens(ham, omegas[i]))
-        gf2[i] = gf_lehmann(omegas[i], ham)
-    plot = Plot()
-    plot.plot(omegas.real, -gf.imag)
-    plot.plot(omegas.real, -gf2.imag)
-    plot.show()
-
-
-def main():
-    # test_gf()
-    model = HubbardModel(eps=0, t=1, u=u, mu=mu)
-    ham = model.hamiltonian(n=2, spin=0)
-
-    omegas = np.linspace(-10, 10, 100)
-    gf = ham.greens(omegas + eta)
-    spec = -1/np.pi * np.sum(gf, axis=1).imag
-    plot = Plot()
-    plot.plot(omegas, spec)
-    plot.show()
+    omegas = np.linspace(-10, 10, n) + eta
+    gf = ham.gf(omegas[0])
+    print(gf)
+    # spec = -1/np.pi * np.sum(gf.imag, axis=1)
+    # Plot.quickplot(omegas.real, spec)
 
 
 
