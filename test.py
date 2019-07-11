@@ -3,7 +3,7 @@
 Created on 26 Mar 2019
 author: Dylan
 
-project: cmpy
+project: cmpy2
 version: 1.0
 """
 from cmpy import *
@@ -12,7 +12,13 @@ from cmpy.hubbard import *
 from scipy.integrate import quad
 
 
-# =========================================================================
+def dos(ham, energies):
+    n = len(energies)
+    dos = np.zeros(n, "float")
+    for i in range(n):
+        gf = greens.greens(ham, energies[i] + eta)
+        dos[i] = np.trace(gf.imag)
+    return dos
 
 
 def func(x, omega, mu, sigma, t=1):

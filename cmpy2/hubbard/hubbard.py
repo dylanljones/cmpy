@@ -3,10 +3,10 @@
 Created on 29 Mar 2019
 author: Dylan
 
-project: cmpy
+project: cmpy2
 version: 1.0
 """
-from cmpy.core import Lattice, Hamiltonian
+from cmpy2.core import Lattice, Hamiltonian
 from .basis import Basis
 
 

@@ -8,7 +8,7 @@ version: 1.0
 """
 import os
 import numpy as np
-from cmpy import Matrix
+from cmpy2 import Matrix
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_data")
 DFT_DATA = os.path.join(DATA_DIR, "dft")

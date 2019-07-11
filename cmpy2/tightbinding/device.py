@@ -3,14 +3,14 @@
 Created on 27 Mar 2019
 author: Dylan
 
-project: cmpy
+project: cmpy2
 version: 1.0
 """
 import numpy as np
 from scipy import linalg as la
 import matplotlib.pyplot as plt
-from cmpy.core import greens, eta
-from cmpy.core import prange, Progress, Symbols, normalize
+from cmpy2.core import greens, eta
+from cmpy2.core import prange, Progress, Symbols
 from .basis import sp3_basis, p3_basis
 from .tightbinding import TightBinding
 
@@ -357,13 +357,25 @@ class TbDevice(TightBinding):
         """ Plot the lattice of the device"""
         self.lattice.show()
 
-    def bulk_dos(self, omegas):
-        return self.lead.dos(omegas, mode="b")
-
-    def ldos(self, omega):
+    def ldos(self, omega=eta):
         ham = self.hamiltonian_eff(omega)
         gf = ham.greens(omega, only_diag=True)
-        return -1/np.pi * gf.imag
+        return -1 / np.pi * gf.imag
+
+    def dos(self, omega):
+        return np.sum(self.ldos(omega))
+
+    def device_dos(self, omega, local=False):
+        ldos = self.ldos(omega)
+        return np.sum(ldos) if local else ldos
+
+    def occupation(self, omega=eta):
+        ldos = self.ldos(omega)
+        return ldos / np.linalg.norm(ldos, ord=1)
+
+    def inverse_participation_ratio(self, omega=eta):
+        ldos = self.ldos(omega)
+        return np.sum(np.power(ldos, 2)) / (np.sum(ldos) ** 2)
 
     def dos(self, omegas):
         return np.sum(self.ldos(omegas, banded), axis=1)
