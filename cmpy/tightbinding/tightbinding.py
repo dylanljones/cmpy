@@ -58,11 +58,11 @@ def occupation_map(lattice, occ, margins=0.5, upsample=None):
         xx, yy = np.meshgrid(x_int, y_int)
         zz = interpolate.griddata(positions, occ, (xx, yy), method=method)
         return xx, yy, zz
-from itertools import product
 
 # =========================================================================
 # TIGHT-BINDING BASIS-STATE
 # =========================================================================
+
 
 class State:
 
@@ -438,13 +438,11 @@ class TightBinding:
             _, alpha1 = self.lattice.get(i)
             datalist[i, i] = self.energies[alpha1]
             # Hopping energies
-            neighbours = self.lattice.neighbours[i]
-            for distidx in range(len(neighbours)):
-                for j in neighbours[distidx]:
-                    if j > i:
-                        _, alpha2 = self.lattice.get(j)
-                        datalist[i, j] = self.get_hopping(alpha1, alpha2, distidx)
-                        datalist[j, i] = self.get_hopping(alpha2, alpha1, distidx)
+            for distidx, j in self.lattice.iter_neighbor_indices(i):
+                if j > i:
+                    _, alpha2 = self.lattice.get(j)
+                    datalist[i, j] = self.get_hopping(alpha1, alpha2, distidx)
+                    datalist[j, i] = self.get_hopping(alpha2, alpha1, distidx)
         return datalist.arr
 
     def slice_hamiltonian(self):
@@ -468,13 +466,11 @@ class TightBinding:
                 a1 = self.lattice.get_alpha(i)
                 array[i, i] = self.energies[a1]
                 # Hopping energies
-                neighbours = self.lattice.neighbours[i]
-                for distidx in range(len(neighbours)):
-                    for j in neighbours[distidx]:
-                        if (i < j) and (j < n):
-                            a2 = self.lattice.get_alpha(j)
-                            array[i, j] = self.get_hopping(a1, a2, distidx)
-                            array[j, i] = self.get_hopping(a2, a1, distidx)
+                for distidx, j in self.lattice.iter_neighbor_indices(i):
+                    if (i < j) and (j < n):
+                        a2 = self.lattice.get_alpha(j)
+                        array[i, j] = self.get_hopping(a1, a2, distidx)
+                        array[j, i] = self.get_hopping(a2, a1, distidx)
             ham = TbHamiltonian.block(array.arr)
             self._slice_ham_cache.load(ham)
         else:
@@ -574,13 +570,11 @@ class TightBinding:
                 a1 = self.lattice.get_alpha(i)
                 array[i, i] = self.energies[a1]
                 # Hopping energies
-                neighbours = self.lattice.neighbours[i]
-                for distidx in range(len(neighbours)):
-                    for j in neighbours[distidx]:
-                        if j > i:
-                            a2 = self.lattice.get_alpha(j)
-                            array[i, j] = self.get_hopping(a1, a2, distidx)
-                            array[j, i] = self.get_hopping(a2, a1, distidx)
+                for distidx, j in self.lattice.iter_neighbor_indices(i):
+                    if j > i:
+                        a2 = self.lattice.get_alpha(j)
+                        array[i, j] = self.get_hopping(a1, a2, distidx)
+                        array[j, i] = self.get_hopping(a2, a1, distidx)
             ham = TbHamiltonian.block(array.arr)
             self._ham_cache.load(ham)
         else:
@@ -639,6 +633,7 @@ class TightBinding:
     def mean_ipr(self, omega=eta, n_avrg=100):
         ipr = np.zeros(n_avrg)
         for i in range(n_avrg):
+            self.shuffle()
             ipr[i] = self.inverse_participation_ratio(omega)
         return np.mean(ipr)
 
@@ -770,7 +765,12 @@ class TightBinding:
         return plot
 
     def show(self, show=True, *args, **kwargs):
-        """ Plot the lattice of the device"""
+        """ Plot the lattice of the device
+
+        See Also
+        --------
+        Lattice.build()
+        """
         return self.lattice.show(show, *args, **kwargs)
 
     def __str__(self):

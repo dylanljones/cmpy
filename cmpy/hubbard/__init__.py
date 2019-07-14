@@ -6,4 +6,5 @@ author: dylan
 project: cmpy
 version: 1.0
 """
-from .hubbardmodel import HubbardModel
+from .state import State
+from .hubbardmodel import HubbardModel, Siam

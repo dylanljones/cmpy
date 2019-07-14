@@ -612,6 +612,9 @@ class Lattice:
         idx = self.indices[i]
         return idx[:-1], idx[-1]
 
+    def get_list_idx(self, n, alpha=0):
+        return (self.indices == [*n, alpha]).all(axis=1).nonzero()[0][0]
+
     def get_alpha(self, i):
         """ Get the atom index alpha of the given site
 
@@ -871,6 +874,12 @@ class Lattice:
             if val is not None:
                 shape[i] = val
         self.build(shape)
+
+    def iter_neighbor_indices(self, i):
+        neighbours = self.neighbours[i]
+        for distidx in range(len(neighbours)):
+            for j in neighbours[distidx]:
+                yield distidx, j
 
     # =========================================================================
 

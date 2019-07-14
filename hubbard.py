@@ -7,36 +7,21 @@ project: cmpy2
 version: 1.0
 """
 import numpy as np
-from scipy import linalg as la
-from scipy.integrate import quad
 from sciutils import Plot, eta
-from cmpy import Hamiltonian, greens
-from cmpy.hubbard import HubbardModel
-
-t = 1
-u = t * 10
-mu = u / 2
-
-w = np.sqrt((u/2)**2 + 4*t**2)
-e0 = u/2 - w
-
-# =============================================================================
+from cmpy.hubbard import HubbardModel, State
 
 
 def main():
-    model = HubbardModel(eps=0, t=1, u=u, mu=mu)
-    ham = model.hamiltonian(n=2)
-    ham.show(ticklabels=model.state_labels)
+    model = HubbardModel()
+    model.set_filling(n=2)
 
-    n = 100
-    omegas = np.linspace(-10, 10, n) + eta
-    gf = ham.gf(omegas[0])
-    print(gf)
-    # spec = -1/np.pi * np.sum(gf.imag, axis=1)
-    # Plot.quickplot(omegas.real, spec)
+    omegas = np.linspace(-7, 7, 2000) + 0.02j
+    plot = Plot(xlabel=r"$\omega$", ylabel=r"$A(\omega)$")
+    plot.plot(omegas.real, model.spectral(omegas))
 
-
-
+    plot.set_limits(0)
+    plot.set_ticks([-5, -2.5, 0, 2.5, 5])
+    plot.show()
 
 
 if __name__ == "__main__":

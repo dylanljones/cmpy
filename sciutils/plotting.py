@@ -452,8 +452,8 @@ class MatrixPlot(Plot):
         return self.array.shape
 
     def load(self, array):
-        array = np.abs(array)
-        self.array = array
+        array = np.asarray(array)
+        self.array = array.real + array.imag
 
         nlim = np.min(array), np.max(array)
         off = self.noffset * abs(nlim[1] - nlim[0])
