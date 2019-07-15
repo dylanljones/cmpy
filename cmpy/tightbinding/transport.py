@@ -37,7 +37,7 @@ def gamma(sigma):
 class Lead:
     """ Semi-infinite Lead object """
 
-    def __init__(self, ham_slice, hop_interslice, dec_thresh=0.):
+    def __init__(self, ham_slice, hop_interslice, dec_thresh=1e-10):
         self.omega = 0
         self.ham = ham_slice
         self.hop = hop_interslice
@@ -174,45 +174,26 @@ class TbDevice(TightBinding):
         -------
         latt: Lattice
         """
-        self = cls(a * np.eye(2))
-        if basis is not None:
-            eps = basis.eps
-            t = basis.hop
-        self.add_atom(name, energy=eps)
-        self.set_hopping(t)
-        if shape is not None:
-            self.build(shape)
-            self.load_lead(wideband)
+        self = super(TbDevice, cls).square(shape, eps, t, name, a)
+        self.load_lead(wideband)
         return self
 
     @classmethod
     def chain(cls, size=1, eps=0., t=1., basis=None, name="A", a=1., wideband=False):
-        return cls.square((size, 1), eps, t, basis, name, a, wideband)
-
-    @classmethod
-    def hexagonal(cls, shape=(2, 1), eps1=0., eps2=0., t=1., atom1="A", atom2="B", a=1., wideband=False):
-        vectors = a * np.array([[np.sqrt(3), np.sqrt(3) / 2],
-                                [0, 3 / 2]])
-        self = cls(vectors)
-        self.add_atom(atom1, energy=eps1)
-        self.add_atom(atom2, energy=eps2, pos=[0, a])
-        self.set_hopping(t)
-        if shape is not None:
-            self.build(shape)
-            self.load_lead(wideband)
+        self = super(TbDevice, cls).chain(size, eps, t, name, a)
+        self.load_lead(wideband)
         return self
 
     @classmethod
-    def sc(cls, shape=(2, 1, 1), eps=0., t=1., basis=None, name="A", a=1., wideband=False):
-        self = cls(np.eye(3)*a)
-        if basis is not None:
-            eps = basis.eps
-            t = basis.hop
-        self.add_atom(name, energy=eps)
-        self.set_hopping(t)
-        if shape is not None:
-            self.build(shape)
-            self.load_lead(wideband)
+    def hexagonal(cls, shape=(2, 1), eps1=0., eps2=0., t=1., atom1="A", atom2="B", a=1., wideband=False):
+        self = super(TbDevice, cls).hexagonal(shape, eps1, eps2, t, atom1, atom2, a)
+        self.load_lead(wideband)
+        return self
+
+    @classmethod
+    def sc(cls, shape=(2, 1, 1), eps=0., t=1., name="A", a=1., wideband=False):
+        self = super(TbDevice, cls).sc(shape, eps, t, name, a)
+        self.load_lead(wideband)
         return self
 
     # =========================================================================
@@ -233,11 +214,9 @@ class TbDevice(TightBinding):
         Returns
         -------
         sigmas: tuple
-            Self-energies of the leads, default is None.
-            If not given, sigmas will be calculated
+            Self-energies of the leads
         gammas: tuple
-            Broadening matrices of the leads, default is None.
-            If not given, gammas will be calculated
+            Broadening matrices of the leads
         """
         if not self._sigma_cache or self._omega_cache != omega:
             # print("Calculating sigmas")
@@ -290,6 +269,10 @@ class TbDevice(TightBinding):
         self._omega_cache.clear()
         self._sigma_cache.clear()
         self._gamma_cache.clear()
+
+    # def build(self, shape, wideband=False):
+    #     super().build(shape)
+    #     self.load_lead(wideband)
 
     def reshape(self, x=None, y=None, z=None):
         """ Reshape lattice of the device and reload leads

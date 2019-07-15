@@ -8,10 +8,11 @@ version: 1.0
 """
 import os
 import numpy as np
-from cmpy2 import DATA_DIR, Folder, Plot
-from cmpy2.tightbinding import LT_Data, LoclenData, disorder_lt, loc_length
-from cmpy2.tightbinding import LoclenData, save_localization_data, get_loclen_files
-from cmpy2.tightbinding.basis import s_basis, p3_basis, sp3_basis
+from sciutils import Folder, Plot
+from cmpy import DATA_DIR
+from cmpy.tightbinding import LT_Data, localization_length
+from cmpy2.tightbinding import disorder_lt, s_basis, p3_basis, sp3_basis
+
 
 ROOT = os.path.join(DATA_DIR, "Localization")
 
@@ -65,11 +66,11 @@ def read_loclen_data(subfolder):
         h = data.info()["h"]
         w, ll, errs = list(), list(), list()
         for k in data:
-            l, t = data.get_set(k, mean=False)
+            l, t = data.get_set(k, mean=False)get_loclen_files
             w.append(data.key_value(k))
             try:
                 t = np.mean(np.log(t), axis=1)
-                lam, lam_err = loc_length(l, t)
+                lam, lam_err = localization_length(l, t)
                 ll.append(lam / h)
                 errs.append(lam_err)
             except Exception as e:
@@ -87,7 +88,7 @@ def read_loclen_data(subfolder):
 
 def show_loclen(relpath="p3-basis", *socs):
     folder = Folder(ROOT, relpath)
-    for subfolder in folder.subfolders():
+    for subfolder in folder.walk_dirs():
         if len(socs) and not any([f"soc={s}" in subfolder.name for s in socs]):
             continue
         data_list = read_loclen_data(subfolder)
@@ -140,27 +141,13 @@ def calculate_single_soc(n_avrg=500):
         calculate_disorder_lt(basis, w_values, h, n_avrg=n_avrg)
 
 
-def get_loclen(basis=None, soc=None, e=None):
-    files = list()
-    for path in get_loclen_files(ROOT, basis, soc, e):
-        files.append(LoclenData(path))
-    return files
-
-
 def main():
     # save_localization_data(ROOT)
 
     # calculate()
     # calculate_single_soc()
     # calculate_s_basis()
-    # show_loclen("p3-basis", 1)
-
-    data = get_loclen("s-basis")[0]
-    arr = data["h=16"]
-    w, ll, llerr = arr
-    n = len(w)
-    for i in range(n):
-        print(f"{w[i]:<6} {ll[i]:5.2f} +- {llerr[i]:5.2f}")
+    show_loclen("p3-basis", 1)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,89 @@ from cmpy.core.lattice import Lattice
 from cmpy.core.hamiltonian import TbHamiltonian
 from cmpy.core.utils import HamiltonianCache, plot_bands, uniform_eye
 
+ORBITALS = "s", "p_x", "p_y", "p_z"
+
+SPINS = "up", "down"
+SOC_ORBS = ORBITALS[1:]
+
+s_0 = np.zeros((2, 2))
+# Pauli matrices
+s_x = np.array([[0, 1], [1, 0]])
+s_y = np.array([[0, -1j], [1j, 0]])
+s_z = np.array([[1, 0], [0, -1]])
+
+SOC = np.array([[s_0,     -1j*s_z, +1j*s_y],
+                [+1j*s_z,     s_0, -1j*s_x],
+                [-1j*s_y, +1j*s_x,     s_0]])
+
+# =========================================================================
+# TIGHT-BINDING BASIS
+# =========================================================================
+
+
+class State:
+
+    def __init__(self, orb, spin=None):
+        self.orb = orb
+        self.spin = spin
+
+    def is_orbit(self, orb):
+        return self.orb == orb
+
+    def is_spin(self, spin):
+        return self.spin == spin
+
+    def is_state(self, orb, spin):
+        return self.is_orbit(orb) and self.is_spin(spin)
+
+    def __str__(self):
+        return f"{self.orb} {self.spin}"
+
+    def __repr__(self):
+        return f"State({self.orb}, {self.spin})"
+
+
+def get_soc(s1, s2):
+    if s1.orb == "s" or s2.orb == "s":
+            return 0
+    orb1, orb2 = SOC_ORBS.index(s1.orb), SOC_ORBS.index(s2.orb)
+    s1, s2 = SPINS.index(s1.spin), SPINS.index(s2.spin)
+    s = SOC[orb1, orb2]
+    return s[s1, s2]
+
+
+def get_atom_basis(energy=0., orbitals=None, spin=True):
+    # Initialize energy- and orbit-array
+    if not hasattr(energy, "__len__"):
+        # Scalar energy
+        if orbitals is None:
+            orbitals = ORBITALS[0]
+        n_orbs = len(orbitals)
+        energy = np.ones(n_orbs) * energy
+    else:
+        # Energy array
+        energy = np.asarray(energy)
+        n_orbs = energy.shape[0] if len(energy.shape) else 1
+        if orbitals is None:
+            orbitals = ORBITALS[:n_orbs]
+        elif len(orbitals) != n_orbs:
+            raise ValueError(f"Size of energy-array doesn't match number of orbitals ({n_orbs}!={len(orbitals)})")
+
+    # Initialize states
+    if spin:
+        n_orbs *= 2
+        states = [State(orb, "up") for orb in orbitals]
+        states += [State(orb, "down") for orb in orbitals]
+        energy = np.append(energy, energy)
+    else:
+        states = [State(orb) for orb in orbitals]
+    return states, np.eye(n_orbs) * energy
+
+
+# =========================================================================
+# METHODS
+# =========================================================================
+
 
 def occupation_map(lattice, occ, margins=0.5, upsample=None):
     """ Builds grid-data from the occupation of the lattice
@@ -59,31 +142,6 @@ def occupation_map(lattice, occ, margins=0.5, upsample=None):
         zz = interpolate.griddata(positions, occ, (xx, yy), method=method)
         return xx, yy, zz
 
-# =========================================================================
-# TIGHT-BINDING BASIS-STATE
-# =========================================================================
-
-
-class State:
-
-    def __init__(self, orb, spin=None):
-        self.orb = orb
-        self.spin = spin
-
-    def is_orbit(self, orb):
-        return self.orb == orb
-
-    def is_spin(self, spin):
-        return self.spin == spin
-
-    def is_state(self, orb, spin):
-        return self.is_orbit(orb) and self.is_spin(spin)
-
-    def __str__(self):
-        return f"{self.orb} {self.spin}"
-
-    def __repr__(self):
-        return f"State({self.orb}, {self.spin})"
 
 # =========================================================================
 # TIGHT-BINDING MODEL
@@ -112,7 +170,7 @@ class TightBinding:
         self._ham_cache = HamiltonianCache()
 
     @classmethod
-    def square(cls, shape=(2, 1), eps=0., t=1., basis=None, name="A", a=1.):
+    def square(cls, shape=(2, 1), eps=0., t=1., name="A", a=1.):
         """ square device prefab with one atom at the origin of the unit cell
 
         Parameters
@@ -124,9 +182,6 @@ class TightBinding:
             energy of the atom, the default is 0
         t: float, otional
             hopping parameter, the default is 1.
-        basis: Basis, optional
-            energy basis of one atom, if not None, use this instead
-            of eps and t
         name: str, optional
             name of the atom, the default is "A"
         a: float, optional
@@ -137,9 +192,32 @@ class TightBinding:
         model: cls
         """
         self = cls(a * np.eye(2))
-        if basis is not None:
-            eps = basis.eps
-            t = basis.hop
+        self.add_atom(name, energy=eps)
+        self.set_hopping(t)
+        if shape is not None:
+            self.build(shape)
+        return self
+
+    @classmethod
+    def chain(cls, size=1, eps=0., t=1., name="A", a=1.):
+        return cls.square((size, 1), eps, t, name, a)
+
+
+    @classmethod
+    def hexagonal(cls, shape=(2, 1), eps1=0., eps2=0., t=1., atom1="A", atom2="B", a=1.):
+        vectors = a * np.array([[np.sqrt(3), np.sqrt(3) / 2],
+                                [0, 3 / 2]])
+        self = cls(vectors)
+        self.add_atom(atom1, energy=eps1)
+        self.add_atom(atom2, energy=eps2, pos=[0, a])
+        self.set_hopping(t)
+        if shape is not None:
+            self.build(shape)
+        return self
+
+    @classmethod
+    def sc(cls, shape=(2, 1, 1), eps=0., t=1., name="A", a=1.):
+        self = cls(np.eye(3)*a)
         self.add_atom(name, energy=eps)
         self.set_hopping(t)
         if shape is not None:
@@ -187,6 +265,23 @@ class TightBinding:
         tb.hopping = self.hopping
         return tb
 
+    def clear_slice_cache(self):
+        self._slice_ham_cache.clear()
+        self._slice_hop_cache.clear()
+
+    def clear_ham_cache(self):
+        self._ham_cache.clear()
+        # self._cached_ham = None
+
+    def clear_cache(self):
+        """Clear cached hamiltonian objects"""
+        self.clear_ham_cache()
+        self.clear_slice_cache()
+
+    # =========================================================================
+    # Setup
+    # =========================================================================
+
     def add_atom(self, name="A", pos=None, energy=0., orbitals=None):
         """ Add site to lattice cell and store it's energy.
 
@@ -209,35 +304,23 @@ class TightBinding:
         """
         # Add site to lattice
         self.lattice.add_atom(name, pos)
+        states, energy = get_atom_basis(energy, orbitals, self.spin)
 
-        # Initialize energy- and orbit-array
-        if not hasattr(energy, "__len__"):
-            # Scalar energy
-            if orbitals is None:
-                orbitals = self.ORBITALS[0]
-            n_orbs = len(orbitals)
-            energy = np.ones(n_orbs) * energy
-        else:
-            # Energy array
-            energy = np.asarray(energy)
-            n_orbs = energy.shape[0] if len(energy.shape) else 1
-            if orbitals is None:
-                orbitals = self.ORBITALS[:n_orbs]
-            elif len(orbitals) != n_orbs:
-                raise ValueError(f"Size of energy-array doesn't match number of orbitals ({n_orbs}!={len(orbitals)})")
-
-        # Initialize states
-        if self.spin:
-            n_orbs *= 2
-            states = [State(orb, "up") for orb in orbitals]
-            states += [State(orb, "down") for orb in orbitals]
-            energy = np.append(energy, energy)
-        else:
-            states = [State(orb) for orb in orbitals]
-
-        self.energies.append(np.eye(n_orbs) * energy)
+        self.energies.append(energy)
         self.basis_states.append(states)
-        self.base_elements += n_orbs
+        self.base_elements = sum([len(b) for b in self.basis_states])
+
+    def add_s_atom(self, name="A", pos=None, energy=0.):
+        orbitals = "s"
+        self.add_atom(name, pos, energy, orbitals)
+
+    def add_p3_atom(self, name="A", pos=None, energy=0.):
+        orbitals = ["p_x", "p_y", "p_z"]
+        self.add_atom(name, pos, energy, orbitals)
+
+    def add_sp3_atom(self, name="A", pos=None, energy=0.):
+        orbitals = ["s", "p_x", "p_y", "p_z"]
+        self.add_atom(name, pos, energy, orbitals)
 
     def sort_states(self, mode="spin"):
         for i in range(self.lattice.n_base):
@@ -250,6 +333,46 @@ class TightBinding:
             else:
                 raise ValueError(f"ERROR: Sort-mode {mode} not recognized (Allowed modes: spin, orb)")
 
+    def set_energy(alpha, energy=0., orbitals=None):
+        states, energy = get_atom_basis(energy, orbitals, self.spin)
+        self.energies[i] = energy
+        self.basis_states[i] = states
+        self.base_elements = sum([len(b) for b in self.basis_states])
+
+    def get_energy(self, i):
+        """ Get on-site energy of i-th site
+
+        Parameters
+        ----------
+        i: int
+            index of site
+
+        Returns
+        -------
+        eps: np.ndarray
+        """
+        _, alpha = self.lattice.get(i)
+        return self.energies[alpha]
+
+    def set_soc(self, coupling):
+        if coupling == 0:
+            return
+        for alpha in range(self.lattice.n_base):
+            states = self.basis_states[alpha]
+            n = len(states)
+            ham_soc = np.zeros((n, n), dtype="complex")
+            if self.spin is False:
+                raise ValueError("SOC requires two different spin-types")
+            for i in range(n):
+                for j in range(n):
+                    ham_soc[i, j] = get_soc(states[i], states[j])
+            self.energies[alpha] = self.energies[alpha] + (ham_soc * coupling)
+
+    def _find_states(self, atom, txt):
+        states = self.basis_states[atom]
+        n = len(states)
+        return [i for i in range(n) if str(states[i]).startswith(txt)]
+
     def _init_hoppingmatrix(self):
         n = len(self.energies)
         hopping = List2D.empty(n)
@@ -259,11 +382,6 @@ class TightBinding:
                 m = self.energies[j].shape[0]
                 hopping[i, j] = np.zeros((n, m), "complex")
         return hopping
-
-    def _find_states(self, atom, txt):
-        states = self.basis_states[atom]
-        n = len(states)
-        return [i for i in range(n) if str(states[i]).startswith(txt)]
 
     def _set_orbit_hopvalue(self, value, atom1, atom2, orb1, orb2, distidx=0):
         try:
@@ -284,13 +402,6 @@ class TightBinding:
                         hop_arr[j, i] = np.conj(value)
                     except IndexError:
                         pass
-
-    def set_hopping_array(self, i, j, hoppings, distidx=0):
-        if j == i:
-            self.hopping[distidx][i, i] = hoppings
-        else:
-            self.hopping[distidx][i, j] = hoppings
-            self.hopping[distidx][j, i] = np.conj(hoppings).T
 
     def set_hopping(self, t, orb1=None, orb2=None, distidx=0):
         """ Set hopping energies of the model
@@ -347,33 +458,28 @@ class TightBinding:
         distidx = self.lattice.distances.index(dist)
         return self.hopping[distidx][atom1, atom2]
 
-    def get_energy(self, i):
-        """ Get on-site energy of i-th site
+    def set_disorder(self, w_eps):
+        """ Set the amoount of disorder of the on-site energies
 
         Parameters
         ----------
-        i: int
-            index of site
-
-        Returns
-        -------
-        eps: np.ndarray
+        w_eps: float
+            disorder amount
         """
-        _, alpha = self.lattice.get(i)
-        return self.energies[alpha]
+        self.w_eps = w_eps
+        self.shuffle()
 
-    def clear_slice_cache(self):
-        self._slice_ham_cache.clear()
-        self._slice_hop_cache.clear()
+    def onsite_disorder(self, i=None):
+        if i is None:
+            return self._disorder_onsite
+        else:
+            i, j = np.array([i, i+1]) * self.slice_elements
+            return self._disorder_onsite[i:j, i:j]
 
-    def clear_ham_cache(self):
-        self._ham_cache.clear()
-        # self._cached_ham = None
-
-    def clear_cache(self):
-        """Clear cached hamiltonian objects"""
-        self.clear_ham_cache()
-        self.clear_slice_cache()
+    def shuffle(self):
+        if self.w_eps:
+            size = self.n_elements
+            self._disorder_onsite = uniform_eye(self.w_eps, size)
 
     def build(self, shape=None):
         """ Build model
@@ -403,29 +509,6 @@ class TightBinding:
         if (y is not None) or (z is not None):
             self.clear_slice_cache()
         self.shuffle()
-
-    def set_disorder(self, w_eps):
-        """ Set the amoount of disorder of the on-site energies
-
-        Parameters
-        ----------
-        w_eps: float
-            disorder amount
-        """
-        self.w_eps = w_eps
-        self.shuffle()
-
-    def onsite_disorder(self, i=None):
-        if i is None:
-            return self._disorder_onsite
-        else:
-            i, j = np.array([i, i+1]) * self.slice_elements
-            return self._disorder_onsite[i:j, i:j]
-
-    def shuffle(self):
-        if self.w_eps:
-            size = self.n_elements
-            self._disorder_onsite = uniform_eye(self.w_eps, size)
 
     # =========================================================================
     # Hamiltonians
