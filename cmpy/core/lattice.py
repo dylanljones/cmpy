@@ -340,6 +340,8 @@ class Lattice:
         """
         if pos is None:
             pos = np.zeros(self.vectors.shape[0])
+        else:
+            pos = np.asarray(pos)
         if any(np.all(pos == x) for x in self.atom_positions):
             raise ValueError(f"Position {pos} allready occupied")
         self.atoms.append(name)

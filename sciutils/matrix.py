@@ -292,6 +292,43 @@ def eig_banded(a, lower=False):
     return la.eig_banded(a_band, lower=lower)
 
 
+def blockmatrix_slices(shape, diag_sizes):
+    n, m = shape
+    total_block_size = sum(diag_sizes)
+    n_blocks = len(diag_sizes)
+
+    # Check dimensions
+    r_blocks = n / total_block_size
+    if r_blocks % 1 != 0:
+        raise ValueError(f"Block sizes don't mathc dimensions of axis 0: {n}!={total_block_size}")
+
+    c_blocks = m / total_block_size
+    if c_blocks % 1 != 0:
+        raise ValueError(f"Block sizes don't mathc dimensions of axis 1: {m}!={total_block_size}")
+    r_blocks, c_blocks = int(r_blocks), int(c_blocks)
+
+    # Build row- and column indices
+    # Adds last index if not allready specified
+    r_indices = [sum(diag_sizes[:i]) for i in range(r_blocks + 1)]
+    if r_indices[-1] != n:
+        r_indices.append(n)
+    c_indices = [sum(diag_sizes[:i]) for i in range(c_blocks + 1)]
+    if c_indices[-1] != m:
+        c_indices.append(m)
+
+    # Construct slices
+    slices = list()
+    for i in range(len(r_indices)-1):
+        row = list()
+        for j in range(len(c_indices)-1):
+            idx0 = slice(r_indices[i], r_indices[i+1])
+            idx1 = slice(c_indices[j], c_indices[j+1])
+            row.append((idx0, idx1))
+        slices.append(row)
+
+    return slices
+
+
 # =========================================================================
 # MATRIX OBJECT
 # =========================================================================

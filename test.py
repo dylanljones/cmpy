@@ -3,7 +3,7 @@
 Created on 26 Mar 2019
 author: Dylan
 
-project: cmpy2
+project: cmpy
 version: 1.0
 """
 from itertools import product

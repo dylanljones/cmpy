@@ -8,10 +8,10 @@ version: 1.0
 """
 import numpy as np
 from scipy import interpolate
-from sciutils import distance, chain, vlinspace, normalize, eta, List2D
+from sciutils import distance, chain, vlinspace, normalize, eta, List2D, blockmatrix_slices
 from sciutils.terminal import Progress, prange
 from cmpy.core.lattice import Lattice
-from cmpy.core.hamiltonian import TbHamiltonian
+from cmpy.core.hamiltonian import TbHamiltonian, Hamiltonian
 from cmpy.core.utils import HamiltonianCache, plot_bands, uniform_eye
 
 ORBITALS = "s", "p_x", "p_y", "p_z"
@@ -201,7 +201,6 @@ class TightBinding:
     @classmethod
     def chain(cls, size=1, eps=0., t=1., name="A", a=1.):
         return cls.square((size, 1), eps, t, name, a)
-
 
     @classmethod
     def hexagonal(cls, shape=(2, 1), eps1=0., eps2=0., t=1., atom1="A", atom2="B", a=1.):
@@ -518,15 +517,25 @@ class TightBinding:
         datalist = List2D.empty(n)
         for i in range(n):
             # Site energies
-            _, alpha1 = self.lattice.get(i)
-            datalist[i, i] = self.energies[alpha1]
+            a1 = self.lattice.get_alpha(i)
+            datalist[i, i] = self.energies[a1]
             # Hopping energies
             for distidx, j in self.lattice.iter_neighbor_indices(i):
                 if j > i:
-                    _, alpha2 = self.lattice.get(j)
-                    datalist[i, j] = self.get_hopping(alpha1, alpha2, distidx)
-                    datalist[j, i] = self.get_hopping(alpha2, alpha1, distidx)
+                    a2 = self.lattice.get_alpha(j)
+                    try:
+                        datalist[i, j] = self.get_hopping(a1, a2, distidx)
+                        datalist[j, i] = self.get_hopping(a2, a1, distidx)
+                    except IndexError:
+                        pass
         return datalist.arr
+
+    def cell_hamiltonian(self):
+        if self.n_base == 1:
+            return Hamiltonian(self.energies[0])
+        else:
+            arr = self._ham_data(self.n_base)
+            return Hamiltonian.block(arr)
 
     def slice_hamiltonian(self):
         """ Get the slice hamiltonian of the model
@@ -720,111 +729,133 @@ class TightBinding:
             ipr[i] = self.inverse_participation_ratio(omega)
         return np.mean(ipr)
 
-    # def dispersion(self, k):
-    #     """ Calculate dispersion of the model in k-space
-    #
-    #     Parameters
-    #     ----------
-    #     k: float
-    #         wave-vector
-    #
-    #     Returns
-    #     -------
-    #     disp: np.ndarray
-    #     """
-    #     ham = TbHamiltonian.zeros(self.n_base, self.n_orbs, "complex")
-    #     for i in range(self.n_base):
-    #         r1 = self.lattice.atom_positions[i]
-    #         nn_vecs = self.lattice.neighbour_vectors(alpha=i)
-    #         eps_i = self.energies[i]
-    #         t = self.get_hopping(0)
-    #         if self.n_base == 1:
-    #             eps = eps_i + t * np.sum([np.exp(1j * np.dot(k, v)) for v in nn_vecs])
-    #             ham.set_energy(i, eps)
-    #         else:
-    #             ham.set_energy(i, eps_i)
-    #
-    #         for j in range(i+1, self.n_base):
-    #             r2 = self.lattice.atom_positions[i][j]
-    #             dist = distance(r1, r2)
-    #             if dist in self.lattice.distances:
-    #                 vecs = r2-r1, r1-r2
-    #                 t = self.get_hopping(dist) * sum([np.exp(1j * np.dot(k, v)) for v in vecs])
-    #                 ham.set_hopping(i, j, t)
-    #     return ham.eigvals()
-    #
-    # def bands(self, points, n_e=1000, thresh=1e-9, scale=True, verbose=True):
-    #     """ Calculate Bandstructure in k-space between given k-points
-    #
-    #     Parameters
-    #     ----------
-    #     points: list of array_like
-    #         k-points for the bandstructure
-    #     n_e: int, default: 1000
-    #         number of energy samples in each section
-    #     thresh: float, default: 1e-9
-    #         threshold to find energy-values
-    #     scale: bool, default: True
-    #         scale lengths of sections
-    #     verbose: bool, default: True
-    #         print progress if True
-    #
-    #     Returns
-    #     -------
-    #     band_sections: list
-    #     """
-    #     pairs = list(chain(points, cycle=True))
-    #     n_sections = len(pairs)
-    #     if scale:
-    #         distances = [distance(p1, p2) for p1, p2 in pairs]
-    #         sect_sizes = [int(n_e * dist / max(distances)) for dist in distances]
-    #     else:
-    #         sect_sizes = [n_e] * n_sections
-    #     n = sum(sect_sizes)
-    #     band_sections = list()
-    #     with Progress(total=n, header="Calculating dispersion", enabled=verbose) as p:
-    #         for i in range(n_sections):
-    #             p1, p2 = pairs[i]
-    #             n_points = sect_sizes[i]
-    #             e_vals = np.zeros((n_points, self.base_elements))
-    #             k_vals = vlinspace(p1, p2, n_points)
-    #             for j in range(n_points):
-    #                 p.update(f"Section {i+1}/{n_sections}")
-    #                 disp = self.dispersion(k_vals[j])
-    #                 indices = np.where(np.isclose(disp, 0., atol=thresh))[0]
-    #                 disp[indices] = np.nan
-    #                 e_vals[j] = disp
-    #             band_sections.append(e_vals)
-    #     return band_sections
-    #
+    def transform_cell_hamiltonian(self, k):
+        """ Transform the local hamiltonian in to the k-space
+
+        Parameters
+        ----------
+        k: float
+            wave-vector
+
+        Returns
+        -------
+        ham: Hamiltonain
+        """
+        n_dist = self.lattice.n_dist
+        ham = self.cell_hamiltonian()
+        # One atom in the unit cell
+        if self.n_base == 1:
+            for dist in range(n_dist):
+                nn_vecs = self.lattice.neighbour_vectors(alpha=0, dist_idx=dist)
+                t = self.get_hopping(atom1=0, atom2=0, distidx=dist)
+                ham = ham + t * np.sum([np.exp(1j * np.dot(k, v)) for v in nn_vecs])
+                
+        # Multiple atoms in the unit cell
+        else:
+            block_sizes = [x.shape[0] for x in self.energies]
+            slices = blockmatrix_slices(ham.shape, block_sizes)
+            for i in range(self.n_base):
+                r1 = self.lattice.atom_positions[i]
+                for j in range(self.n_base):
+                    if i != j:
+                        for dist in range(n_dist):
+                            nn_vecs = self.lattice.neighbour_vectors(alpha=j, dist_idx=dist)
+                            idx = slices[i][j]
+                            ham[idx] = ham[idx] * sum([np.exp(1j * np.dot(k, v)) for v in nn_vecs])
+        return ham
+
+    def dispersion(self, k):
+        """ Calculate dispersion of the model in k-space
+
+        Parameters
+        ----------
+        k: float
+            wave-vector
+
+        Returns
+        -------
+        disp: np.ndarray
+        """
+        ham = self.transform_cell_hamiltonian(k)
+        return ham.eigvals()
+
+    def bands(self, points, n_e=1000, thresh=1e-9, scale=True, verbose=True, cycle=True):
+        """ Calculate Bandstructure in k-space between given k-points
+
+        Parameters
+        ----------
+        points: list of array_like
+            k-points for the bandstructure
+        n_e: int, default: 1000
+            number of energy samples in each section
+        thresh: float, default: 1e-9
+            threshold to find energy-values
+        scale: bool, default: True
+            scale lengths of sections
+        verbose: bool, default: True
+            print progress if True
+        cycle: bool, default: True
+            Connect the first and last point
+
+        Returns
+        -------
+        band_sections: list
+        """
+        pairs = list(chain(points, cycle=cycle))
+        n_sections = len(pairs)
+        if scale:
+            distances = [distance(p1, p2) for p1, p2 in pairs]
+            sect_sizes = [int(n_e * dist / max(distances)) for dist in distances]
+        else:
+            sect_sizes = [n_e] * n_sections
+        n = sum(sect_sizes)
+        band_sections = list()
+        with Progress(total=n, header="Calculating dispersion", enabled=verbose) as p:
+            for i in range(n_sections):
+                p1, p2 = pairs[i]
+                n_points = sect_sizes[i]
+                e_vals = np.zeros((n_points, self.base_elements))
+                k_vals = vlinspace(p1, p2, n_points)
+                for j in range(n_points):
+                    p.update(f"Section {i+1}/{n_sections}")
+                    disp = self.dispersion(k_vals[j])
+                    indices = np.where(np.isclose(disp, 0., atol=thresh))[0]
+                    disp[indices] = np.nan
+                    e_vals[j] = disp
+                band_sections.append(e_vals)
+        return band_sections
+
     # =========================================================================
-    #
-    # def plot_bands(self, points, pointnames, n_e=1000, thresh=1e-9, scale=True, verbose=True, show=True):
-    #     """ Calculate and plot the band-structure in k-space between given k-points
-    #
-    #     Parameters
-    #     ----------
-    #     points: list of array_like
-    #         High symmetry k-points for the band-structure
-    #     pointnames: list of str
-    #         Names of the high symmetry k-points
-    #     n_e: int, default: 1000
-    #         number of energy samples in each section
-    #     thresh: float, default: 1e-9
-    #         threshold to find energy-values
-    #     scale: bool, default: True
-    #         scale lengths of sections
-    #     verbose: bool, default: True
-    #         print progress if True
-    #     show: bool, default: True
-    #         Show plot if True
-    #
-    #     Returns
-    #     -------
-    #     plot: Plot
-    #     """
-    #     bands = self.bands(points, n_e, thresh, scale, verbose)
-    #     return plot_bands(bands, pointnames, show)
+
+    def plot_bands(self, points, pointnames, n_e=1000, thresh=1e-9, scale=True, verbose=True,
+                   show=True, cycle=True):
+        """ Calculate and plot the band-structure in k-space between given k-points
+
+        Parameters
+        ----------
+        points: list of array_like
+            High symmetry k-points for the band-structure
+        pointnames: list of str
+            Names of the high symmetry k-points
+        n_e: int, default: 1000
+            number of energy samples in each section
+        thresh: float, default: 1e-9
+            threshold to find energy-values
+        scale: bool, default: True
+            scale lengths of sections
+        verbose: bool, default: True
+            print progress if True
+        show: bool, default: True
+            Show plot if True
+        cycle: bool, default: True
+            Connect the first and last point+
+
+        Returns
+        -------
+        plot: Plot
+        """
+        bands = self.bands(points, n_e, thresh, scale, verbose, cycle)
+        return plot_bands(bands, pointnames, show)
 
     def show_occupation(self, omega=eta, banded=True, margins=0.5, upsample=None,
                         size=4, lw=0.5, show_hop=True, cmap="Reds", show=True, colorbar=True):
