@@ -66,7 +66,7 @@ def read_loclen_data(subfolder):
         h = data.info()["h"]
         w, ll, errs = list(), list(), list()
         for k in data:
-            l, t = data.get_set(k, mean=False)get_loclen_files
+            l, t = data.get_set(k, mean=False)
             w.append(data.key_value(k))
             try:
                 t = np.mean(np.log(t), axis=1)

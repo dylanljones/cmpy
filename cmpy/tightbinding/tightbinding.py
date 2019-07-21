@@ -332,10 +332,10 @@ class TightBinding:
             else:
                 raise ValueError(f"ERROR: Sort-mode {mode} not recognized (Allowed modes: spin, orb)")
 
-    def set_energy(alpha, energy=0., orbitals=None):
+    def set_energy(self, alpha, energy=0., orbitals=None):
         states, energy = get_atom_basis(energy, orbitals, self.spin)
-        self.energies[i] = energy
-        self.basis_states[i] = states
+        self.energies[alpha] = energy
+        self.basis_states[alpha] = states
         self.base_elements = sum([len(b) for b in self.basis_states])
 
     def get_energy(self, i):
@@ -755,7 +755,6 @@ class TightBinding:
             block_sizes = [x.shape[0] for x in self.energies]
             slices = blockmatrix_slices(ham.shape, block_sizes)
             for i in range(self.n_base):
-                r1 = self.lattice.atom_positions[i]
                 for j in range(self.n_base):
                     if i != j:
                         for dist in range(n_dist):

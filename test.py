@@ -10,6 +10,7 @@ from itertools import product
 from sciutils import eta, Plot
 from cmpy import *
 from cmpy.hubbard import *
+from cmpy import IsingModel
 
 
 def configure_s_basis(model, eps=0., t=1., spin=True):
@@ -58,21 +59,18 @@ def configure_sp3_basis(model, eps_s=0.,  eps_p=0., t_sss=1., t_sps=0., t_pps=1.
     model.sort_states(ordering)
     model.set_soc(soc)
 
+# =========================================================================
+
 
 def main():
-    # model = Siam(eps=2, v=5, mu=0)
-    # ham = model.hamiltonian()
-    # ham.show()
-
-    model = TbDevice(np.eye(2))
-    configure_p3_basis(model, soc=2)
-    model.build((5, 1))
-    model.load_lead()
+    model = TbDevice.square((100, 100))
+    omegas = np.linspace(-3, 3, 1000) + 0.01j
 
     ham = model.hamiltonian()
-    ham.show()
-    omegas, trans = model.transmission_curve()
-    Plot.quickplot(omegas.real, trans)
+    gf = gf_lehmann(ham, omegas)
+    dos = -1/np.pi * np.sum(gf.imag, axis=1)
+
+    Plot.quickplot(omegas.real, dos)
 
 
 if __name__ == "__main__":

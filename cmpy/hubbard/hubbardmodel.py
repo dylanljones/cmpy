@@ -75,9 +75,11 @@ class HubbardModel:
         return -np.sum(gf.imag, axis=1)
 
     def dos(self, omegas):
-        ham = self.hamiltonian()
-        gf = ham.gf(omegas)
-        return -1/np.pi * np.sum(gf.imag, axis=1)
+        return 1/np.pi * self.spectral(omegas)
+
+    def get_siam(self, eps=0, v=1):
+        siam = Siam(eps_d=self.eps, u=self.u, eps=eps, v=v, mu=self.mu)
+        return siam
 
     def __repr__(self):
         eps = u"\u03b5".encode("utf-8")
@@ -109,7 +111,7 @@ def siam_hamiltonian(states, eps_d, u, eps, v, mu=0):
     v = np.asarray(v)
     v_conj = np.conj(v)
 
-    ham = Hamiltonian.zeros(n)
+    ham = Hamiltonian.zeros(n, dtype="complex")
     for i in range(n):
         state = states[i]
         idx = np.where(state.single)[0]
@@ -128,16 +130,22 @@ def siam_hamiltonian(states, eps_d, u, eps, v, mu=0):
 
 class Siam:
 
-    def __init__(self, eps_d=0, u=10, eps=0, v=1, mu=None):
-        self.eps_d = eps_d
+    def __init__(self, eps_d=0., u=10., eps=0., v=1., mu=None):
         self.u = u
         self.mu = u / 2 if mu is None else mu
+        self.eps_d = eps_d
         self.eps = np.asarray(eps) if hasattr(eps, "__len__") else np.array([eps])
         self.v = np.asarray(v) if hasattr(v, "__len__") else np.array([v])
         self.n_bath = len(self.eps)
 
         self.states = list()
         self.set_filling(self.n_bath + 1)
+
+    def update_bath_sites(self, eps, v):
+        if self.n_bath != len(self.eps):
+            raise ValueError("Bath-site dimensions don't match")
+        self.eps = np.asarray(eps) if hasattr(eps, "__len__") else np.array([eps])
+        self.v = np.asarray(v) if hasattr(v, "__len__") else np.array([v])
 
     def set_filling(self, n, spin=None):
         self.states = get_siam_states(self.n_bath, n, spin)
@@ -146,5 +154,28 @@ class Siam:
     def state_labels(self):
         return [x.repr for x in self.states]
 
+    def hybridization(self, omega):
+        return self.v**2 / (omega + self.mu - self.eps)
+
     def hamiltonian(self):
         return siam_hamiltonian(self.states, self.eps_d, self.u, self.eps, self.v, self.mu)
+
+    def self_energy(self, omega):
+        ham = self.hamiltonian()
+        gf = np.sum(ham.gf(omega))
+        delta = self.hybridization(omega)
+        return 1/(omega + self.mu - self.eps_d - delta - gf)
+
+    def spectral(self, omegas):
+        ham = self.hamiltonian()
+        gf = ham.gf(omegas)
+        return -np.sum(gf.imag, axis=1)
+
+    def dos(self, omegas):
+        return 1/np.pi * self.spectral(omegas)
+
+    def __str__(self):
+        eps_str = ", ".join([f"{x:.1f}" for x in self.eps])
+        v_str = ", ".join([f"{x:.1f}" for x in self.v])
+        string = f"SIAM: eps_d={self.eps_d:.1f}, u={self.u:.1f}, eps={eps_str}, v={v_str}"
+        return string

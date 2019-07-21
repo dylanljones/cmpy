@@ -13,6 +13,7 @@ from sciutils import Plot, Progress, prange, load_pkl, save_pkl, Folder
 
 folder = Folder(DATA_DIR, "ipr2")
 
+
 def calculate(lengths, w, height=1, n_avrg=500):
     file = f"ipr_test{w}.pkl"
     f = folder.subfolder(f"h={height}")

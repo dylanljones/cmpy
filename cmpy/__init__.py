@@ -8,3 +8,4 @@ version: 1.0
 """
 from .core import *
 from .tightbinding import *
+from .ising import IsingModel

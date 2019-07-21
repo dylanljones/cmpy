@@ -295,14 +295,12 @@ def eig_banded(a, lower=False):
 def blockmatrix_slices(shape, diag_sizes):
     n, m = shape
     total_block_size = sum(diag_sizes)
-    n_blocks = len(diag_sizes)
 
     # Check dimensions
     r_blocks = n / total_block_size
+    c_blocks = m / total_block_size
     if r_blocks % 1 != 0:
         raise ValueError(f"Block sizes don't mathc dimensions of axis 0: {n}!={total_block_size}")
-
-    c_blocks = m / total_block_size
     if c_blocks % 1 != 0:
         raise ValueError(f"Block sizes don't mathc dimensions of axis 1: {m}!={total_block_size}")
     r_blocks, c_blocks = int(r_blocks), int(c_blocks)
