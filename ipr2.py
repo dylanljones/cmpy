@@ -9,17 +9,14 @@ version: 1.0
 import os
 import numpy as np
 from cmpy import TbDevice, TightBinding, eta, DATA_DIR
+from cmpy.tightbinding import configure_p3_basis, configure_sp3_basis
 from sciutils import Plot, Progress, prange, load_pkl, save_pkl, Folder
 
 folder = Folder(DATA_DIR, "ipr2")
 
 
-def calculate(lengths, w, height=1, n_avrg=500):
-    file = f"ipr_test{w}.pkl"
-    f = folder.subfolder(f"h={height}")
-    model = TightBinding.square((100, height))
+def calculate_ipr(model, lengths, w, n_avrg=500):
     model.set_disorder(w)
-
     n = len(lengths)
     ipr = np.zeros((n, n_avrg))
     with Progress(total=n*n_avrg, header="Calculating IPR") as p:
@@ -30,7 +27,7 @@ def calculate(lengths, w, height=1, n_avrg=500):
                 p.update()
                 model.shuffle()
                 ipr[i, j] = model.inverse_participation_ratio(omega=eta)
-    save_pkl(os.path.join(f, file), [lengths, ipr], info=w)
+    return ipr
 
 
 def plot_data():
@@ -45,14 +42,27 @@ def plot_data():
     plot.show()
 
 
-def main():
+def calculate():
     h = 1
-    lengths = np.arange(5, 200, 5)
-    # calculate(lengths, 0, h, n_avrg=1)
-    # calculate(lengths, 1, h)
-    # calculate(lengths, 2, h)
-    # calculate(lengths, 3)
-    # calculate(lengths, 4)
+    soc = 1
+    w = 1
+    lengths = np.arange(5, 150, 5)
+
+    model = TightBinding(np.eye(2))
+    configure_p3_basis(model, soc=soc)
+
+    f = folder.subfolder(f"soc={soc}")
+    file = f"ipr_h={h}_w={w}.pkl"
+    model.build((5, h))
+    model.set_disorder(w)
+
+    ipr = calculate_ipr(model, lengths, w, n_avrg=500)
+    save_pkl(os.path.join(f, file), [lengths, ipr], info=w)
+
+
+def main():
+    calculate()
+
     plot_data()
 
 
