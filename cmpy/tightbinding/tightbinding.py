@@ -8,11 +8,12 @@ version: 1.0
 """
 import numpy as np
 from scipy import interpolate
-from sciutils import distance, chain, vlinspace, normalize, eta, List2D, blockmatrix_slices
-from sciutils.terminal import Progress, prange
+from sciutils import distance, chain, vlinspace, normalize, eta, List2D
+from sciutils.matrix import blockmatrix_slices
+from sciutils.terminal import Progress
 from cmpy.core.lattice import Lattice
-from cmpy.core.hamiltonian import TbHamiltonian, Hamiltonian
-from cmpy.core.utils import HamiltonianCache, plot_bands, uniform_eye
+from cmpy.core.hamiltonian import Hamiltonian, HamiltonianCache
+from cmpy.core.utils import plot_bands, uniform_eye
 
 ORBITALS = "s", "p_x", "p_y", "p_z"
 
@@ -614,7 +615,8 @@ class TightBinding:
                         a2 = self.lattice.get_alpha(j)
                         array[i, j] = self.get_hopping(a1, a2, distidx)
                         array[j, i] = self.get_hopping(a2, a1, distidx)
-            ham = TbHamiltonian.block(array.arr)
+            ham = Hamiltonian.block(array.arr)
+            print(ham)
             self._slice_ham_cache.load(ham)
         else:
             # Reset slice Hamiltonian
@@ -682,7 +684,7 @@ class TightBinding:
                             t = self.get_hopping(a1, a2, dist)
                             array[i, j] = t
 
-            ham = TbHamiltonian.block(array.arr)
+            ham = Hamiltonian.block(array.arr)
             self._slice_hop_cache.load(ham)
 
         return self._slice_hop_cache.read()
@@ -718,7 +720,7 @@ class TightBinding:
                         a2 = self.lattice.get_alpha(j)
                         array[i, j] = self.get_hopping(a1, a2, distidx)
                         array[j, i] = self.get_hopping(a2, a1, distidx)
-            ham = TbHamiltonian.block(array.arr)
+            ham = Hamiltonian.block(array.arr)
             self._ham_cache.load(ham)
         else:
             # Reset Hamiltonian
@@ -804,7 +806,7 @@ class TightBinding:
         # Multiple atoms in the unit cell
         else:
             block_sizes = [x.shape[0] for x in self.energies]
-            slices = blockmatrix_slices(ham.shape, block_sizes)
+            slices = ham.get_block_slices(block_sizes)
             for i in range(self.n_base):
                 for j in range(self.n_base):
                     if i != j:

@@ -6,6 +6,7 @@ author: dylan
 project: sciutils
 version: 1.0
 """
+import itertools
 import numpy as np
 from scipy import linalg as la
 from .plotting import MatrixPlot
@@ -71,8 +72,8 @@ def fill_diagonal(mat, val, offset=0):
         np.fill_diagonal(mat, val)
 
 
-def max_offdiag_number(mat):
-    """ Calculate the maximal diagonal offset of the matrix
+def offdiag_numbers(mat):
+    """ Calculate the diagonal offsets of the matrix
 
     Parameters
     ----------
@@ -101,6 +102,21 @@ def max_offdiag_number(mat):
     return lower, upper
 
 
+def max_offdiag_number(mat):
+    """ Calculate the maxiamal diagonal offset of the matrix
+
+    Parameters
+    ----------
+    mat
+
+    Returns
+    -------
+    max_offdiag: int
+        maximal number of non-zero diagonals
+    """
+    return max(offdiag_numbers(mat))
+
+
 def ordered_diag_matrix(mat, lu=None):
     """ Convert a array to a sparse matrix in the ordered diagonal form
 
@@ -126,7 +142,7 @@ def ordered_diag_matrix(mat, lu=None):
         lower, upper = lu
     else:
         # Calculate number of non-zero lower and upper diagonals
-        lower, upper = max_offdiag_number(mat)
+        lower, upper = offdiag_numbers(mat)
 
     # Build the band matrix
     ab = np.zeros((lower + upper + 1, n), dtype=mat.dtype)
@@ -292,27 +308,44 @@ def eig_banded(a, lower=False):
     return la.eig_banded(a_band, lower=lower)
 
 
-def blockmatrix_slices(shape, diag_sizes):
+# =========================================================================
+# MATRIX-BLOCKING
+# =========================================================================
+
+
+def _diag_sizes(shape, size):
+    n_max = max(shape)
+    if hasattr(size, "__len__"):
+        total_size = sum(size)
+        if total_size < n_max:
+            n = int(n_max/total_size)
+            diag_sizes = list(itertools.chain(*itertools.repeat(size, n)))
+        else:
+            diag_sizes = size
+    else:
+        n = int(n_max / size)
+        diag_sizes = [size for _ in range(n)]
+    return diag_sizes
+
+
+def blockmatrix_slices(shape, size):
     n, m = shape
-    total_block_size = sum(diag_sizes)
+    block_sizes = _diag_sizes(shape, size)
+    # Build row-indices
+    r_indices = [0]
+    for i in range(1, n+1):
+        idx = sum(block_sizes[:i])
+        r_indices.append(idx)
 
-    # Check dimensions
-    r_blocks = n / total_block_size
-    c_blocks = m / total_block_size
-    if r_blocks % 1 != 0:
-        raise ValueError(f"Block sizes don't mathc dimensions of axis 0: {n}!={total_block_size}")
-    if c_blocks % 1 != 0:
-        raise ValueError(f"Block sizes don't mathc dimensions of axis 1: {m}!={total_block_size}")
-    r_blocks, c_blocks = int(r_blocks), int(c_blocks)
-
-    # Build row- and column indices
-    # Adds last index if not allready specified
-    r_indices = [sum(diag_sizes[:i]) for i in range(r_blocks + 1)]
-    if r_indices[-1] != n:
-        r_indices.append(n)
-    c_indices = [sum(diag_sizes[:i]) for i in range(c_blocks + 1)]
-    if c_indices[-1] != m:
-        c_indices.append(m)
+        if idx >= n:
+            break
+    # Build collumn-indices
+    c_indices = [0]
+    for i in range(1, m+1):
+        idx = sum(block_sizes[:i])
+        c_indices.append(idx)
+        if idx >= m:
+            break
 
     # Construct slices
     slices = list()
@@ -327,18 +360,28 @@ def blockmatrix_slices(shape, diag_sizes):
     return slices
 
 
+class MatrixBlocks(list):
+
+    def __init__(self, slices):
+        super().__init__(slices)
+
+    @property
+    def shape(self):
+        return len(self), len(self[0])
+
+    def __getitem__(self, idx):
+        if isinstance(idx, int):
+            return super().__getitem__(idx)
+        else:
+            return super().__getitem__(idx[0])[idx[1]]
+
+
 # =========================================================================
 # MATRIX OBJECT
 # =========================================================================
 
 
 class Matrix(np.ndarray):
-
-    def __init__(self, *args, **kwargs):
-        # in practice you probably will not need or want an __init__
-        # method for your subclass
-        self.block_indices = None
-        self.block_size = None
 
     def __new__(cls, inputarr, dtype=None):
         """ Initialize Matrix
@@ -355,16 +398,7 @@ class Matrix(np.ndarray):
         matrix: Matrix
         """
         obj = np.asarray(inputarr, dtype).view(cls)
-        obj.block_indices = None
-        obj.block_size = None
         return obj
-
-    def __array_finalize__(self, obj):
-        # see InfoArray.__array_finalize__ for comments
-        if obj is None:
-            return
-        self.block_indices = getattr(obj, 'block_indices', None)
-        self.block_size = getattr(obj, 'block_size', None)
 
     @classmethod
     def zeros(cls, n, m=None, dtype=None):
@@ -548,89 +582,15 @@ class Matrix(np.ndarray):
         return self.almost_equal(self.H)
 
     @property
+    def offdiag_numbers(self):
+        return offdiag_numbers(self)
+
+    @property
     def max_offdiag_number(self):
         return max_offdiag_number(self)
 
-    # =========================================================================
-
-    @property
-    def is_blocked(self):
-        """ bool: True if blocks are configured """
-        return self.block_size is not None
-
-    @property
-    def block_shape(self):
-        """ tuple: shape of the blocked matrix """
-        if self.is_blocked:
-            return self.block_indices.shape[:2]
-        else:
-            return None
-
-    def config_blocks(self, block_size):
-        """ Configure the blocking of the Matrix
-
-        Parameters
-        ----------
-        block_size: tuple or int
-            row and column size of the block. If only a int is given
-            block shape will be square
-        """
-        # Convert to tuple if int
-        if not hasattr(block_size, "__len__"):
-            block_size = (block_size, block_size)
-        # Check size compability
-        if (self.shape[0] % block_size[0] != 0) or (self.shape[1] % block_size[1] != 0):
-            raise ValueError("Shape of Matrix must be divisible through block-size!")
-
-        r0, rs = self.shape[0], block_size[0]
-        c0, cs = self.shape[1], block_size[1]
-        self.block_indices = np.moveaxis(np.mgrid[0:r0:rs, 0:c0:cs], 0, -1)
-        self.block_size = block_size
-
-    def reset_blocks(self):
-        """ Reset blocks to None """
-        self.block_indices = None
-        self.block_size = None
-
-    def block_idx(self, i, j):
-        """ Get the indices of block (i, j)
-
-        Parameters
-        ----------
-        i: int
-            row index of block
-        j: int
-            collumn index of block
-
-        Returns
-        -------
-        idx: tuple of slice
-            row- and collumn index-slices of block
-        """
-        r, c = self.block_indices[i, j]
-        r_idx = slice(r, r + self.block_size[0])
-        c_idx = slice(c, c + self.block_size[1])
-        return r_idx, c_idx
-
-    def get_block(self, i, j):
-        """ np.ndarray: Return block with block index (i, j)"""
-        idx = self.block_idx(i, j)
-        return self[idx]
-
-    def set_block(self, i, j, array):
-        """ Set block with block index (i, j)
-
-        Parameters
-        ----------
-        i: int
-            Row index of block
-        j: int
-            Collumns index of block
-        array: array_like
-            Data to fill
-        """
-        idx = self.block_idx(i, j)
-        self[idx] = array
+    def get_block_slices(self, size):
+        return blockmatrix_slices(self.shape, size)
 
     # =========================================================================
 
@@ -740,9 +700,10 @@ class Matrix(np.ndarray):
         """
         mp = MatrixPlot(cmap=cmap)
         mp.load(self)
-        mp.show_colorbar()
         if show_values:
             mp.show_values()
+        else:
+            mp.show_colorbar()
         if show:
             mp.show()
         return mp

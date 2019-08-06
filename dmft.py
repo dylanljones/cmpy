@@ -33,15 +33,20 @@ def bethe_gf_omega(z, half_bandwidth):
 
 
 def main():
-    omega = 0 + eta
-
     model = Siam(eps_d=0., u=10, eps=0., v=1., mu=0)
 
-    d = model.hybridization(omega)
-    sigma =
-    print(d)
+    n = 100
+    omegas = np.linspace(-5, 5, 100) + eta
+    sigma = np.zeros(n)
 
+    gf_loc = bethe_gf_omega(omegas, 1)
+    delta = model.hybridization(omegas)
+    gf_imp = 1/(omegas + model.mu - model.eps_d - sigma - delta)
 
+    plot = Plot()
+    plot.plot(omegas.real, gf_imp.imag)
+    plot.plot(omegas.real, gf_loc.imag)
+    plot.show()
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ version: 1.0
 """
 from .lattice import Lattice, LatticePlot2D
 from .greens import *
-from .hamiltonian import Hamiltonian, TbHamiltonian
+from .hamiltonian import Hamiltonian
 from os.path import dirname as _dirname
 import os
 

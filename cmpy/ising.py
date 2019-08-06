@@ -7,86 +7,151 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
-from cmpy.core import Lattice, LatticePlot2D, TbHamiltonian
+from sciutils import *
+from cmpy import *
+import random
 
 
 class IsingModel:
 
-    DEFAULT = 1
-
-    def __init__(self, vectors, j=1., h=0.):
-        self.lattice = Lattice(vectors)
-        self.spins = None
+    def __init__(self, shape, j=1., h=0., temp=0.):
         self.j = j
         self.h = h
+        self.temp = temp
 
-    @classmethod
-    def square(cls, shape=(2, 1), j=1., h=0., name="A", a=1.):
-        self = cls(a * np.eye(2), j, h)
-        self.add_atom(name)
-        if shape is not None:
-            self.build(shape)
-        return self
+        self.array = 2 * np.random.randint(2, size=shape) - 1
+        self.plot, self.im, self.text = None, None, None
 
-    def add_atom(self, name="A", pos=None):
-        """ Add site to lattice cell and store it's energy.
+    @property
+    def n(self):
+        return int(np.prod(self.shape))
 
-        Parameters
-        ----------
-        name: str, optional
-            Name of the site. The defualt is the origin of the cell
-        pos: array_like, optional
-            position of site in the lattice cell, default: "A"
-        """
-        # Add site to lattice
-        self.lattice.add_atom(name, pos)
+    @property
+    def shape(self):
+        return self.array.shape
 
-    def build(self, shape):
-        self.lattice.calculate_distances(1)
-        self.lattice.build(shape)
-        self.spins = np.ones(self.lattice.n) * self.DEFAULT
+    @property
+    def magnetization(self):
+        return 1/self.n * abs(np.sum(self.array))
 
-    def set_spins(self, array):
-        self.spins = np.asarray(array)
+    @property
+    def inner_energy(self):
+        return self.j * np.sum(self.array)
 
-    def set_random_spins(self):
-        self.spins = np.random.choice((-1, 1), size=self.lattice.n)
+    def __setitem__(self, key, value):
+        self.array[key] = value
 
-    def set_spin(self, n, value):
-        i = self.lattice.get_list_idx(n, 0)
-        self.spins[i] = value
+    def set_temp(self, t):
+        self.temp = t
 
-    def flip_spin(self, n):
-        i = self.lattice.get_list_idx(n, 0)
-        self.spins[i] *= -1
+    def index(self, i):
+        n, m = self.shape
+        col, row = divmod(i, n)
+        return int(row), int(col)
 
-    def hamiltonian(self):
-        n = self.lattice.n
-        ham = TbHamiltonian.zeros(n)
+    def flip_spin(self, *idx):
+        if len(idx) == 1:
+            idx = self.index(idx)
+        self.array[idx] *= -1
+
+    def neighbor_indices(self, i, j):
+        n, m = self.shape
+        neighbors = list()
+        neighbors.append(((i - 1) % n, j))
+        neighbors.append(((i + 1) % n, j))
+        neighbors.append((i, (j - 1) % m))
+        neighbors.append((i, (j + 1) % m))
+        return neighbors
+
+    def check_flip_energy(self, i, j):
+        s = self.array[i, j]
+        neighbors = self.neighbor_indices(i, j)
+        return 2 * s * np.sum([self.array[idx] for idx in neighbors])
+
+    def try_flip(self, idx):
+        i, j = self.index(idx)
+        delta_e = self.check_flip_energy(i, j)
+        if delta_e < 0:
+            self.flip_spin(i, j)
+        # metropolis acceptance
+        elif self.temp > 0 and random.random() < np.exp(-1/self.temp * delta_e):
+            self.flip_spin(i, j)
+
+    def simulate(self, n_check=10000):
+        self.init_plot()
+        i = 0
+        while True:
+            idx = random.randint(0, self.n-1)
+            self.try_flip(idx)
+            if i % n_check == 0:
+                self.update_plot(i)
+                if len(np.unique(self.array)) == 1:
+                    break
+            i += 1
+        self.plot.show()
+
+    def equilibrium(self, n=50000):
         for i in range(n):
-            ham.set_energy(i, -self.h*self.spins[i])
-            for distidx, j in self.lattice.iter_neighbor_indices(i):
-                if j > i:
-                    value = -self.j * self.spins[i] * self.spins[j]
-                    ham[i, j] = ham[j, i] = value
-        return ham
+            idx = random.randint(0, self.n-1)
+            self.try_flip(idx)
+            if len(np.unique(self.array)) == 1:
+                break
+
+    def init_plot(self):
+        self.plot = Plot()
+        self.plot.set_title(f"$T={self.temp}$" + r" $J/k_B$")
+        self.plot.set_equal_aspect()
+        self.im = self.plot.ax.imshow(self.array.T, cmap="RdBu", vmin=-1.2, vmax=1.3)
+        x = self.shape[1] * 0.95
+        y = self.shape[1] * 0.05
+        self.text = self.plot.text((x, y), "0", ha="right", color="white")
+
+    def update_plot(self, t, sleep=1e-10):
+        self.im.set_data(self.array)
+        self.text.set_text(f"t={t:.0f}, M={self.magnetization:.2f}")
+        self.plot.draw(sleep)
 
     def show(self):
-        positions = np.asarray([self.lattice.position(i) for i in range(self.lattice.n)])
-        spin_1 = positions[self.spins == self.DEFAULT]
-        spin_2 = positions[self.spins != self.DEFAULT]
-        segments = list()
-        for i in range(self.lattice.n):
-            neighbours = self.lattice.neighbours[i]
-            for i_hop in range(len(self.lattice.distances)):
-                for j in neighbours[i_hop]:
-                    if j > i:
-                        segments.append([positions[i], positions[j]])
+        if self.plot is None:
+            self.init_plot()
+        self.plot.show()
 
-        plot = LatticePlot2D()
-        if len(spin_1):
-            plot.draw_sites(np.asarray(spin_1), col="k")
-        if len(spin_2):
-            plot.draw_sites(np.asarray(spin_2), col="r")
-        plot.draw_hoppings(segments)
-        plot.show()
+    def wolf_cluster(self):
+        idx = self.index(random.randint(0, self.n-1))
+        p = 1 - np.exp(-2 / self.temp) if self.temp > 0 else 1
+
+        pocket, cluster = [idx], [idx]
+        while len(pocket) > 0:
+            idx1 = random.choice(pocket)
+            for idx2 in self.neighbor_indices(*idx1):
+                if self.array[idx1] == self.array[idx2] and idx2 not in cluster:
+                    if random.uniform(0., 1.) < p:
+                        pocket.append(idx2)
+                        cluster.append(idx2)
+            pocket.remove(idx1)
+        for idx in cluster:
+            self.flip_spin(*idx)
+
+    def cluster_equilibrium(self, n=100):
+        for i in range(n):
+            self.wolf_cluster()
+            if len(np.unique(self.array)) == 1:
+                break
+
+    def cluster_mean_magnetization(self, n=10):
+        m = np.zeros(n)
+        for i in range(n):
+            self.wolf_cluster()
+            m[i] = self.magnetization
+        return np.mean(m)
+
+    def simulate_cluster(self):
+        self.init_plot()
+        i = 0
+        while True:
+            self.wolf_cluster()
+            self.update_plot(i)
+            if len(np.unique(self.array)) == 1:
+                break
+            i += 1
+        self.plot.show()

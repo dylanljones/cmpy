@@ -3,54 +3,11 @@
 Created on  06 2019
 author: dylan
 
-project: cmpy2
+project: cmpy
 version: 1.0
 """
 import numpy as np
-from sciutils import Plot, Matrix
-
-
-class HamiltonianCache:
-
-    def __init__(self):
-        self._ham = None
-
-        self._memory = None
-        self._mask = None
-
-    def __bool__(self):
-        return self._ham is not None
-
-    def load(self, ham):
-        self._ham = ham
-        self._memory = ham.copy()
-        mask = Matrix.zeros(ham.n, dtype="bool")
-        mask.fill_diag(True)
-        for i in range(1, ham.max_offdiag_number+1):
-            mask.fill_diag(True, offset=i)
-            mask.fill_diag(True, offset=-i)
-        self._mask = mask
-
-    def read(self):
-        return self._ham
-
-    def reset(self):
-        self._ham[self._mask] = self._memory[self._mask]
-
-    def clear(self):
-        self._ham = None
-        self._memory = None
-        self._mask = None
-
-    def __str__(self):
-        string = "HamiltonianCache: "
-        if not self:
-            string += "empty"
-        else:
-            string += "\nHamiltonain:\n" + str(self._ham)
-            string += "\nMemory:\n" + str(self._memory)
-            string += "\nMask:\n" + str(self._mask)
-        return string
+from sciutils import Plot
 
 
 def uniform(w, size):

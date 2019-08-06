@@ -329,8 +329,8 @@ class Plot:
     def fill(self, x, y1, y2=0, alpha=0.25, *args, **kwargs):
         self.ax.fill_between(x, y1, y2, alpha=alpha, *args, **kwargs)
 
-    def text(self, pos, text, va="center", ha="center"):
-        self.ax.text(*pos, text, va=va, ha=ha)
+    def text(self, pos, text, va="center", ha="center", **kwargs):
+        return self.ax.text(*pos, text, va=va, ha=ha, **kwargs)
 
     def annotate_data(self, string, x_rel=0.5, idx=0, offset=0.5, anchor="above"):
         point = self.get_data_point(x_rel, idx)
@@ -350,6 +350,9 @@ class Plot:
     # =========================================================================
     # Plotting
     # =========================================================================
+
+    def new_line(self, *args, **kwargs):
+        return self.ax.plot([], [], *args, **kwargs)[0]
 
     def plot(self, *args, **kwargs):
         return self.ax.plot(*args, **kwargs)[0]
