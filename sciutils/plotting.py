@@ -357,6 +357,11 @@ class Plot:
     def plot(self, *args, **kwargs):
         return self.ax.plot(*args, **kwargs)[0]
 
+    def plot_complex(self, x, y, **kwargs):
+        re = self.plot(x, np.real(y), **kwargs)
+        im = self.plot(x, np.imag(y), **kwargs)
+        return re, im
+
     def plotfill(self, x, y, color="C0", alpha=0.25, **kwargs):
         self.fill(x, y, color=color, alpha=alpha)
         return self.ax.plot(x, y, color=color, **kwargs)[0]

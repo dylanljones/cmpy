@@ -44,6 +44,8 @@ def _format_types(types=None):
 class Folder(str):
 
     def __new__(cls, *paths):
+        if len(paths) == 0:
+            paths = [os.getcwd()]
         return super().__new__(cls, os.path.join(*paths))
 
     @classmethod
