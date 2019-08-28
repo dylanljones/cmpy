@@ -10,6 +10,30 @@ import numpy as np
 from sciutils import Plot
 
 
+def fermi_dist(energy, beta, mu=1):
+    """ Calculates the fermi-distributions for fermions
+
+    Parameters
+    ----------
+    energy: float nd.ndarray or float
+        The energy value
+    beta: float
+        Coldnes (inverse temperature)
+    mu: float, default=0
+        Chemical potential. At T=0 this is the Fermi-energy E_F
+
+    Returns
+    -------
+    fermi: float np.ndarray
+    """
+    exponent = np.asarray((energy - mu) * beta).clip(-1000, 1000)
+    return 1. / (np.exp(exponent) + 1)
+
+
+def spectral(gf):
+    return -1/np.pi * gf.imag
+
+
 def uniform(w, size):
     return np.random.uniform(-w/2, w/2, size=size)
 

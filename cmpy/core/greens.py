@@ -93,6 +93,78 @@ def gf_lehmann(ham, omega, mu=0., only_diag=True, banded=False):
     return greens if not scalar else greens[0]
 
 
+def freq_tail_fourier(tail_coef, beta, tau, w_n):
+    r"""Fourier transforms analytically the slow decaying tail_coefs of
+    the Greens functions [matsubara]
+
+    See also
+    --------
+    gf_fft
+
+    References
+    ----------
+    [matsubara] https://en.wikipedia.org/wiki/Matsubara_frequency#Time_Domain
+    """
+    freq_tail = tail_coef[0] / (1.j * w_n) + tail_coef[1] / (1.j * w_n)**2 + tail_coef[2] / (1.j * w_n)**3
+    time_tail = - tail_coef[0] / 2 + tail_coef[1] / 2 * (tau - beta / 2) - tail_coef[2] / 4 * (tau**2 - beta * tau)
+    return freq_tail, time_tail
+
+
+def gf_tau_fft(gf_tau, tau, omega, tail_coef=(1., 0., 0.)):
+    """ Perform a fourier transform on the imaginary time Green's function
+
+    Parameters
+    ----------
+    gf_tau : real float array
+        Imaginary time green's function to transform
+    tau : real float array
+        Imaginary time points
+    omega : real float array
+        fermionic matsubara frequencies. Only use the positive ones
+    tail_coef : list of floats size 3
+        The first moments of the tails
+
+    Returns
+    -------
+    gf_omega: complex ndarray or complex
+        Value of the transformed imaginary frequency green's function
+    """
+    beta = tau[1] + tau[-1]
+    freq_tail, time_tail = freq_tail_fourier(tail_coef, beta, tau, omega)
+
+    gf_tau = gf_tau - time_tail
+    gf_omega = beta * np.fft.ifft(gf_tau * np.exp(1j * np.pi * tau / beta))[..., :len(omega)] + freq_tail
+    return gf_omega
+
+
+def gf_omega_fft(gf_omega, tau, omega, tail_coef=(1., 0., 0.)):
+    """ Perform a fourier transform on the imaginary frequency Green's function
+
+    Parameters
+    ----------
+    gf_omega : real float array
+        Imaginary frequency Green's function to transform
+    tau : real float array
+        Imaginary time points
+    omega : real float array
+        fermionic matsubara frequencies. Only use the positive ones
+    tail_coef : list of floats size 3
+        The first moments of the tails
+
+    Returns
+    -------
+    gf_tau: complex ndarray or complex
+        Value of the transformed imaginary time green's function
+    """
+    beta = tau[1] + tau[-1]
+    freq_tail, time_tail = freq_tail_fourier(tail_coef, beta, tau, omega)
+
+    gf_omega = gf_omega - freq_tail
+    gf_tau = np.fft.fft(gf_omega, len(tau)) * np.exp(-1j * np.pi * tau / beta)
+    gf_tau = (2 * gf_tau / beta).real + time_tail
+    return gf_tau
+
+
 def rda(ham, t, omega, thresh=0.):
     """ Calculate the left, bulk and right Green's function of a (half-)infinite system
 

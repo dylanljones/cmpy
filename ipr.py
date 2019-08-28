@@ -8,52 +8,16 @@ version: 1.0
 """
 import os
 import numpy as np
-from cmpy import TbDevice, eta, DATA_DIR
-from sciutils import Plot, Progress, prange, load_pkl, save_pkl, Folder
+from cmpy import DATA_DIR
+from cmpy.tightbinding import TightBinding, eta
+from cmpy.tightbinding import configure_p3_basis, configure_sp3_basis
+from sciutils import Plot, Progress, prange, load_pkl, save_pkl, Path
 
-folder = Folder(DATA_DIR, "ipr")
-
-
-def ipr_histogramm(length=100, n_avrg=5000):
-    model = TbDevice.square((length, 1))
-    model.set_disorder(1)
-
-    values = np.zeros(n_avrg)
-    for i in prange(n_avrg):
-        model.shuffle()
-        values[i] = model.inverse_participation_ratio()
-
-    plot = Plot()
-    plot.set_scales(xscale="log")
-    bins = np.geomspace(min(values), max(values), 100)
-    plot.histogram(values, bins=bins)
-    plot.draw_lines(x=np.mean(values), color="r")
-
-    plot = Plot()
-    bins = np.linspace(min(values), max(values), 100)
-    plot.histogram(values, bins=bins)
-    plot.draw_lines(x=np.mean(values), color="r")
-    plot.show()
+folder = Path(DATA_DIR, "ipr")
 
 
-def ipr_curve():
-    model = TbDevice.square((100, 1))
-    model.set_disorder(1)
-
-    n = 100
-    omegas = np.linspace(-3, 3, n)
-    ipr = np.zeros(n)
-    for i in prange(n):
-        ipr[i] = model.mean_ipr(omega=omegas[i] + eta)
-    Plot().quickplot(omegas, ipr)
-
-
-def calculate(lengths, w, height=1, n_avrg=500):
-    file = f"ipr_test{w}.pkl"
-    f = folder.subfolder(f"h={height}")
-    model = TbDevice.square((100, height))
+def calculate_ipr(model, lengths, w, n_avrg=500):
     model.set_disorder(w)
-
     n = len(lengths)
     ipr = np.zeros((n, n_avrg))
     with Progress(total=n*n_avrg, header="Calculating IPR") as p:
@@ -64,11 +28,11 @@ def calculate(lengths, w, height=1, n_avrg=500):
                 p.update()
                 model.shuffle()
                 ipr[i, j] = model.inverse_participation_ratio(omega=eta)
-    save_pkl(os.path.join(f, file), [lengths, ipr], info=w)
+    return ipr
 
 
 def plot_data():
-    paths = folder.find("ipr")
+    paths = folder.search("ipr")
     plot = Plot(xlabel="L", ylabel=r"$\langle IPR\rangle$")
     plot.set_scales(yscale="log")
     for path in sorted(paths):
@@ -79,14 +43,27 @@ def plot_data():
     plot.show()
 
 
+def calculate():
+    h = 4
+    soc = 1
+    w = 1
+    lengths = np.arange(5, 150, 5)
+
+    model = TightBinding(np.eye(2))
+    configure_p3_basis(model, soc=soc)
+
+    f = folder.makedirs(f"soc={soc}")
+    file = f"ipr_h={h}_w={w}.pkl"
+    model.build((5, h))
+    model.set_disorder(w)
+
+    ipr = calculate_ipr(model, lengths, w, n_avrg=500)
+    save_pkl(os.path.join(f, file), [lengths, ipr], info=w)
+
+
 def main():
-    h = 5
-    lengths = np.arange(5, 200, 5)
-    # calculate(lengths, 0, h, n_avrg=1)
-    # calculate(lengths, 1, h)
-    # calculate(lengths, 2, h)
-    # calculate(lengths, 3)
-    # calculate(lengths, 4)
+    calculate()
+
     plot_data()
 
 

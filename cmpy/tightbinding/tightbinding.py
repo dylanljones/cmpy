@@ -9,7 +9,6 @@ version: 1.0
 import numpy as np
 from scipy import interpolate
 from sciutils import distance, chain, vlinspace, normalize, eta, List2D
-from sciutils.matrix import blockmatrix_slices
 from sciutils.terminal import Progress
 from cmpy.core.lattice import Lattice
 from cmpy.core.hamiltonian import Hamiltonian, HamiltonianCache
@@ -29,70 +28,6 @@ s_z = np.array([[1, 0], [0, -1]])
 SOC = np.array([[s_0,     -1j*s_z, +1j*s_y],
                 [+1j*s_z,     s_0, -1j*s_x],
                 [-1j*s_y, +1j*s_x,     s_0]])
-
-# =========================================================================
-# TIGHT-BINDING BASIS
-# =========================================================================
-
-
-class State:
-
-    def __init__(self, orb, spin=None):
-        self.orb = orb
-        self.spin = spin
-
-    def is_orbit(self, orb):
-        return self.orb == orb
-
-    def is_spin(self, spin):
-        return self.spin == spin
-
-    def is_state(self, orb, spin):
-        return self.is_orbit(orb) and self.is_spin(spin)
-
-    def __str__(self):
-        return f"{self.orb} {self.spin}"
-
-    def __repr__(self):
-        return f"State({self.orb}, {self.spin})"
-
-
-def get_soc(s1, s2):
-    if s1.orb == "s" or s2.orb == "s":
-            return 0
-    orb1, orb2 = SOC_ORBS.index(s1.orb), SOC_ORBS.index(s2.orb)
-    s1, s2 = SPINS.index(s1.spin), SPINS.index(s2.spin)
-    s = SOC[orb1, orb2]
-    return s[s1, s2]
-
-
-def get_atom_basis(energy=0., orbitals=None, spin=True):
-    # Initialize energy- and orbit-array
-    if not hasattr(energy, "__len__"):
-        # Scalar energy
-        if orbitals is None:
-            orbitals = ORBITALS[0]
-        n_orbs = len(orbitals)
-        energy = np.ones(n_orbs) * energy
-    else:
-        # Energy array
-        energy = np.asarray(energy)
-        n_orbs = energy.shape[0] if len(energy.shape) else 1
-        if orbitals is None:
-            orbitals = ORBITALS[:n_orbs]
-        elif len(orbitals) != n_orbs:
-            raise ValueError(f"Size of energy-array doesn't match number of orbitals ({n_orbs}!={len(orbitals)})")
-
-    # Initialize states
-    if spin:
-        n_orbs *= 2
-        states = [State(orb, "up") for orb in orbitals]
-        states += [State(orb, "down") for orb in orbitals]
-        energy = np.append(energy, energy)
-    else:
-        states = [State(orb) for orb in orbitals]
-    return states, np.eye(n_orbs) * energy
-
 
 # =========================================================================
 # METHODS
@@ -145,6 +80,70 @@ def occupation_map(lattice, occ, margins=0.5, upsample=None):
 
 
 # =========================================================================
+# TIGHT-BINDING BASIS
+# =========================================================================
+
+
+class State:
+
+    def __init__(self, orb, spin=None):
+        self.orb = orb
+        self.spin = spin
+
+    def is_orbit(self, orb):
+        return self.orb == orb
+
+    def is_spin(self, spin):
+        return self.spin == spin
+
+    def is_state(self, orb, spin):
+        return self.is_orbit(orb) and self.is_spin(spin)
+
+    def __str__(self):
+        return f"{self.orb} {self.spin}"
+
+    def __repr__(self):
+        return f"State({self.orb}, {self.spin})"
+
+
+def get_soc(s1, s2):
+    if s1.orb == "s" or s2.orb == "s":
+        return 0
+    orb1, orb2 = SOC_ORBS.index(s1.orb), SOC_ORBS.index(s2.orb)
+    s1, s2 = SPINS.index(s1.spin), SPINS.index(s2.spin)
+    s = SOC[orb1, orb2]
+    return s[s1, s2]
+
+
+def get_atom_basis(energy=0., orbitals=None, spin=True):
+    # Initialize energy- and orbit-array
+    if not hasattr(energy, "__len__"):
+        # Scalar energy
+        if orbitals is None:
+            orbitals = ORBITALS[0]
+        n_orbs = len(orbitals)
+        energy = np.ones(n_orbs) * energy
+    else:
+        # Energy array
+        energy = np.asarray(energy)
+        n_orbs = energy.shape[0] if len(energy.shape) else 1
+        if orbitals is None:
+            orbitals = ORBITALS[:n_orbs]
+        elif len(orbitals) != n_orbs:
+            raise ValueError(f"Size of energy-array doesn't match number of orbitals ({n_orbs}!={len(orbitals)})")
+
+    # Initialize states
+    if spin:
+        n_orbs *= 2
+        states = [State(orb, "up") for orb in orbitals]
+        states += [State(orb, "down") for orb in orbitals]
+        energy = np.append(energy, energy)
+    else:
+        states = [State(orb) for orb in orbitals]
+    return states, np.eye(n_orbs) * energy
+
+
+# =========================================================================
 # BASIS SET-UP
 # =========================================================================
 
@@ -193,6 +192,7 @@ def configure_sp3_basis(model, eps_s=0.,  eps_p=0., t_sss=1., t_sps=0., t_pps=1.
     model.set_hopping(d[2] * d[0] * (t_pps - t_ppp), "p_z", "p_x")
 
     model.sort_states(ordering)
+    model.set_soc(soc)
 
 
 # =========================================================================

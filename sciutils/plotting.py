@@ -3,8 +3,8 @@
 Created on  06 2019
 author: dylan
 
-project: sciutils
-version: 1.0
+project: scitools
+version: 0.1.0
 """
 import os
 import numpy as np
@@ -329,8 +329,8 @@ class Plot:
     def fill(self, x, y1, y2=0, alpha=0.25, *args, **kwargs):
         self.ax.fill_between(x, y1, y2, alpha=alpha, *args, **kwargs)
 
-    def text(self, pos, text, va="center", ha="center", **kwargs):
-        return self.ax.text(*pos, text, va=va, ha=ha, **kwargs)
+    def text(self, pos, text, va="center", ha="center"):
+        self.ax.text(*pos, text, va=va, ha=ha)
 
     def annotate_data(self, string, x_rel=0.5, idx=0, offset=0.5, anchor="above"):
         point = self.get_data_point(x_rel, idx)
@@ -356,11 +356,6 @@ class Plot:
 
     def plot(self, *args, **kwargs):
         return self.ax.plot(*args, **kwargs)[0]
-
-    def plot_complex(self, x, y, **kwargs):
-        re = self.plot(x, np.real(y), **kwargs)
-        im = self.plot(x, np.imag(y), **kwargs)
-        return re, im
 
     def plotfill(self, x, y, color="C0", alpha=0.25, **kwargs):
         self.fill(x, y, color=color, alpha=alpha)

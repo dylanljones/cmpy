@@ -8,7 +8,7 @@ version: 1.0
 """
 import os
 import numpy as np
-from sciutils import Folder, Plot
+from sciutils import Path, Plot
 from cmpy import DATA_DIR
 from cmpy.tightbinding import LT_Data, localization_length
 from cmpy2.tightbinding import disorder_lt, s_basis, p3_basis, sp3_basis
@@ -33,8 +33,8 @@ def calculate_disorder_lt(basis, w_values, h, lengths=None, e=0, n_avrg=250):
         elif basis.n == 8:
             rel_parts.append("sp3-basis")
         rel_parts.append(f"soc={soc}")
-    folder = Folder(*rel_parts)
-    path = folder.build_path(filename)
+    folder = Path(*rel_parts)
+    path = folder.add(filename)
 
     # calculate the transmission data
     try:
@@ -87,13 +87,13 @@ def read_loclen_data(subfolder):
 
 
 def show_loclen(relpath="p3-basis", *socs):
-    folder = Folder(ROOT, relpath)
-    for subfolder in folder.walk_dirs():
+    folder = Path(ROOT, relpath)
+    plot = Plot()
+    for subfolder in folder.dirs(deep=True):
         if len(socs) and not any([f"soc={s}" in subfolder.name for s in socs]):
             continue
         data_list = read_loclen_data(subfolder)
 
-        plot = Plot()
         plot.set_scales(yscale="log")
         plot.set_title(subfolder.name)
         plot.set_labels(r"Disorder $w$", r"$\xi / M$")   #r"$\log_{10}(\xi / M)$")
