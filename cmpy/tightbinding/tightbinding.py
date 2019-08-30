@@ -155,15 +155,16 @@ def configure_s_basis(model, eps=0., t=1., spin=True):
 
 
 def configure_p3_basis(model, eps_p=0., t_pps=1., t_ppp=1., d=None, spin=True, soc=0., ordering="spin"):
-    model.spin = spin
-    model.add_p3_atom(energy=eps_p)
+
 
     d = np.ones(3) if d is None else np.asarray(d)
     t_direct = d ** 2 + (1 - d ** 2) * t_ppp
+
+    model.spin = spin
+    model.add_p3_atom(energy=eps_p)
     model.set_hopping(t_direct[0], "p_x")
     model.set_hopping(t_direct[1], "p_y")
     model.set_hopping(t_direct[2], "p_z")
-
     model.set_hopping(d[0] * d[1] * (t_pps - t_ppp), "p_x", "p_y")
     model.set_hopping(d[1] * d[2] * (t_pps - t_ppp), "p_y", "p_z")
     model.set_hopping(d[2] * d[0] * (t_pps - t_ppp), "p_z", "p_x")
@@ -174,16 +175,16 @@ def configure_p3_basis(model, eps_p=0., t_pps=1., t_ppp=1., d=None, spin=True, s
 
 def configure_sp3_basis(model, eps_s=0.,  eps_p=0., t_sss=1., t_sps=0., t_pps=1., t_ppp=1.,
                         d=None, spin=True, soc=0., ordering="spin"):
-    model.spin = spin
-    model.add_sp3_atom(energy=[eps_s, eps_p, eps_p, eps_p])
 
     d = np.ones(3) if d is None else np.asarray(d)
     t_direct = d ** 2 + (1 - d ** 2) * t_ppp
+
+    model.spin = spin
+    model.add_sp3_atom(energy=[eps_s, eps_p, eps_p, eps_p])
     model.set_hopping(t_sss, "s")
     model.set_hopping(t_direct[0], "p_x")
     model.set_hopping(t_direct[1], "p_y")
     model.set_hopping(t_direct[2], "p_z")
-
     model.set_hopping(d[0] * t_sps, "s", "p_x")
     model.set_hopping(d[1] * t_sps, "s", "p_y")
     model.set_hopping(d[2] * t_sps, "s", "p_z")
@@ -246,6 +247,21 @@ class TightBinding:
         self = cls(a * np.eye(2))
         self.add_atom(name, energy=eps)
         self.set_hopping(t)
+        if shape is not None:
+            self.build(shape)
+        return self
+
+    @classmethod
+    def square_basis(cls, shape=(2, 1), basis="s", a=1, soc=0, *args, **kwargs):
+        self = cls(a * np.eye(2))
+        if basis == "s":
+            configure_s_basis(self, *args, **kwargs, spin=False)
+        elif basis == "p3":
+            configure_p3_basis(self, soc=soc, *args, **kwargs)
+        elif basis == "sp3":
+            configure_sp3_basis(self, soc=soc, *args, **kwargs)
+        else:
+            raise ValueError(f"{basis}-Basis not supported! Choose between: 's', 'p3', 'sp3'")
         if shape is not None:
             self.build(shape)
         return self
@@ -616,7 +632,6 @@ class TightBinding:
                         array[i, j] = self.get_hopping(a1, a2, distidx)
                         array[j, i] = self.get_hopping(a2, a1, distidx)
             ham = Hamiltonian.block(array.arr)
-            print(ham)
             self._slice_ham_cache.load(ham)
         else:
             # Reset slice Hamiltonian
@@ -707,7 +722,6 @@ class TightBinding:
         """
         if not self._ham_cache:
             # Initialize Hamiltonian
-            # ----------------------------
             n = self.lattice.n
             array = List2D.empty(n)
             for i in range(n):
@@ -724,7 +738,6 @@ class TightBinding:
             self._ham_cache.load(ham)
         else:
             # Reset Hamiltonian
-            # ----------------------------
             self._ham_cache.reset()
 
         if w_eps:

@@ -7,6 +7,7 @@ project: cmpy2
 version: 1.0
 """
 import numpy as np
+import os
 from sciutils import fit, build_fit, eta, Data
 from sciutils import Progress, Plot
 
@@ -26,93 +27,13 @@ def localization_length_built(x, y, l0=100):
     data = build_fit(transfunc, x, popt)
     return loclen, data
 
-
-# =============================================================================
-# DATA
-# =============================================================================
-
-
-class LT_Data(Data):
-
-    def __init__(self, *paths):
-        path = os.path.join(*paths)
-        super().__init__(path)
-
-    @staticmethod
-    def key_value(key):
-        return float(key.split("=")[1])
-
-    def info(self):
-        parts = self.filename.split("-")[1:]
-        info = dict()
-        for string in parts:
-            key, val = str(string).split("=")
-            if val != "None":
-                info.update({key: float(val)})
-        return info
-
-    def info_str(self):
-        return ", ".join([f"{key}={val}" for key, val in self.info().items()])
-
-    def n_avrg(self, key):
-        arr = self.get(key, None)
-        if arr is None:
-            return 0
-        else:
-            return arr[:, 1:].shape[1]
-
-    def get_set(self, key, mean=False):
-        arr = self[key]
-        lengths, trans = arr[:, 0], arr[:, 1:]
-        if mean:
-            trans = np.mean(trans, axis=1)
-        return lengths, trans
-
-    def get_lengths(self, key):
-        arr = self[key]
-        return arr[:, 0]
-
-    def get_trans(self, key, mean=True):
-        arr = self[key]
-        return np.mean(arr[:, 1:], axis=1) if mean else arr[:, 1:]
-
-    def sort_lengths(self, key):
-        arr = self[key]
-        idx = np.argsort(arr[:, 0])
-        self[key] = arr[idx]
-
-    def sort_all(self):
-        for key in self:
-            self.sort_lengths(key)
-
-    def get_disord_model(self, key):
-        basis_name = os.path.split(os.path.dirname(self.path))[1]
-        info = self.info()
-        if basis_name == "s-basis":
-            basis = s_basis()
-        elif basis_name == "p3-basis":
-            soc = info["soc"]
-            basis = p3_basis(soc=soc)
-        else:
-            soc = info["soc"]
-            basis = sp3_basis(soc=soc)
-
-        e = info["e"]
-        h = int(self.key_value(key))
-        model = TbDevice.square((2, h), basis.eps, basis.hop)
-        return model, e + eta
-
-    def __str__(self):
-        return f"LT-Data({self.info_str()})"
-
-
 # =============================================================================
 # INITIALIZATION
 # =============================================================================
 
 
-def estimate(model, e, w, lmin=100, lmax=1000, n=40, fitmin=10, fitmax=15, thresh=0.1, scale="log",
-             n_avrg=200):
+def estimate(model, e, w, lmin=100, lmax=1000, n=60, fitmin=10, fitmax=15, thresh=0.1, scale="log",
+             n_avrg=200, l0=25):
     if w == 0:
         raise ValueError("Can't estimate localization-length without any disorder")
 
@@ -145,10 +66,9 @@ def estimate(model, e, w, lmin=100, lmax=1000, n=40, fitmin=10, fitmax=15, thres
             for j in range(n_avrg):
                 p = f"({i+1}/{n}) {100 * j / n_avrg:5.1f}% "
                 out.update(txt=p + info)
-                t[j] = model.transmission(omega)
                 model.shuffle()
+                t[j] = model.transmission(omega)
             trans[i] = np.mean(np.log(t))
-
             # Check localization estimate and error
             if i >= fitmin:
                 try:
@@ -157,7 +77,7 @@ def estimate(model, e, w, lmin=100, lmax=1000, n=40, fitmin=10, fitmax=15, thres
                     x = lengths[i0:i1]
                     y = trans[i0:i1]
                     # Fit section and get loc-length
-                    loclen, err = localization_length(x, y)
+                    loclen, err = localization_length(x, y, l0=l0)
                     loclen = abs(loclen)
                     # Check relative error of loc-length and continue if too big
                     relerr = abs(err) / loclen
@@ -171,28 +91,60 @@ def estimate(model, e, w, lmin=100, lmax=1000, n=40, fitmin=10, fitmax=15, thres
                     # Catch any fitting-errors and prevent loop from stoping
                     print(e)
                     loclen, err, relerr = 0, 0, 0
-                    
-    return int(estimation)
+        out.set_description(f"Estimating: L={length}, Loclen={loclen:.2f}, Err={relerr:.2f}")
+    return max(1, min(int(estimation), lmax))
 
 
-def init_lengths(lengths, existing, model, e, w, lmin=50, lmax=2000, n=20, step=5, n_avrg=200):
-    if lengths is None:
-        if existing is None:
-            loclen_est = estimate(model, e, w, lmin, lmax, n_avrg=n_avrg)
-            l0 = int(max(loclen_est, lmin))
-            l1 = l0 + n * step
-            out = np.arange(l0, l1, step)
-            print(f"-> Configured range: {out[0]}-{out[-1]}")
-        else:
-            out = existing[:, 0]
+def init_lengths(existing, model, e, w, lmin=50, lmax=2000, n=20, step=5, n_avrg=200):
+    if existing is None:
+        loclen_est = estimate(model, e, w, lmin, lmax, n_avrg=n_avrg)
+        l0 = int(max(loclen_est, lmin))
+        l1 = l0 + n * step
+        out = np.arange(l0, l1, step)
     else:
-        out = lengths
+        out = existing[:, 0]
     return out
 
 
 # =============================================================================
 # CALCULATIONS
 # =============================================================================
+
+
+class LtData(Data):
+
+    def __init__(self, *paths):
+        super().__init__(*paths)
+
+    def n_avrg(self, key):
+        arr = self.get(key, None)
+        if arr is None:
+            return 0
+        else:
+            return arr[:, 1:].shape[1]
+
+    def info(self, delim="_"):
+        info = dict()
+        for string in self.path.basename.split(delim):
+            if "=" in string:
+                key, val = str(string).split("=")
+                info.update({key: float(val)})
+        return info
+
+    def get_data(self, key):
+        arr = self[key]
+        return arr[:, 0], arr[:, 1:]
+
+    def rename_key(self, key, new_key):
+        val = self[key]
+        del self[key]
+        self.update({new_key: val})
+
+    def sort(self):
+        for k in self.keys():
+            arr = self[k]
+            idx = np.argsort(arr[:, 0])
+            self[k] = arr[idx]
 
 
 def _lt_array(model, omega, lengths, n_avrg=100, header=None):
@@ -248,37 +200,12 @@ def _update_lt(model, omega, existing, n_avrg, new_lengths=None, pre_txt="", pos
 def calculate_lt(model, lengths, disorder, n_avrg, omega=eta, existing=None, pre_txt="", post_txt=""):
     model.set_disorder(disorder)
     if existing is None:
+        # Calculate new data from scratch
         header = pre_txt + "Calculating new" + post_txt
         return _lt_array(model, omega, lengths, n_avrg, header)
     else:
+        # Update existing data
         ex_lengths = existing[:, 0]
         new_lengths = np.array([l for l in lengths if l not in ex_lengths])
         arr = _update_lt(model, omega, existing, n_avrg, new_lengths, pre_txt, post_txt)
         return arr
-
-
-# def disorder_lt(path, basis, h, w_values, lengths=None, e=0, n_avrg=250):
-#     omega = e + eta
-#     # initialize data
-#     data = LT_Data(path)
-#
-#     # calculate dataset
-#     header = f"Calculating L-T-Dataset (e={e}, h={h}, soc={basis.soc}, n={n_avrg})"
-#     line = "-" * len(header)
-#     print("\n" + line + "\n" + header + "\n" + line)
-#
-#     model = TbDevice.square((2, h), basis.eps, basis.hop)
-#     n = len(w_values)
-#     for i in range(n):
-#         w = w_values[i]
-#         key = f"w={w}"
-#         print(f"{i+1}/{n} (disorder: {w}) ")
-#         existing = data.get(key, None)
-#
-#         sys_lengths = init_lengths(lengths, existing, model, e, w, n_avrg=500)
-#         arr = calculate_lt(model, sys_lengths, w, n_avrg, omega, existing=existing)
-#         data.update({key: arr})
-#         data.save()
-#
-#     print()
-#     return data

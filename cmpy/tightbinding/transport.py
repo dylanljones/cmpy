@@ -178,6 +178,12 @@ class TbDevice(TightBinding):
         return self
 
     @classmethod
+    def square_basis(cls, shape=(2, 1), basis="s", a=1, soc=0, wideband=False, *args, **kwargs):
+        self = super(TbDevice, cls).square_basis(shape, basis, a, soc, *args, **kwargs)
+        self.load_lead(wideband)
+        return self
+
+    @classmethod
     def chain(cls, size=1, eps=0., t=1., basis=None, name="A", a=1., wideband=False):
         self = super(TbDevice, cls).chain(size, eps, t, name, a)
         self.load_lead(wideband)
@@ -286,12 +292,11 @@ class TbDevice(TightBinding):
             new size in z-direction
         """
         super().reshape(x, y, z)
-        self.load_lead(self.wideband)
         if (y is not None) or (z is not None):
             self._omega_cache.clear()
             self._sigma_cache.clear()
             self._gamma_cache.clear()
-
+        self.load_lead(self.wideband)
     # =========================================================================
     # Hamiltonians
     # =========================================================================
@@ -426,7 +431,7 @@ class TbDevice(TightBinding):
             omega = self._omega_cache.read()
         return super().occupation(omega, banded)
 
-    def transmission(self, omega=eta, rec_thresh=TRANS_REC_THRESH):
+    def transmission(self, omega=eta, rec_thresh=TRANS_REC_THRESH, check_pos=True):
         """ Calculate the transmission of the tight binding device
 
         If the size of the hamiltonian is smaller then the given threshold
@@ -439,6 +444,9 @@ class TbDevice(TightBinding):
             Energy of the system, default is zero (plus broadening)
         rec_thresh: int, default: TRANS_REC_THRESH
             If size of Hamiltonian matrix is larger than the threshold the recursive algorithm will be used
+        check_pos: bool, optional
+            Wheter or not calculated transmission value should be checked.
+            If True, raise error if transmission is negative. Default is True
 
         Returns
         -------
@@ -476,7 +484,10 @@ class TbDevice(TightBinding):
             # Get lower left block of gf
             g_1n = g[-blocksize:, :blocksize]
 
-        return np.trace(gammas[1] @ g_1n @ gammas[0] @ g_1n.conj().T).real
+        trans = np.trace(gammas[1] @ g_1n @ gammas[0] @ g_1n.conj().T).real
+        if check_pos and trans < 0:
+            raise ValueError(f"Negative transmission: {trans}")
+        return trans
 
     def transmission_curve(self, omegas=None, verbose=True):
         """ Calculate the transmission curve for multiple energy values
@@ -530,6 +541,7 @@ class TbDevice(TightBinding):
         trans = np.zeros(n)
         for i in range(n):
             p.update()
+            self.shuffle()
             trans[i] = self.transmission(omega)
         if prog is None:
             p.end()

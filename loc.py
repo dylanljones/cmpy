@@ -11,7 +11,6 @@ import numpy as np
 from sciutils import Path, Plot
 from cmpy import DATA_DIR
 from cmpy.tightbinding import LT_Data, localization_length
-from cmpy2.tightbinding import disorder_lt, s_basis, p3_basis, sp3_basis
 
 
 ROOT = os.path.join(DATA_DIR, "Localization")
@@ -60,7 +59,7 @@ def sort_keys(data):
 
 def read_loclen_data(subfolder):
     data_list = list()
-    for path in subfolder.listfiles():
+    for path in subfolder.files():
         data = LT_Data(path)
         sort_keys(data)
         h = data.info()["h"]
@@ -98,7 +97,8 @@ def show_loclen(relpath="p3-basis", *socs):
         plot.set_title(subfolder.name)
         plot.set_labels(r"Disorder $w$", r"$\xi / M$")   #r"$\log_{10}(\xi / M)$")
         for h, w, ll, errs in sorted(data_list, key=lambda x: x[0]):
-            plot.ax.errorbar(w, ll, yerr=errs, label=f"M={h:.0f}")
+            plot.plot(w, ll, label=f"M={h:.0f}")
+            # plot.ax.errorbar(w, ll, yerr=errs, label=f"M={h:.0f}")
         plot.legend()
         plot.tight()
     plot.show()
@@ -147,7 +147,7 @@ def main():
     # calculate()
     # calculate_single_soc()
     # calculate_s_basis()
-    show_loclen("p3-basis", 1)
+    show_loclen("sp3-basis", 1, 2)
 
 
 if __name__ == "__main__":
