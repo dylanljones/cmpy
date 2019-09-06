@@ -952,6 +952,10 @@ class TightBinding:
         """
         return self.lattice.show(show, *args, **kwargs)
 
+    def show_hamiltonian(self):
+        ham = self.hamiltonian()
+        ham.show()
+
     def __str__(self):
         string = "TighBinding-model:\n"
         string += "BASE"

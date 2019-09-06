@@ -7,7 +7,7 @@ project: cmpy
 version: 1.0
 """
 from itertools import product
-from sciutils import eta, Plot
+from sciutils import eta, Plot, prange
 from cmpy import *
 from cmpy.tightbinding import *
 from cmpy.hubbard import *
@@ -16,14 +16,13 @@ from cmpy.hubbard import *
 
 
 def main():
-    model = TbDevice.square((100, 100))
-    omegas = np.linspace(-3, 3, 1000) + 0.01j
+    model = TbDevice.square_basis((20, 4), basis="p3", soc=1)
+    model.sort_states()
+    model.set_disorder(1)
+    for _ in prange(100000):
+        model.shuffle()
+        model.transmission()
 
-    ham = model.hamiltonian()
-    gf = gf_lehmann(ham, omegas)
-    dos = -1/np.pi * np.sum(gf.imag, axis=1)
-
-    Plot.quickplot(omegas.real, dos)
 
 
 if __name__ == "__main__":

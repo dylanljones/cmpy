@@ -27,6 +27,11 @@ def localization_length_built(x, y, l0=100):
     data = build_fit(transfunc, x, popt)
     return loclen, data
 
+
+def lognorm(array, axis=1):
+    return np.mean(np.log(array), axis=axis)
+
+
 # =============================================================================
 # INITIALIZATION
 # =============================================================================
@@ -91,7 +96,7 @@ def estimate(model, e, w, lmin=100, lmax=1000, n=60, fitmin=10, fitmax=15, thres
                     # Catch any fitting-errors and prevent loop from stoping
                     print(e)
                     loclen, err, relerr = 0, 0, 0
-        out.set_description(f"Estimating: L={length}, Loclen={loclen:.2f}, Err={relerr:.2f}")
+        out.set_description(f"L={length}, Loclen={loclen:.2f}, Err={relerr:.2f}")
     return max(1, min(int(estimation), lmax))
 
 
@@ -113,8 +118,26 @@ def init_lengths(existing, model, e, w, lmin=50, lmax=2000, n=20, step=5, n_avrg
 
 class LtData(Data):
 
+    """ Data object for Localization data consisting of lengths and transmission for each disorder
+
+    Folder structure:
+
+    Root
+     |--s-Basis
+            |--------- soc=<soc>
+                          |------ disorder_h=1.npz
+                          |------ disorder_h=4.npz
+    """
+
     def __init__(self, *paths):
         super().__init__(*paths)
+
+    @classmethod
+    def find(cls, root, basis, soc, height):
+        basis_dir = f"{basis}-Basis"
+        soc_dir = f"soc={soc}".replace(".", "_")
+        file = f"disorder_h={height}.npz"
+        return cls(root, basis_dir, soc_dir, file)
 
     def n_avrg(self, key):
         arr = self.get(key, None)
@@ -131,6 +154,13 @@ class LtData(Data):
                 info.update({key: float(val)})
         return info
 
+    def get_soc(self):
+        folder = self.path.parts()[-2]
+        number = folder.split("=")[1]
+        if "_" in number:
+            number.replace("_", ".")
+        return float(number)
+
     def get_data(self, key):
         arr = self[key]
         return arr[:, 0], arr[:, 1:]
@@ -145,6 +175,20 @@ class LtData(Data):
             arr = self[k]
             idx = np.argsort(arr[:, 0])
             self[k] = arr[idx]
+
+    def localization_curve(self, l0=1.):
+        keys = self.keylist
+        n = len(keys)
+        disorder = np.zeros(n)
+        loclen = np.zeros(n)
+        errs = np.zeros(n)
+        for i, key in enumerate(keys):
+            lengths, trans = self.get_data(key)
+            trans = lognorm(trans)
+            disorder[i] = float(key)
+            loclen[i], errs[i] = localization_length(lengths, trans, l0)
+        idx = np.argsort(disorder)
+        return disorder[idx], loclen[idx], errs[idx]
 
 
 def _lt_array(model, omega, lengths, n_avrg=100, header=None):

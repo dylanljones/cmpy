@@ -486,6 +486,8 @@ class TbDevice(TightBinding):
 
         trans = np.trace(gammas[1] @ g_1n @ gammas[0] @ g_1n.conj().T).real
         if check_pos and trans < 0:
+            ham = self.hamiltonian()
+            ham.show()
             raise ValueError(f"Negative transmission: {trans}")
         return trans
 

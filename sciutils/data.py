@@ -124,7 +124,7 @@ class Path(str):
     def parts(self):
         path = str(self)
         parts = list()
-        while path:
+        while len(path) and path != "/":
             path, part = os.path.split(path)
             parts.append(part)
         return parts[::-1]
@@ -186,8 +186,18 @@ class Path(str):
                 break
         return res
 
+    # =========================================================================
+
     def findall(self, pattern):
         return re.findall(pattern, self)
+
+    def re_search(self, pattern):
+        return re.search(pattern, self)
+
+    def re_search_number(self, keyword):
+        return re.search(keyword + "(\d+)", self)
+
+    # =========================================================================
 
     def search(self, *txts, deep=True):
         paths = self.walk() if deep else self.listdir()
@@ -310,7 +320,7 @@ class Path(str):
 #         return string
 #
 #
-# class File(str):
+# class File(str):match
 #
 #     """ Legacy support """
 #
