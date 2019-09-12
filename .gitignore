@@ -3,7 +3,7 @@ __pycache__/
 .idea/
 
 
-plots.py
+_plots.py
 
 # Distribution / packaging
 .Python
