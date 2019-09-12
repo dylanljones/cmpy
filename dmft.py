@@ -9,30 +9,9 @@ version: 1.0
 import numpy as np
 from scipy import integrate
 from sciutils import Plot
-from cmpy import spectral, gf_lehmann
+from cmpy import spectral, gf_lehmann, bethe_gf_omega
 from cmpy.dmft import solvers, quasiparticle_weight
 
-
-def bethe_gf_omega(z, half_bandwidth=1):
-    """Local Green's function of Bethe lattice for infinite Coordination number.
-
-    Taken from gf_tools by Weh Andreas
-    https://github.com/DerWeh/gftools/blob/master/gftools/__init__.py
-
-    Parameters
-    ----------
-    z : complex ndarray or complex
-        Green's function is evaluated at complex frequency `z`
-    half_bandwidth : float
-        half-bandwidth of the DOS of the Bethe lattice
-        The `half_bandwidth` corresponds to the nearest neighbor hopping `t=D/2`
-    Returns
-    -------
-    bethe_gf_omega : complex ndarray or complex
-        Value of the Green's function
-    """
-    z_rel = z / half_bandwidth
-    return 2. / half_bandwidth * z_rel * (1 - np.sqrt(1 - 1 / (z_rel * z_rel)))
 
 
 def bethe_dos(energy, hopping):
@@ -152,6 +131,15 @@ def main():
     # dmft(u, eps, t, mu, omegas)
     siam = TwoSiteSiam(u, eps0, eps1, v, mu)
 
+    gf_imp0 = siam.gf_imp0(omegas + eta)
+    gf_imp0_potthoff = gf_imp_free_potthof(eps0, eps1, v, omegas + eta, mu)
+
+    plot = Plot()
+    plot.plot(omegas, dos(gf_imp0))
+    plot.plot(omegas, dos(gf_imp0_potthoff))
+    plot.show()
+
+    return
     gf_imp0 = siam.gf_imp0(1j * omegas)
     gf_imp = siam.gf_imp(1j * omegas)
     sigma = (1/gf_imp0 - 1/gf_imp)

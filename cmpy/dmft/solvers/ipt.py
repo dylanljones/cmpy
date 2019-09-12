@@ -10,8 +10,7 @@ version: 1.0
 """
 import numpy as np
 import scipy.signal as signal
-from cmpy.core import gf_omega_fft, gf_tau_fft, fermi_dist
-from ..core import bethe_gf_omega
+from cmpy.core import bethe_gf_omega, gf_omega_fft, gf_tau_fft, fermi_dist
 from .utils import time_freq_arrays
 
 

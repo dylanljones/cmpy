@@ -22,6 +22,11 @@ GOLDEN_RATIO = (np.sqrt(5) - 1.0) / 2.0
 TEXTWIDTH = 455.2
 
 
+class Colors:
+    # COLORSCHEME by Paul Tol
+    pass
+
+
 class RcParams:
 
     @staticmethod

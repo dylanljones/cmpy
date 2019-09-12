@@ -10,7 +10,7 @@ SINGLE-IMPURITY-ANDERSON-MODEL (SIAM)
 """
 import numpy as np
 from itertools import product
-from cmpy.core import State, Hamiltonian
+from cmpy.core import State, Hamiltonian, gf_lehmann
 
 
 def get_siam_states(n_bath=1, n=None, spin=None):
@@ -53,6 +53,20 @@ def siam_hamiltonian(states, eps_d, u, eps, v, mu=0.):
     return ham
 
 
+def siam_hamiltonian_free(eps_d, u, eps, v, mu=0.):
+    energies = np.append([eps_d], eps)
+    n = len(energies)
+    v = np.asarray(v)
+    v_conj = np.conj(v)
+    ham = Hamiltonian.zeros(n, dtype="complex")
+    for i in range(n):
+        ham[i, i] = energies[i]
+        if i > 0:
+            ham[0, i] = v[i-1]
+            ham[i, 0] = v_conj[i-1]
+    return ham
+
+
 class Siam:
 
     def __init__(self, eps_imp=0., u=10., eps=0., v=1., mu=None):
@@ -65,6 +79,15 @@ class Siam:
         self.states = list()
         self.n_bath = len(self.eps)
         self.set_filling(self.n_bath + 1)
+
+
+    @property
+    def state_labels(self):
+        return [x.label() for x in self.states]
+
+    @property
+    def n_sites(self):
+        return self.n_bath + 1
 
     def update_bath_hopping(self, v_new):
         v_new = np.asarray(v_new if hasattr(v_new, "__len__") else np.array([v_new]))
@@ -90,15 +113,23 @@ class Siam:
             raise ValueError(f"Number of indices doesn't match number of states: {len(indices)}!={len(self.states)}")
         self.states = [self.states[i] for i in indices]
 
-    @property
-    def state_labels(self):
-        return [x.label() for x in self.states]
+
+    # ==============================================================================================
 
     def hybridization(self, omega):
         return self.v**2 / (omega + self.mu - self.eps)
 
     def hamiltonian(self):
         return siam_hamiltonian(self.states, self.eps_imp, self.u, self.eps, self.v, 0)
+
+    def hamiltonian_free(self):
+        return siam_hamiltonian_free(self.eps_imp, self.u, self.eps, self.v, 0)
+
+    def gf_imp_free(self, omegas):
+        return gf_lehmann(self.hamiltonian_free(), omegas, mu=self.mu)
+
+    def gf_imp(self, omegas):
+        return gf_lehmann(self.hamiltonian(), omegas, mu=self.mu)
 
     def self_energy(self, omega):
         ham = self.hamiltonian()
@@ -113,6 +144,8 @@ class Siam:
 
     def dos(self, omegas):
         return 1/np.pi * self.spectral(omegas)
+
+    # ==============================================================================================
 
     def show_hamiltonian(self):
         ham = self.hamiltonian()

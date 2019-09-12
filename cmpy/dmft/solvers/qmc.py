@@ -8,8 +8,7 @@ version: 1.0
 """
 import numpy as np
 from sciutils import Matrix, Plot
-from cmpy.dmft.core import bethe_gf_omega
-from cmpy.core import gf_omega_fft, gf_tau_fft, gf_lehmann
+from cmpy.core import gf_omega_fft, gf_tau_fft, gf_lehmann, bethe_gf_omega
 
 T = 0.2
 
