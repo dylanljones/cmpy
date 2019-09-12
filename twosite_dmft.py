@@ -9,31 +9,8 @@ version: 1.0
 import numpy as np
 from scipy import integrate
 from sciutils import Plot
-from cmpy import spectral, gf_lehmann
-from scipy.sparse import csr_matrix
-from itertools import product
-
-
-def bethe_gf_omega(z, half_bandwidth=1):
-    """Local Green's function of Bethe lattice for infinite Coordination number.
-
-    Taken from gf_tools by Weh Andreas
-    https://github.com/DerWeh/gftools/blob/master/gftools/__init__.py
-
-    Parameters
-    ----------
-    z : complex ndarray or complex
-        Green's function is evaluated at complex frequency `z`
-    half_bandwidth : float
-        half-bandwidth of the DOS of the Bethe lattice
-        The `half_bandwidth` corresponds to the nearest neighbor hopping `t=D/2`
-    Returns
-    -------
-    bethe_gf_omega : complex ndarray or complex
-        Value of the Green's function
-    """
-    z_rel = z / half_bandwidth
-    return 2. / half_bandwidth * z_rel * (1 - np.sqrt(1 - 1 / (z_rel * z_rel)))
+from cmpy import gf_lehmann
+from cmpy.models import Siam, HubbardModel
 
 
 def bethe_dos(z, t):
@@ -66,8 +43,15 @@ def quasiparticle_weight(omegas, sigma):
     idx = np.argmin(np.abs(omegas))
     dsigma = sigma[idx] - sigma[idx-1]
     domega = omegas[idx] - sigma[idx-1]
-
     return 1/(1 - dsigma/domega)
+
+
+def ham_siam(u, eps0, eps1, v):
+    g11 = np.eye(4) * (eps0 + eps1)
+    g12 = np.zeros((4, 2))
+    g12[1:3, :] = v
+    g22 = np.array([[2 * eps0 + u, 0], [0, 2*eps1]])
+    return np.block([[g11, g12], [g12.T, g22]])
 
 
 def filling(omegas, gf):
@@ -85,14 +69,25 @@ def dos(gf):
 
 def main():
     eta = 0.01j
-    u = 2
+    u = 5
     eps, t = 0, 1
     mu = u/2
-    eps0 = eps
-    eps1 = mu
-    v = 0.01
-    omegas = np.linspace(-20, 20, 1000)
 
+    siam = Siam(eps_imp=eps, u=u, eps=mu, v=t, mu=mu)
+    siam.sort_states([5, 3, 2, 0, 4, 1])
+    # siam.show_hamiltonian()
+    omax = 10
+    omegas = np.linspace(-omax, omax, 1000)
+    ham = siam.hamiltonian()
+
+    gf = gf_lehmann(ham, omegas + eta, mu=mu).sum(axis=1) / 4
+    print(filling(omegas, gf))
+
+    plot = Plot()
+    plot.plot(omegas, - gf.imag / np.pi)
+    plot.show()
+
+    return
     gf_imp0 = gf_imp_free_potthof(eps0, eps1, v, omegas + eta, mu)
     sigma = sigma_potthof(u, v, omegas)
     dos = bethe_dos(omegas + mu + sigma, 1)
@@ -104,13 +99,6 @@ def main():
 
     # z = 2 * 18 * v * v / (u * u)    # quasiparticle_weight(omegas, sigma)
     # print(f"Quasiparticle-weight: {z}")
-
-    us = np.linspace(0, 20, 1000)
-    qp_weight = 1 / (1 + us*us/(v*36))
-    plot = Plot()
-    # plot.plot(omegas, sigma)
-    plot.plot(us, qp_weight)
-    plot.show()
 
 
 if __name__ == "__main__":

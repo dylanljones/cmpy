@@ -216,3 +216,25 @@ def rda(ham, t, omega, thresh=0.):
         beta = beta @ gf_b @ beta
 
     return gf_l, gf_b, gf_r
+
+
+def bethe_gf_omega(z, half_bandwidth=1):
+    """Local Green's function of Bethe lattice for infinite Coordination number.
+
+    Taken from gf_tools by Weh Andreas
+    https://github.com/DerWeh/gftools/blob/master/gftools/__init__.py
+
+    Parameters
+    ----------
+    z : complex ndarray or complex
+        Green's function is evaluated at complex frequency `z`
+    half_bandwidth : float
+        half-bandwidth of the DOS of the Bethe lattice
+        The `half_bandwidth` corresponds to the nearest neighbor hopping `t=D/2`
+    Returns
+    -------
+    bethe_gf_omega : complex ndarray or complex
+        Value of the Green's function
+    """
+    z_rel = z / half_bandwidth
+    return 2. / half_bandwidth * z_rel * (1 - np.sqrt(1 - 1 / (z_rel * z_rel)))

@@ -45,14 +45,14 @@ class State:
     def double(self):
         return np.all(self.arr, axis=0).astype("int")
 
+    def num_onsite(self):
+        return np.sum(self.arr, axis=0).astype("int")
+
+    def interaction(self):
+        return np.all(self.arr, axis=0).astype("int")
+
     def site(self, i):
         return self.arr[:, i]
-
-    def n_onsite(self):
-        return np.sum(self.single)
-
-    def n_interaction(self):
-        return np.sum(self.double)
 
     def difference(self, other):
         up_diff = np.where((self.up != other.up) > 0)[0]
@@ -88,16 +88,11 @@ class State:
             return self.DN_CHAR if not latex else r"$\downarrow$"
         return "."
 
-    @property
-    def repr(self):
-        return " ".join([self._get_sitechar(i) for i in range(self.n)])
-
-    def latex_string(self):
-        return " ".join([self._get_sitechar(i, latex=True) for i in range(self.n)])
+    def label(self, latex=True):
+        return " ".join([self._get_sitechar(i, latex) for i in range(self.n)])
 
     def __repr__(self):
-        return f"State({self.repr})"
+        return f"State({self.label()})"
 
     def __str__(self):
-        string = self.repr + f" (N_e={self.num}, S={self.spin})"
-        return string
+        return f"State({self.label()}) (N_e={self.num}, S={self.spin})"

@@ -7,4 +7,4 @@ project: cmpy
 version: 1.0
 """
 from .core import *
-
+from .models import *

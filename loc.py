@@ -3,151 +3,158 @@
 Created on 3 Mar 2018
 @author: Dylan Jones
 
-project: tightbinding
+project: cmpy
 version: 1.0
 """
 import os
 import numpy as np
-from sciutils import Path, Plot
+from sciutils import Path, Plot, Data, prange
 from cmpy import DATA_DIR
-from cmpy.tightbinding import LT_Data, localization_length
+from cmpy.tightbinding import TightBinding, TbDevice, LtData
+from cmpy.tightbinding import localization_length, init_lengths, calculate_lt, localization_length_built
+
+ROOT = Path(DATA_DIR, "Localization2", init=True)
 
 
-ROOT = os.path.join(DATA_DIR, "Localization")
+def lognorm(array, axis=1):
+    return np.mean(np.log(array), axis=axis)
 
 
-def calculate_disorder_lt(basis, w_values, h, lengths=None, e=0, n_avrg=250):
-    # initialize folder
-    rel_parts = [ROOT]
-    if basis.n == 1:
-        filename = f"disorder-e={e}-h={h}.npz"
-        rel_parts.append("s-basis")
-    else:
-        soc = basis.soc
-        if soc is None:
-            soc = 0
-        filename = f"disorder-e={e}-h={h}-soc={soc}.npz"
-        if basis.n == 6:
-            rel_parts.append("p3-basis")
-        elif basis.n == 8:
-            rel_parts.append("sp3-basis")
-        rel_parts.append(f"soc={soc}")
-    folder = Path(*rel_parts)
-    path = folder.add(filename)
+# =========================================================================
+# CALCULATION
+# =========================================================================
 
-    # calculate the transmission data
-    try:
-        disorder_lt(path, basis, h, w_values, lengths=lengths, e=e, n_avrg=n_avrg)
-    except Exception as e:
-        print("ERROR")
-        print(e)
+
+def calculate_transmissions(model, folder, w_values, heights, n_avrg, soc=0, override_lengths=None,
+                            w_thresh=3.0):
+    for h in heights:
+
+        header = f"Height: {h}, SOC: {soc}"
+        print(header + "\n" + "-"*(len(header) + 1))
+
+        model.reshape(x=2, y=h)
+        data = LtData(folder, f"disorder_h={h}.npz")
+        for w in w_values:
+            existing = data.get(str(w))
+            if override_lengths is not None:
+                lengths = override_lengths
+            elif w >= w_thresh:
+                lengths = np.arange(50, 150, 50)
+            else:
+                try:
+                    lengths = init_lengths(existing, model, 0, w)
+                except ValueError as e:
+                    print(e)
+                    print("Using default lengths: 50-150")
+                    lengths = np.arange(50, 150, 50)
+            txt = f"W={w} "
+            arr = calculate_lt(model, lengths, w, n_avrg, pre_txt=txt, existing=existing)
+            data.update({str(float(w)): arr})
+            data.save()
+            print()
         print()
 
 
-def sort_keys(data):
-    keys, values = list(), list()
-    for k, v in data.items():
-        keys.append(k)
-        values.append(v)
-    key_vals = [data.key_value(k) for k in keys]
-    idx = np.argsort(key_vals)
-    data.clear()
-    for i in idx:
-        data.update({keys[i]: values[i]})
-    data.save()
+def calculate_s_basis(w_values, n_avrg=500):
+    folder = ROOT.join("s-Basis", "soc=0", init=True)
+    heights = [1, 4, 8, 16]
+    model = TbDevice.square_basis((2, 1), basis="s")
+    calculate_transmissions(model, folder, w_values, heights, n_avrg, soc=0)
 
 
-def read_loclen_data(subfolder):
-    data_list = list()
-    for path in subfolder.files():
-        data = LT_Data(path)
-        sort_keys(data)
+def calculate_p3_basis(w_values, heights, soc_values, n_avrg=500, override_lengths=None):
+    header = f"Calculating Data: SOC: {soc_values}, Disorder: {min(w_values)}-{max(w_values)}"
+    print("\n" + header + "\n" + "="*len(header) + "\n")
+
+    for soc in soc_values:
+        soc_str = str(soc).replace(".", "_")
+        folder = ROOT.join("p3-Basis", f"soc={soc_str}", init=True)
+        model = TbDevice.square_basis((2, 1), basis="p3", soc=soc)
+        calculate_transmissions(model, folder, w_values, heights, n_avrg, soc, override_lengths)
+
+
+# =========================================================================
+# ANALYSIS
+# =========================================================================
+
+
+def validate(data):
+    err_keys = list()
+    for k in sorted(data.keylist):
+        arr = data[k]
+        if not np.isfinite(arr).all():
+            err_keys.append(k)
+        elif np.any(arr < 0):
+            err_keys.append(k)
+    return err_keys
+
+
+def plot_dataset(data, l0=1, show=True):
+    plot = Plot(xlabel="$L$", ylabel=r"$\langle \ln T \rangle$")
+    plot.set_title(data.path.relpath(ROOT))
+    for k in sorted(data.keylist):
+        lengths, trans = data.get_data(k)
+        try:
+            trans = lognorm(trans)
+            (ll, err), y = localization_length_built(lengths, trans, l0)
+            print(f"w={k} -> LL={ll}")
+            plot.plot(lengths, y, color="k", ls="--")
+            plot.plot(lengths, trans, label=f"w={k}")
+        except ValueError as e:
+            print(f"KEY {k}:", e)
+    plot.legend()
+    if show:
+        plot.show()
+    return plot
+
+
+def localization_curves(basis="s", soc=0):
+    folder = Path(ROOT, f"{basis}-Basis", f"soc={soc}".replace(".", "_"), init=False)
+    lines = list()
+    for file in folder.files():
+        data = LtData(file)
+        w, ll, err = data.localization_curve(l0=1.)
         h = data.info()["h"]
-        w, ll, errs = list(), list(), list()
-        for k in data:
-            l, t = data.get_set(k, mean=False)
-            w.append(data.key_value(k))
-            try:
-                t = np.mean(np.log(t), axis=1)
-                lam, lam_err = localization_length(l, t)
-                ll.append(lam / h)
-                errs.append(lam_err)
-            except Exception as e:
-                print(k)
-
-        w = np.array(w)
-
-        # Normalizing data
-        ll = np.array(ll)
-        errs = np.array(errs)
-
-        data_list.append((h, w, ll, errs))
-    return data_list
+        lines.append([h, w, ll/h, err/h])
+    return sorted(lines, key=lambda x: x[0])
 
 
-def show_loclen(relpath="p3-basis", *socs):
-    folder = Path(ROOT, relpath)
+def plot_localization_length(basis="s", soc=0, show=True):
+    lines = localization_curves(basis, soc)
     plot = Plot()
-    for subfolder in folder.dirs(deep=True):
-        if len(socs) and not any([f"soc={s}" in subfolder.name for s in socs]):
-            continue
-        data_list = read_loclen_data(subfolder)
+    plot.set_scales(yscale="log")
+    for h, w, ll, err in lines:
+        plot.errorplot(w, ll, err, label=h)
+    plot.legend()
+    plot.set_title(f"{basis}-Basis, SOC: {soc}")
+    if show:
+        plot.show()
+    return plot
 
-        plot.set_scales(yscale="log")
-        plot.set_title(subfolder.name)
-        plot.set_labels(r"Disorder $w$", r"$\xi / M$")   #r"$\log_{10}(\xi / M)$")
-        for h, w, ll, errs in sorted(data_list, key=lambda x: x[0]):
-            plot.plot(w, ll, label=f"M={h:.0f}")
-            # plot.ax.errorbar(w, ll, yerr=errs, label=f"M={h:.0f}")
-        plot.legend()
-        plot.tight()
+
+def plot_heatmap(h=4):
+    files = sorted(ROOT.join("p3-Basis").search(f"h={h}.npz"))
+    plot = Plot()
+    for i, file in enumerate(files):
+        data = LtData(file)
+        soc = data.get_soc()
+        w, ll, err = data.localization_curve()
+        ll = ll / h
+        plot.plot(w, ll, label=f"SOC={soc}")
+    plot.legend()
     plot.show()
 
 
-def show_dataset(data):
-    plot = Plot(xlabel="$L$", ylabel=r"$\langle \ln T \rangle$")
-    for k in data:
-        lengths, trans = data.get_set(k, mean=False)
-        trans = np.mean(np.log(trans), axis=1)
-        plot.plot(lengths, trans)
-    return plot
-    #plot.show()
-
-
-def calculate_s_basis(n_avrg=500):
-    heights = [1, 4, 8, 16]
-    w_values = np.arange(10) + 1
-    for h in heights:
-        basis = s_basis(eps=0., t=1.)
-        calculate_disorder_lt(basis, w_values, h, n_avrg=n_avrg)
-
-
-def calculate(n_avrg=500):
-    soc_values = 0, 1, 2, 3, 4
-    heights = [1, 4, 8, 16]
-    w_values = np.arange(10) + 1
-    for soc in soc_values:
-        for h in heights:
-            basis = p3_basis(eps_p=0, t_pps=1, t_ppp=1, soc=soc)
-            calculate_disorder_lt(basis, w_values, h, n_avrg=n_avrg)
-
-
-def calculate_single_soc(n_avrg=500):
-    soc = 1
-    heights = [1, 4, 8, 16]
-    w_values = np.arange(3, 6, 0.25)
-    for h in heights:
-        basis = p3_basis(eps_p=0, t_pps=1, t_ppp=1, soc=soc)
-        calculate_disorder_lt(basis, w_values, h, n_avrg=n_avrg)
-
-
 def main():
-    # save_localization_data(ROOT)
+    heights = [1, 4, 8, 16]
+    w_values = np.arange(1.0, 6, 0.5)
+    soc_values = [0.5, 1.0, 1.5]
+    # soc_values = [2.0, 2.5, 3.0]
 
-    # calculate()
-    # calculate_single_soc()
-    # calculate_s_basis()
-    show_loclen("sp3-basis", 1, 2)
+    calculate_p3_basis(w_values, heights, soc_values)
+    # data = LtData.find(ROOT, "p3", 0, 1)
+    # plot_dataset(data, show=False)
+    plot_localization_length("p3", soc=2.0)
 
 
 if __name__ == "__main__":

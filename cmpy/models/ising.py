@@ -5,10 +5,10 @@ author: Dylan Jones
 
 project: cmpy
 version: 1.0
+
+ISING MODEL
 """
-import numpy as np
 from sciutils import *
-from cmpy import *
 import random
 
 
@@ -104,7 +104,7 @@ class IsingModel:
         self.im = self.plot.ax.imshow(self.array.T, cmap="RdBu", vmin=-1.2, vmax=1.3)
         x = self.shape[1] * 0.95
         y = self.shape[1] * 0.05
-        self.text = self.plot.text((x, y), "0", ha="right", color="white")
+        self.text = self.plot.text((x, y), "0", ha="right")
 
     def update_plot(self, t, sleep=1e-10):
         self.im.set_data(self.array)
