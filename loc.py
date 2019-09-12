@@ -6,12 +6,12 @@ Created on 3 Mar 2018
 project: cmpy
 version: 1.0
 """
-import os
 import numpy as np
 from sciutils import Path, Plot, Data, prange
 from cmpy import DATA_DIR
-from cmpy.tightbinding import TightBinding, TbDevice, LtData
-from cmpy.tightbinding import localization_length, init_lengths, calculate_lt, localization_length_built
+# from cmpy.models import TightBinding
+from cmpy.transport import TbDevice, LtData
+from cmpy.transport import localization_length, init_lengths, calculate_lt, localization_length_built
 
 ROOT = Path(DATA_DIR, "Localization2", init=True)
 
@@ -108,7 +108,7 @@ def plot_dataset(data, l0=1, show=True):
     return plot
 
 
-def localization_curves(basis="s", soc=0):
+def localization_curves(basis="s", soc=0.):
     folder = Path(ROOT, f"{basis}-Basis", f"soc={soc}".replace(".", "_"), init=False)
     lines = list()
     for file in folder.files():
@@ -119,7 +119,7 @@ def localization_curves(basis="s", soc=0):
     return sorted(lines, key=lambda x: x[0])
 
 
-def plot_localization_length(basis="s", soc=0, show=True):
+def plot_localization_length(basis="s", soc=0., show=True):
     lines = localization_curves(basis, soc)
     plot = Plot()
     plot.set_scales(yscale="log")

@@ -8,7 +8,7 @@ version: 1.0
 """
 import numpy as np
 import scipy.linalg as la
-from cmpy.tightbinding.tightbinding import TightBinding
+from cmpy.models.tightbinding import TightBinding
 from cmpy.core import greens
 from sciutils import Plot, eta, Cache, normalize
 from sciutils.terminal import Progress, prange, Symbols

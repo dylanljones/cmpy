@@ -8,11 +8,10 @@ version: 1.0
 """
 import os
 import numpy as np
-import cmpy.tightbinding as tb
+import cmpy.transport as tb
 from cmpy import DATA_DIR
-from cmpy.tightbinding import TightBinding, eta
-from cmpy.tightbinding import configure_p3_basis, configure_sp3_basis
-from sciutils import Plot, Progress, load_pkl, save_pkl, Path
+from cmpy.models import TightBinding
+from sciutils import Plot, Progress, load_pkl, save_pkl, Path, eta
 
 IPR_DIR = Path(DATA_DIR, "ipr")
 

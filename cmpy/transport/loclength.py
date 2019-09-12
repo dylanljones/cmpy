@@ -7,7 +7,6 @@ project: cmpy2
 version: 1.0
 """
 import numpy as np
-import os
 from sciutils import fit, build_fit, eta, Data
 from sciutils import Progress, Plot
 
