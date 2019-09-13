@@ -80,7 +80,6 @@ class Siam:
         self.n_bath = len(self.eps)
         self.set_filling(self.n_bath + 1)
 
-
     @property
     def state_labels(self):
         return [x.label() for x in self.states]
@@ -112,7 +111,6 @@ class Siam:
         if len(indices) != len(self.states):
             raise ValueError(f"Number of indices doesn't match number of states: {len(indices)}!={len(self.states)}")
         self.states = [self.states[i] for i in indices]
-
 
     # ==============================================================================================
 

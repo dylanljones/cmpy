@@ -8,8 +8,11 @@ version: 0.1.0
 """
 import os
 import numpy as np
+from cycler import cycler
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+from matplotlib.patches import Circle, Rectangle
+from matplotlib.gridspec import GridSpec
 from matplotlib import cm, colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d import Axes3D
@@ -23,8 +26,60 @@ TEXTWIDTH = 455.2
 
 
 class Colors:
-    # COLORSCHEME by Paul Tol
-    pass
+    """ Colour Schemes by Paul Tol: https://personal.sron.nl/~pault/"""
+
+    # Bright qualitative colour scheme that is colour-blind safe
+    bblue = "#4477AA"
+    bcyan = "#66CCEE"
+    bgreen = "#228833"
+    byellow = "#CCBB44"
+    bred = "#EE6677"
+    bpurple = "#AA3377"
+    bgrey = "#BBBBBB"
+    bright_cycle = [bblue, bred, bgreen, byellow, bcyan, bpurple, bgrey]
+
+    # High-contrast colour scheme that is colour-blind safe
+    cwhite = "#FFFFFF"
+    cyellow = "#DDAA33"
+    cred = "#BB5566"
+    cblue = "#004488"
+    cblack = "#000000"
+    highcontrast_cycle = [cblue, cyellow, cred, cblack]
+
+    # Vibrant colour scheme that is colour-blind safe
+    blue = "#0077BB"
+    cyan = "#33BBEE"
+    teal = "#009988"
+    orange = "#EE7733"
+    red = "#CC3311"
+    magenta = "#EE3377"
+    grey = "#BBBBBB"
+    vibrant_cycle = [blue, orange, cyan, red, teal, magenta, grey]
+
+    cycle = [blue, orange, bgreen, red, cyan, teal, cblue, bpurple, magenta, grey]
+
+
+class Linestyles:
+
+    solid = "-"
+
+    dashed = (0, (5, 5))
+    dotted = (0, (1, 1))
+    dashdotted = (0, (3, 5, 1, 5))
+    dashdotdotted = (0, (3, 5, 1, 5, 1, 5))
+
+    dotted_dense = (0, (1, 1))
+    dashed_dense = (0, (5, 1))
+    dashdotted_dense = (0, (3, 1, 1, 1))
+    dashdotdotted_dense = (0, (3, 1, 1, 1, 1, 1))
+
+    dotted_loose = (0, (1, 10))
+    dashed_loose = (0, (5, 10))
+    dashdotted_loose = (0, (3, 10, 1, 10))
+    dashdotdotted_loose = (0, (3, 10, 1, 10, 1, 10))
+
+    cycle = [solid, dashed_dense, dashdotted_dense, dashdotdotted_dense, dashed, dashdotted,
+             dashdotdotted, dashed_loose, dotted_dense, dotted]
 
 
 class RcParams:
@@ -54,6 +109,14 @@ class RcParams:
         values = {"xtick.labelsize": x,
                   "ytick.labelsize": x}
         plt.rcParams.update(values)
+
+    @staticmethod
+    def set_cyclers(*args, **kwargs):
+        plt.rcParams["axes.prop_cycle"] = cycler(*args, **kwargs)
+
+    @staticmethod
+    def set_colorcycle(colorlist):
+        plt.rcParams['axes.prop_cycle'] = cycler(color=colorlist)
 
     def __str__(self):
         string = ""
@@ -106,6 +169,14 @@ def latex_format(font=None, fontsize=11, labelsize=None, legendsize=None, ticksi
     RcParams.set_ticklabel_fontsize(ticksize)
 
 
+def set_cycler(*args, **kwargs):
+    RcParams.set_cyclers(*args, **kwargs)
+
+
+def use_cycler():
+    set_cycler(color=Colors.cycle, linestyle=Linestyles.cycle)
+
+
 class Plot:
 
     TEXTWIDTH = 455.2
@@ -113,6 +184,7 @@ class Plot:
     def __init__(self, xlim=None, xlabel=None, ylim=None, ylabel=None, title=None, proj=None, create=True):
         self.fig = plt.figure()
         self._axs, self.ax_idx = list(), 0
+        self.gs = None
         if create:
             if proj == "3d":
                 self._dim = 3
@@ -132,6 +204,23 @@ class Plot:
         if show:
             self.show()
         return self
+
+    @classmethod
+    def subplots(cls, rows, cols, wr=None, hr=None):
+        self = cls(create=False)
+        self.set_gridspec(rows, cols, wr, hr)
+        return self
+
+    def add_subplot(self, num=111, *args, **kwargs):
+        ax = self.fig.add_subplot(num, *args, **kwargs)
+        return self._add_ax(ax)
+
+    def set_gridspec(self, rows, cols, wr=None, hr=None, **kwargs):
+        self.gs = GridSpec(rows, cols, width_ratios=wr, height_ratios=hr, **kwargs)
+
+    def add_gridsubplot(self, idx, **kwargs):
+        ax = self.fig.add_subplot(self.gs[idx], **kwargs)
+        return self._add_ax(ax)
 
     # =========================================================================
     # Figure formatting
@@ -192,10 +281,6 @@ class Plot:
         idx = len(self._axs)
         self._axs.append(ax)
         return self.get_ax(idx)
-
-    def add_subplot(self, num=111, *args, **kwargs):
-        ax = self.fig.add_subplot(num, *args, **kwargs)
-        return self._add_ax(ax)
 
     def add_xax(self):
         ax = self.ax.twiny()
@@ -320,19 +405,26 @@ class Plot:
     # =========================================================================
 
     def draw_lines(self, x=None, y=None, *args, **kwargs):
+        lines = list()
         if x is not None:
             if not hasattr(x, "__len__"):
                 x = [x]
             for _x in x:
-                self.ax.axvline(_x, *args, **kwargs)
+                lines.append(self.ax.axvline(_x, *args, **kwargs))
         if y is not None:
             if not hasattr(y, "__len__"):
                 y = [y]
             for _y in y:
-                self.ax.axhline(_y, *args, **kwargs)
+                lines.append(self.ax.axhline(_y, *args, **kwargs))
+        return lines
+
+    def draw_rectangle(self, xy, width=1., height=1., angle=0.0, **kwargs):
+        rect = Rectangle(xy, width, height, angle, **kwargs)
+        self.ax.add_artist(rect)
+        return rect
 
     def fill(self, x, y1, y2=0, alpha=0.25, *args, **kwargs):
-        self.ax.fill_between(x, y1, y2, alpha=alpha, *args, **kwargs)
+        return self.ax.fill_between(x, y1, y2, alpha=alpha, *args, **kwargs)
 
     def text(self, pos, text, va="center", ha="center"):
         self.ax.text(*pos, text, va=va, ha=ha)
@@ -431,14 +523,6 @@ class Plot:
         file = os.path.join(*relpaths)
         self.fig.savefig(file, dpi=dpi)
         print(f"Figure {file} saved")
-
-    def set_scalar_ticks(self, x=False, y=False, z=False):
-        if x:
-            self.ax.xaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=True))
-        if y:
-            self.ax.yaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=True))
-        if z:
-            self.ax.zaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=True))
 
 
 class MatrixPlot(Plot):

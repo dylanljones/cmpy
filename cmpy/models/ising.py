@@ -8,7 +8,8 @@ version: 1.0
 
 ISING MODEL
 """
-from sciutils import *
+import numpy as np
+from sciutils import Plot
 import random
 
 
