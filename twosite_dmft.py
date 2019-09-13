@@ -7,11 +7,14 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
+import scipy.linalg as la
 from scipy import integrate
-from sciutils import Plot
+from sciutils import Plot, Colors, Linestyles, use_cycler
 from cmpy import bethe_gf_omega, Hamiltonian, gf_lehmann
 from cmpy.models import Siam, HubbardModel
+from itertools import product
 
+use_cycler()
 
 def dos(gf):
     return -1/np.pi * gf.imag
@@ -22,35 +25,6 @@ def bethe_dos(z, t):
     energy = np.asarray(z).clip(-2 * t, 2 * t)
     return np.sqrt(4 * t**2 - energy**2) / (2 * np.pi * t**2)
 
-
-def gf_lehmann2(ham, omega, mu=0., idx=None):
-    """ Calculate the greens function of the given Hamiltonian
-
-    Parameters
-    ----------
-    ham: array_like
-        Hamiltonian matrix
-    omega: complex or array_like
-        Energy e+eta of the greens function (must be complex!)
-    mu: float, default: 0
-        Chemical potential of the system
-    only_diag: bool, default: True
-        only return diagonal elements of the greens function if True
-
-    Returns
-    -------
-    greens: np.ndarray
-    """
-    omega = np.asarray(omega)
-    # Calculate eigenvalues and -vectors of hamiltonian
-    eigvals, eigvecs = np.linalg.eigh(ham)
-    eigenvectors_adj = np.conj(eigvecs).T
-
-    # Calculate greens-function
-    subscript_str = "ij,...j,ji->...i"
-    arg = np.subtract.outer(omega + mu, eigvals)
-    greens = np.einsum(subscript_str, eigenvectors_adj, 1 / arg, eigvecs)
-    return greens.T
 
 # ========================== REFERENCES =======================================
 
@@ -76,6 +50,10 @@ def potthoff_sigma(u, v, omegas):
 
 # =============================================================================
 
+def decompose_hamiltonian(ham):
+    h, ev = la.eigh(ham)
+    ev_inv = ev.conj().T
+    return ev_inv, h, ev
 
 def m2_weight(t):
     return integrate.quad(lambda x: x*x * bethe_dos(x, t), -2*t, 2*t)[0]
@@ -122,38 +100,6 @@ def test_noninteracting_gf(eps_imp, u, eps_bath, v, mu, omegas):
     plot.show()
 
 
-def gf_lehmann2(ham, omega, mu=0., idx=None):
-    """ Calculate the greens function of the given Hamiltonian
-
-    Parameters
-    ----------
-    ham: array_like
-        Hamiltonian matrix
-    omega: complex or array_like
-        Energy e+eta of the greens function (must be complex!)
-    mu: float, default: 0
-        Chemical potential of the system
-    only_diag: bool, default: True
-        only return diagonal elements of the greens function if True
-
-    Returns
-    -------
-    greens: np.ndarray
-    """
-    omega = np.asarray(omega)
-    # Calculate eigenvalues and -vectors of hamiltonian
-    eigvals, eigvecs = np.linalg.eigh(ham)
-    eigenvectors_adj = np.conj(eigvecs).T
-
-
-
-    # Calculate greens-function
-    subscript_str = "ij,...j,ji->...i"
-    arg = np.subtract.outer(omega + mu, eigvals)
-    greens = np.einsum(subscript_str, eigenvectors_adj, 1 / arg, eigvecs)
-    return greens.T
-
-
 def main():
     # lattice and other parameters
     eta = 0.01j
@@ -168,38 +114,25 @@ def main():
     eps_imp = eps
     eps_bath = mu
     v = t
+
     siam = Siam(eps_imp, u, eps_bath, v, mu=mu)
     siam.sort_states([5, 3, 2, 0, 4, 1])
     # ===========================================
-
     # test_noninteracting_gf(eps_imp, u, eps_bath, v, mu, omegas + eta)
 
     gf_imp0 = siam.gf_imp_free(omegas + eta).T[0]
-    gf_imp = siam.gf_imp(omegas + eta).sum(axis=1) / 4
-
-    sigma = (1/gf_imp0 - 1/gf_imp).imag
-
-    gf_latt = bethe_gf_omega(omegas + eta + mu - sigma, 2*t)
+    # gf_imp = impurity_gf(siam.hamiltonian(), omegas + eta)
+    # gf_imp2 = gf_lehmann(siam.hamiltonian(), omegas + eta).sum(axis=1)
 
     plot = Plot()
-    # plot.plot(omegas, 1/gf_imp0.real, color="k")
-    # plot.plot(omegas, 1/gf_imp.real)
-    plot.plot(omegas, sigma, color="r")
-    # plot.plot(omegas, dos(gf_latt))
+    plot.plot(omegas, -gf_imp0.imag)
+
+    # plot.plot(omegas, -gf_imp.imag)
+
+
+    # plot.plot(omegas, -gf_imp2.imag, Colors.bgreen)
     plot.show()
 
-    return
-    gf_imp0 = potthof_gf_imp0(eps0, eps1, v, omegas + eta, mu)
-    sigma = sigma_potthof(u, v, omegas)
-    n = bethe_dos(omegas + mu + sigma, 1)
-    # xi = omegas + eta + mu + eps - sigma
-    # gf = bethe_gf_omega(xi, 2)
-
-    # n_latt = filling(omegas, gf)
-    # print(f"n_latt: {n_latt}")
-
-    # z = 2 * 18 * v * v / (u * u)    # quasiparticle_weight(omegas, sigma)
-    # print(f"Quasiparticle-weight: {z}")
 
 
 if __name__ == "__main__":
