@@ -34,6 +34,7 @@ def greens_function2(ham, states, z, beta, idx=None):
     return gf / partition
 
 
+
 def main():
     u = 5
     mu = u/2
@@ -53,4 +54,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

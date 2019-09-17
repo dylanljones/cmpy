@@ -136,7 +136,7 @@ class Siam:
             raise ValueError("Number of bath-parameters doesn't match existing ones")
         self.eps_bath = np.asarray(ensure_array(eps_bath))
 
-    def update_hopping(self, v):
+    def update_hybridization(self, v):
         v = ensure_array(v)
         if len(v) != self.n_bath:
             raise ValueError("Number of bath-parameters doesn't match existing ones")
@@ -144,7 +144,7 @@ class Siam:
 
     def update_bath(self, eps_bath, v):
         self.update_bath_energy(eps_bath)
-        self.update_hopping(v)
+        self.update_hybridization(v)
 
     def hybridization(self, z):
         delta = self.v[np.newaxis, :]**2 / (z + self.mu - self.eps_bath[np.newaxis, :])

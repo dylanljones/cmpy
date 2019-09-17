@@ -174,9 +174,11 @@ def set_cycler(*args, **kwargs):
     RcParams.set_cyclers(*args, **kwargs)
 
 
-def use_cycler():
-    set_cycler(color=Colors.cycle, linestyle=Linestyles.cycle)
-
+def use_cycler(ls=False):
+    if ls:
+        set_cycler(color=Colors.bright_cycle, linestyle=Linestyles.cycle)
+    else:
+        set_cycler(color=Colors.bright_cycle)
 
 class Plot:
 
