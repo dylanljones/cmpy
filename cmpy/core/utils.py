@@ -10,24 +10,22 @@ import numpy as np
 from sciutils import Plot
 
 
-def fermi_dist(energy, beta, mu=1):
-    """ Calculates the fermi-distributions for fermions
+# =========================================================================
+#                               GENERAL
+# =========================================================================
 
-    Parameters
-    ----------
-    energy: float nd.ndarray or float
-        The energy value
-    beta: float
-        Coldnes (inverse temperature)
-    mu: float, default=0
-        Chemical potential. At T=0 this is the Fermi-energy E_F
+def get_eta(omegas, n):
+    dw = abs(omegas[1] - omegas[0])
+    return 1j * n * dw
 
-    Returns
-    -------
-    fermi: float np.ndarray
-    """
-    exponent = np.asarray((energy - mu) * beta).clip(-1000, 1000)
-    return 1. / (np.exp(exponent) + 1)
+
+def get_omegas(omax=5, n=1000, deta=1):
+    omegas = np.linspace(-omax, omax, n)
+    return omegas, get_eta(omegas, deta)
+
+
+def ensure_array(x):
+    return x if hasattr(x, "__len__") else [x]
 
 
 def spectral(gf):
@@ -63,3 +61,38 @@ def plot_bands(band_sections, point_names, show=True):
     if show:
         plot.show()
     return plot
+
+
+# =========================================================================
+#                               FERMIONS
+# =========================================================================
+
+
+def fermi_dist(energy, beta, mu=1):
+    """ Calculates the fermi-distributions for fermions
+
+    Parameters
+    ----------
+    energy: float nd.ndarray or float
+        The energy value
+    beta: float
+        Coldnes (inverse temperature)
+    mu: float, default=0
+        Chemical potential. At T=0 this is the Fermi-energy E_F
+
+    Returns
+    -------
+    fermi: float np.ndarray
+    """
+    exponent = np.asarray((energy - mu) * beta).clip(-1000, 1000)
+    return 1. / (np.exp(exponent) + 1)
+
+
+def partition_func(beta, energies):
+    return np.exp(-beta*energies).sum()
+
+
+def expected_value(operator, eig_values, eig_states, beta):
+    aux = np.einsum('i,ji,ji', np.exp(-beta*eig_values),
+                    eig_states, operator.dot(eig_states))
+    return aux / partition_func(beta, eig_values)

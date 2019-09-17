@@ -12,5 +12,6 @@ from .plotting import *
 from .terminal import *
 from .matrix import *
 from .fitting import *
+from .binary import Binary
 
 eta = 1e-7j

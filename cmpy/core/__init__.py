@@ -7,10 +7,13 @@ project: cmpy
 version: 1.0
 """
 from .lattice import Lattice, LatticePlot2D
-from .greens import *
-from .state import State
+from .state import *
 from .hamiltonian import Hamiltonian
-from .utils import fermi_dist, spectral
+from .bethe import *
+from .greens import *
+from .utils import *
+
+from . import greens
 
 from os.path import dirname as _dirname
 import os

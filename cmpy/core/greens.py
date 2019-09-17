@@ -7,6 +7,7 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
+from itertools import product
 from scipy import linalg as la
 from sciutils import eig_banded
 
@@ -93,6 +94,75 @@ def gf_lehmann(ham, omega, mu=0., only_diag=True, banded=False):
     return greens if not scalar else greens[0]
 
 
+# =========================================================================
+
+
+def greens_function_free(ham, z):
+    """ Calculate the greens function of the given Hamiltonian
+
+    Parameters
+    ----------
+    ham: array_like
+        Hamiltonian matrix
+    z: array_like
+        Energy e+eta of the greens function.
+
+    Returns
+    -------
+    greens: np.ndarray
+    """
+    z = np.asarray(z)
+
+    # Calculate eigenvalues and -vectors of hamiltonian
+    eigvals, eigstates = np.linalg.eig(ham)
+    eigstates_adj = np.conj(eigstates).T
+
+    # Calculate greens-function
+    subscript_str = "ij,...j,ji->...i"
+    arg = np.subtract.outer(z, eigvals)
+    greens = np.einsum(subscript_str, eigstates_adj, 1 / arg, eigstates)
+    return greens.T
+
+
+def self_energy(gf_imp0, gf_imp):
+    return 1/gf_imp0 - 1/gf_imp
+
+
+def diagonalize(operator):
+    """diagonalizes single site Spin Hamiltonian"""
+    eig_values, eig_vecs = la.eigh(operator)
+    emin = np.amin(eig_values)
+    eig_values -= emin
+    return eig_values, eig_vecs
+
+
+def greens_function(ham, d_dag, z, beta=1.):
+    """Outputs the lehmann representation of the greens function
+       omega has to be given, as matsubara or real frequencies"""
+    d_dag = d_dag.dense
+
+    eigvals, eigstates = diagonalize(ham)  # la.eigh(ham)
+    ew = np.exp(-beta*eigvals)
+    partition = ew.sum()
+
+    basis_create = np.dot(eigstates.T, d_dag.dot(eigstates))
+    tmat = np.square(basis_create)
+    # tmat *= np.add.outer(ew, ew)
+    gap = np.add.outer(-eigvals, eigvals)
+    weights = np.add.outer(ew, ew)
+
+    n = eigvals.size
+    gf = np.zeros_like(z)
+    for i, j in product(range(n), range(n)):
+        gf += tmat[i, j] / (z - gap[i, j]) * weights[j, i]
+    return gf / partition
+
+
+# =========================================================================
+#                          Transformations
+# =========================================================================
+
+
 def freq_tail_fourier(tail_coef, beta, tau, w_n):
     r"""Fourier transforms analytically the slow decaying tail_coefs of
     the Greens functions [matsubara]
@@ -165,6 +235,11 @@ def gf_omega_fft(gf_omega, tau, omega, tail_coef=(1., 0., 0.)):
     return gf_tau
 
 
+# =========================================================================
+#                             Recursive GF's
+# =========================================================================
+
+
 def rda(ham, t, omega, thresh=0.):
     """ Calculate the left, bulk and right Green's function of a (half-)infinite system
 
@@ -218,23 +293,4 @@ def rda(ham, t, omega, thresh=0.):
     return gf_l, gf_b, gf_r
 
 
-def bethe_gf_omega(z, half_bandwidth=1):
-    """Local Green's function of Bethe lattice for infinite Coordination number.
 
-    Taken from gf_tools by Weh Andreas
-    https://github.com/DerWeh/gftools/blob/master/gftools/__init__.py
-
-    Parameters
-    ----------
-    z : complex ndarray or complex
-        Green's function is evaluated at complex frequency `z`
-    half_bandwidth : float
-        half-bandwidth of the DOS of the Bethe lattice
-        The `half_bandwidth` corresponds to the nearest neighbor hopping `t=D/2`
-    Returns
-    -------
-    bethe_gf_omega : complex ndarray or complex
-        Value of the Green's function
-    """
-    z_rel = z / half_bandwidth
-    return 2. / half_bandwidth * z_rel * (1 - np.sqrt(1 - 1 / (z_rel * z_rel)))

@@ -9,6 +9,7 @@ version: 0.1.0
 import os
 import numpy as np
 from cycler import cycler
+import colorcet as cc
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.patches import Circle, Rectangle
@@ -181,7 +182,8 @@ class Plot:
 
     TEXTWIDTH = 455.2
 
-    def __init__(self, xlim=None, xlabel=None, ylim=None, ylabel=None, title=None, proj=None, create=True):
+    def __init__(self, xlim=None, xlabel=None, ylim=None, ylabel=None, title=None, proj=None, create=True,
+                 width=None, height=None, ratio=None):
         self.fig = plt.figure()
         self._axs, self.ax_idx = list(), 0
         self.gs = None
@@ -196,6 +198,7 @@ class Plot:
             self.set_limits(xlim, ylim)
             self.set_labels(xlabel, ylabel)
             self.set_title(title)
+        self.set_figsize(width, height, ratio)
 
     @classmethod
     def quickplot(cls, x, y, show=True):
@@ -239,6 +242,8 @@ class Plot:
         return self.fig.get_size_inches() * self.dpi
 
     def set_figsize(self, width=None, height=None, ratio=None):
+        if width is None and height is None and ratio is None:
+            return
         width, height = get_figsize(width, height, ratio)
         self.fig.set_size_inches(width, height)
 
@@ -489,8 +494,8 @@ class Plot:
     def tight(self, *args, **kwargs):
         self.fig.tight_layout(*args, **kwargs)
 
-    def legend(self, *args, **kwargs):
-        self.ax.legend(*args, **kwargs)
+    def legend(self, loc=None, *args, **kwargs):
+        self.ax.legend(loc=loc, *args, **kwargs)
 
     def grid(self, below_axis=True, **kwargs):
         self.ax.set_axisbelow(below_axis)
@@ -527,8 +532,11 @@ class Plot:
 
 class MatrixPlot(Plot):
 
-    def __init__(self, cmap="Greys", norm_offset=0.):
+    DEFAULT_CMAP = cc.m_gray_r
+
+    def __init__(self, cmap=None, norm_offset=0.):
         super().__init__()
+        cmap = cmap or self.DEFAULT_CMAP
         self.array = None
         self.cmap = cm.get_cmap(cmap)
         self.norm = None
@@ -558,8 +566,10 @@ class MatrixPlot(Plot):
     def show_values(self):
         for i in range(self.shape[0]):
             for j in range(self.shape[1]):
-                x = f"{self.array[i, j]:.1f}"
-                self.set_text(i, j, x)
+                val = self.array[i, j]
+                if val:
+                    x = f"{val:.1f}"
+                    self.set_text(j, i, x)
 
     @staticmethod
     def get_position(i, j):
@@ -592,8 +602,11 @@ class MatrixPlot(Plot):
 
     def set_basislabels(self, xlabels=None, ylabels=None):
         if xlabels is not None:
-            xlabels = [""] + xlabels
+            xlabels = xlabels
+            ticks = np.arange(len(xlabels)) + 1
+            self.ax.set_xticks(ticks)
             self.ax.set_xticklabels(xlabels, rotation = 45, ha="right")
         if ylabels is not None:
-            ylabels = [""] + ylabels
+            ticks = np.arange(len(ylabels)) + 1
+            self.ax.set_yticks(ticks)
             self.ax.set_yticklabels(ylabels)

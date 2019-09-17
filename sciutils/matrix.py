@@ -686,7 +686,7 @@ class Matrix(np.ndarray):
 
     # =========================================================================
 
-    def show(self, show=True, cmap="Greys", show_values=False, basis_labels=None):
+    def show(self, show=True, cmap="Greys", show_values=False, labels=None):
         """ Plot the matrix using the MatrixPlot object
 
         Parameters
@@ -697,7 +697,7 @@ class Matrix(np.ndarray):
             if True, print values in boxes
         cmap: str, default: "Greys"
             colormap used in the plot
-        basis_labels: bool, optional
+        labels: bool, optional
             Optional labels of the basis states of the matrix, default: None
         """
         mp = MatrixPlot(cmap=cmap)
@@ -706,8 +706,8 @@ class Matrix(np.ndarray):
             mp.show_values()
         else:
             mp.show_colorbar()
-        if basis_labels is not None:
-            mp.set_basislabels(basis_labels, basis_labels)
+        if labels is not None:
+            mp.set_basislabels(labels, labels)
         if show:
             mp.show()
         return mp

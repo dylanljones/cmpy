@@ -1,156 +1,181 @@
 # -*- coding: utf-8 -*-
 """
-Created on 12 Sep 2019
+Created on 15 Sep 2019
 author: Dylan Jones
 
 project: cmpy
 version: 1.0
-
-SINGLE-IMPURITY-ANDERSON-MODEL (SIAM)
 """
 import numpy as np
-from itertools import product
-from cmpy.core import State, Hamiltonian, gf_lehmann
+from cmpy.core.utils import ensure_array
+from cmpy.core.state import fock_basis, annihilators, free_basis
+from cmpy.core.greens import greens_function_free, greens_function, self_energy
+from cmpy import Hamiltonian, HamiltonOperator
+# from cmpy.dmft.two_site import self_energy, gf_lehmann
 
 
-def get_siam_states(n_bath=1, n=None, spin=None):
-    spin_states = list(product([0, 1], repeat=n_bath + 1))
-    states = [State(up, down) for up, down in product(spin_states, repeat=2)]
-    for s in states[:]:
-        # if any(s.double[1:]):
-        #    states.remove(s)
-        if (n is not None) and (s.num != n):
-            states.remove(s)
-        elif (spin is not None) and (s.spin != spin):
-            states.remove(s)
-    return states
-
-
-def siam_hamiltonian(states, eps_d, u, eps, v, mu=0.):
+def siam_hamiltonian(states, u, eps_imp, eps_bath, v):
+    n_sites = 2
+    energies = np.array([eps_imp, eps_bath])
     n = len(states)
-    energies = np.append([eps_d], eps)
-    v = np.asarray(v)
-    v_conj = np.conj(v)
-
-    ham = Hamiltonian.zeros(n, dtype="complex")
+    ham = Hamiltonian.zeros(n)
     for i in range(n):
-        state = states[i]
+        s1 = states[i]
 
-        num_eps = state.num_onsite()
-        ham[i, i] = np.dot(num_eps, energies) - mu
-        if state.interaction()[0]:
+        # On-site energy
+        occ = s1.occupations(n_sites)
+        idx = np.where(occ > 0)[0]
+        ham[i, i] = np.sum(energies[idx] * occ[idx])
+
+        # Impurity interaction
+        if occ[0] == 2:
             ham[i, i] += u
-        # ham[i, i] += u * np.sum(state.interaction())
-        for j in range(n):
-            if i < j:
-                hops = state.check_hopping(states[j])
-                if hops is not None:
-                    i1, i2 = sorted(hops)
-                    if i1 == 0:
-                        idx = i2 - 1
-                        ham[i, j] = v[idx]
-                        ham[j, i] = v_conj[idx]
+
+        for j in range(i+1, n):
+            s2 = states[j]
+            idx = s1.check_hopping(s2)
+            if idx is not None:
+                ham[i, j] = v
+                ham[j, i] = v
     return ham
 
 
-def siam_hamiltonian_free(eps_d, u, eps, v, mu=0.):
-    energies = np.append([eps_d], eps)
-    n = len(energies)
-    v = np.asarray(v)
-    v_conj = np.conj(v)
-    ham = Hamiltonian.zeros(n, dtype="complex")
-    for i in range(n):
-        ham[i, i] = energies[i]
-        if i > 0:
-            ham[0, i] = v[i-1]
-            ham[i, 0] = v_conj[i-1]
-    return ham
+# =========================================================================
 
+
+def siam_operator(operators):
+    c0u, c0d = operators[:2]
+    bath_ops = operators[2:]
+    u_op = c0u.T * c0u * c0d.T * c0d
+    eps_imp_op = c0u.T * c0u + c0d.T * c0d
+    eps_list, v_list = list(), list()
+    for i in range(0, len(bath_ops), 2):
+        ciu, cid = bath_ops[i:i+2]
+        eps = ciu.T * ciu + cid.T * cid
+        hop = (c0u.T * ciu + ciu.T * c0u) + (c0d.T * cid + cid.T * c0d)
+        eps_list.append(eps)
+        v_list.append(hop.abs)
+    return HamiltonOperator(u=u_op, eps_imp=eps_imp_op, eps_bath=eps_list, v=v_list)
+
+
+def free_siam_operator(operators):
+    c0 = operators[0]
+    bath_ops = operators[1:]
+    eps_imp_op = c0.T * c0
+    eps_list, v_list = list(), list()
+    for i in range(0, len(bath_ops), 1):
+        ci = bath_ops[i]
+        eps = ci.T * ci
+        hop = c0.T * ci + ci.T * c0
+        eps_list.append(eps)
+        v_list.append(hop.abs)
+    return HamiltonOperator(eps_imp=eps_imp_op, eps_bath=eps_list, v=v_list)
+
+
+# =========================================================================
 
 class Siam:
 
-    def __init__(self, eps_imp=0., u=10., eps=0., v=1., mu=None):
+    def __init__(self, u, eps_imp, eps_bath, v, mu=None, beta=0.):
+        """ Initilizes the single impurity Anderson model
+
+        Parameters
+        ----------
+        u: float
+        eps_imp: float
+        eps_bath: float or array_like
+        v: float or array_like
+        mu: float, optional
+        """
         self.u = u
         self.eps_imp = eps_imp
-        self.eps = np.asarray(eps) if hasattr(eps, "__len__") else np.array([eps])
-        self.v = np.asarray(v) if hasattr(v, "__len__") else np.array([v])
+        self.eps_bath = np.asarray(ensure_array(eps_bath))
+        self.v = np.asarray(ensure_array(v))
         self.mu = u / 2 if mu is None else mu
+        self.beta = beta
 
-        self.states = list()
-        self.n_bath = len(self.eps)
-        self.set_filling(self.n_bath + 1)
+        self.n = len(self.eps_bath) + 1
+
+        self.states = None
+        self.ops = None
+        self.ham_op = None
+
+        self.free_states = free_basis(self.n)
+        self.free_ops = annihilators(self.free_states, self.n)
+        self.free_ham_op = free_siam_operator(self.free_ops)
+
+        self.set_basis()
 
     @property
-    def state_labels(self):
-        return [x.label() for x in self.states]
+    def n_bath(self):
+        return self.n - 1
 
     @property
-    def n_sites(self):
-        return self.n_bath + 1
+    def c_imp_up(self):
+        return self.ops[0]
 
-    def update_bath_hopping(self, v_new):
-        v_new = np.asarray(v_new if hasattr(v_new, "__len__") else np.array([v_new]))
-        if self.n_bath != len(v_new):
-            raise ValueError("Bath-site dimensions don't match")
-        self.v = v_new
+    @property
+    def c_imp_dn(self):
+        return self.ops[1]
 
-    def update_bath_energy(self, eps_new):
-        eps_new = np.asarray(eps_new if hasattr(eps_new, "__len__") else np.array([eps_new]))
-        if self.n_bath != len(eps_new):
-            raise ValueError("Bath-site dimensions don't match")
-        self.eps = eps_new
+    def set_basis(self, particles=None):
+        allstates = fock_basis(self.n)
+        n = len(allstates)
+        states = allstates.copy()
+        if particles is not None:
+            for i in range(n):
+                if allstates[i].particles not in particles:
+                    states.remove(allstates[i])
+        self.states = states
+        self.ops = annihilators(self.states, 2 * self.n)
+        self.ham_op = siam_operator(self.ops)
 
-    def update_bath_sites(self, eps, v):
-        self.update_bath_energy(eps)
-        self.update_bath_hopping(v)
+    def update_bath_energy(self, eps_bath):
+        eps_bath = ensure_array(eps_bath)
+        if len(eps_bath) != self.n_bath:
+            raise ValueError("Number of bath-parameters doesn't match existing ones")
+        self.eps_bath = np.asarray(ensure_array(eps_bath))
 
-    def set_filling(self, n, spin=None):
-        self.states = get_siam_states(self.n_bath, n, spin)
+    def update_hopping(self, v):
+        v = ensure_array(v)
+        if len(v) != self.n_bath:
+            raise ValueError("Number of bath-parameters doesn't match existing ones")
+        self.v = np.asarray(ensure_array(v))
 
-    def sort_states(self, indices):
-        if len(indices) != len(self.states):
-            raise ValueError(f"Number of indices doesn't match number of states: {len(indices)}!={len(self.states)}")
-        self.states = [self.states[i] for i in indices]
+    def update_bath(self, eps_bath, v):
+        self.update_bath_energy(eps_bath)
+        self.update_hopping(v)
 
-    # ==============================================================================================
-
-    def hybridization(self, omega):
-        return self.v**2 / (omega + self.mu - self.eps)
+    def hybridization(self, z):
+        delta = self.v[np.newaxis, :]**2 / (z + self.mu - self.eps_bath[np.newaxis, :])
+        return delta.sum(axis=0)
 
     def hamiltonian(self):
-        return siam_hamiltonian(self.states, self.eps_imp, self.u, self.eps, self.v, 0)
+        ham = self.ham_op.build(u=self.u, eps_imp=self.eps_imp, eps_bath=self.eps_bath, v=self.v)
+        return Hamiltonian(ham.dense)
 
-    def hamiltonian_free(self):
-        return siam_hamiltonian_free(self.eps_imp, self.u, self.eps, self.v, 0)
+    def hamiltonian_manual(self):
+        return siam_hamiltonian(self.states, self.u, self.eps_imp, self.eps_bath[0], self.v[0])
 
-    def gf_imp_free(self, omegas):
-        return gf_lehmann(self.hamiltonian_free(), omegas, mu=self.mu)
+    def hamiltonian_free(self, zerostate=False):
+        ham = self.free_ham_op.build(eps_imp=self.eps_imp, eps_bath=self.eps_bath, v=self.v)
+        ham = ham.dense[1:, 1:] if not zerostate else ham.dense
+        return Hamiltonian(ham)
 
-    def gf_imp(self, omegas):
-        return gf_lehmann(self.hamiltonian(), omegas, mu=self.mu)
-
-    def self_energy(self, omega):
+    def impurity_gf(self, z, idx=0):
         ham = self.hamiltonian()
-        gf = np.sum(ham.gf(omega))
-        delta = self.hybridization(omega)
-        return 1/(omega + self.mu - self.eps_imp - delta - gf)
+        return greens_function(ham, self.ops[idx], z + self.mu, self.beta)
 
-    def spectral(self, omegas):
+    def impurity_gf_free2(self, z):
+        ham0 = self.hamiltonian_free()
+        return greens_function_free(ham0, z + self.mu)[0]
+
+    def impurity_gf_free(self, z):
+        return 1/(z + self.mu - self.eps_imp - self.hybridization(z))
+
+    def state_labels(self):
+        return [s.label(self.n) for s in self.states]
+
+    def show_hamiltonian(self, show=True):
         ham = self.hamiltonian()
-        gf = ham.gf(omegas)
-        return -np.sum(gf.imag, axis=1)
-
-    def dos(self, omegas):
-        return 1/np.pi * self.spectral(omegas)
-
-    # ==============================================================================================
-
-    def show_hamiltonian(self):
-        ham = self.hamiltonian()
-        ham.show(basis_labels=self.state_labels)
-
-    def __str__(self):
-        eps_str = ", ".join([f"{x:.1f}" for x in self.eps])
-        v_str = ", ".join([f"{x:.1f}" for x in self.v])
-        string = f"SIAM: eps_imp={self.eps_imp:.1f}, u={self.u:.1f}, eps={eps_str}, v={v_str}"
-        return string
+        ham.show(show, show_values=True, labels=self.state_labels())

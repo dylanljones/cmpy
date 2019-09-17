@@ -9,19 +9,7 @@ version: 1.0
 HUBBARD MODEL
 """
 import numpy as np
-from itertools import product
-from cmpy.core import Lattice, State, Hamiltonian
-
-
-def get_hubbard_states(sites, n=None, spin=None):
-    spin_states = list(product([0, 1], repeat=sites))
-    states = [State(up, down) for up, down in product(spin_states, repeat=2)]
-    for s in states[:]:
-        if (n is not None) and (s.num != n):
-            states.remove(s)
-        elif (spin is not None) and (s.spin != spin):
-            states.remove(s)
-    return states
+from cmpy.core import Lattice, fock_basis, Hamiltonian
 
 
 def hubbard_hamiltonian(states, eps, t, u, mu=0):
@@ -43,27 +31,50 @@ def hubbard_hamiltonian(states, eps, t, u, mu=0):
     return ham
 
 
+def hubbard_hamiltonian2(n_sites, states, u, eps, t):
+    n = len(states)
+    ham = Hamiltonian.zeros(n)
+    for i in range(n):
+        s1 = states[i]
+        occ = s1.occupations(n_sites)
+        # On-site energy
+        idx = np.where(occ > 0)[0]
+        ham[i, i] = np.sum(eps * occ[idx])
+        # Impurity interaction
+        ham[i, i] += u * len(occ[occ == 2])
+        # Hopping
+        for j in range(i+1, n):
+            s2 = states[j]
+            idx = s1.check_hopping(s2)
+            if idx is not None:
+                if abs(idx[0] - idx[1]) == 2:
+                    ham[i, j] = t
+                    ham[j, i] = t
+    return ham
+
+
 class HubbardModel:
 
-    def __init__(self, shape=(2, 1), eps=0., t=1., u=10, mu=None):
+    def __init__(self, shape=(2, 1), u=10., eps=0., t=1., mu=None):
         self.lattice = Lattice.square(shape)
-        self.states = list()
+        self.states = fock_basis(self.lattice.n)
 
+        self.u = u
         self.eps = eps
         self.t = t
-        self.u = u
         self.mu = u / 2 if mu is None else mu
-        self.set_filling(self.lattice.n)
+        # self.set_filling(self.lattice.n)
 
-    def set_filling(self, n, spin=None):
-        self.states = get_hubbard_states(self.lattice.n, n, spin)
+    @property
+    def n(self):
+        return self.lattice.n
 
     @property
     def state_labels(self):
         return [x.repr for x in self.states]
 
     def hamiltonian(self):
-        return hubbard_hamiltonian(self.states, self.eps, self.t, self.u, self.mu)
+        return hubbard_hamiltonian2(self.n, self.states, self.u, self.eps, self.t)
 
     def spectral(self, omegas):
         ham = self.hamiltonian()
@@ -75,5 +86,5 @@ class HubbardModel:
 
     def __repr__(self):
         eps = u"\u03b5".encode("utf-8")
-        mu = u"\u03bc".encode()
-        return f"Hubbard({eps}={self.eps}, t={self.t}, U={self.u}, {mu}={self.mu})"
+        mu = u"\u03bc".encode("utf-8")
+        return f"Hubbard(U={self.u}, {eps}={self.eps}, t={self.t}, {mu}={self.mu})"

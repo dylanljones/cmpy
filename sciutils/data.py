@@ -195,7 +195,7 @@ class Path(str):
         return re.search(pattern, self)
 
     def re_search_number(self, keyword):
-        return re.search(keyword + "(\d+)", self)
+        return re.search(keyword + r"(\d+)", self)
 
     # =========================================================================
 
@@ -362,13 +362,13 @@ class Data(dict):
 
     def __init__(self, *paths):
         super().__init__()
-        self.path = ""
+        self.path = Path
         if paths:
             self.open(*paths)
 
     @property
     def filename(self):
-        return self.path.filename
+        return self.path.name
 
     @property
     def keylist(self):
