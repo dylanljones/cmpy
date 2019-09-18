@@ -96,3 +96,44 @@ def expected_value(operator, eig_values, eig_states, beta):
     aux = np.einsum('i,ji,ji', np.exp(-beta*eig_values),
                     eig_states, operator.dot(eig_states))
     return aux / partition_func(beta, eig_values)
+
+
+# =========================================================================
+#                               PLOTS
+# =========================================================================
+
+
+def plot_greens_function(omegas, gf):
+    gf = np.asarray(gf)
+    ymax = np.max(-gf.imag)
+    ylim = (0, 1.1 * ymax)
+
+    if len(gf) == 2:
+        gf_up, gf_dn = gf
+
+        plot = Plot(create=False)
+        plot.set_gridspec(2, 1)
+
+        ax = plot.add_gridsubplot(0)
+        # plot.set_limits(ylim=ylim)
+        plot.plotfill(omegas, -gf_up.imag)
+        plot.set_labels(ylabel=r"A$_{\uparrow}$")
+        plot.grid()
+
+        plot.add_gridsubplot(1, sharex=ax)
+
+        plot.invert_yaxis()
+        plot.plotfill(omegas, -gf_dn.imag)
+        plot.set_labels(xlabel=r"$\omega$", ylabel=r"A$_{\downarrow}$")
+        plot.grid()
+
+        plot.set_limits(xlim=0)
+        plot.label_outer()
+    else:
+        plot = Plot(xlabel=r"$\omega$", ylabel=r"A")
+        plot.plotfill(omegas, -gf.imag)
+        plot.set_limits(xlim=0)
+        plot.grid()
+
+    plot.tight()
+    return plot

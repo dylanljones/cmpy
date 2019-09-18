@@ -7,6 +7,7 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
+from sciutils import Plot
 
 
 def bath_greens_function_inv(gf_loc, sigma=0):

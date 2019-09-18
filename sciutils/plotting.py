@@ -413,6 +413,13 @@ class Plot:
     def invert_xaxis(self):
         return self.ax.invert_xaxis()
 
+    def label_outer(self):
+        for ax in self.axs:
+            try:
+                ax.label_outer()
+            except:
+                pass
+
     # =========================================================================
     # Drawing
     # =========================================================================

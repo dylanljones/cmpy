@@ -145,8 +145,8 @@ def greens_function(ham, d_dag, z, beta=1.):
     ew = np.exp(-beta*eigvals)
     partition = ew.sum()
 
-    basis_create = np.dot(eigstates.T, d_dag.dot(eigstates))
-    tmat = np.square(basis_create)
+    basis = np.dot(eigstates.T, d_dag.dot(eigstates))
+    tmat = np.square(basis)
     # tmat *= np.add.outer(ew, ew)
     gap = np.add.outer(-eigvals, eigvals)
     weights = np.add.outer(ew, ew)
@@ -291,6 +291,3 @@ def rda(ham, t, omega, thresh=0.):
         beta = beta @ gf_b @ beta
 
     return gf_l, gf_b, gf_r
-
-
-
