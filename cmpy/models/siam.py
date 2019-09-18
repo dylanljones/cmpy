@@ -7,8 +7,8 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
+from cmpy.core import fock_basis, annihilators, free_basis, state_indices
 from cmpy.core.utils import ensure_array
-from cmpy.core.state import fock_basis, annihilators, free_basis
 from cmpy.core.greens import greens_function_free, greens_function, self_energy
 from cmpy import Hamiltonian, HamiltonOperator
 # from cmpy.dmft.two_site import self_energy, gf_lehmann
@@ -54,7 +54,7 @@ def siam_operator(operators):
         eps = ciu.T * ciu + cid.T * cid
         hop = (c0u.T * ciu + ciu.T * c0u) + (c0d.T * cid + cid.T * c0d)
         eps_list.append(eps)
-        v_list.append(hop.abs)
+        v_list.append(hop)
     return HamiltonOperator(u=u_op, eps_imp=eps_imp_op, eps_bath=eps_list, v=v_list)
 
 
@@ -75,6 +75,8 @@ def free_siam_operator(operators):
 # =========================================================================
 
 class Siam:
+
+    UP, DOWN = 0, 1
 
     def __init__(self, u, eps_imp, eps_bath, v, mu=None, beta=0.):
         """ Initilizes the single impurity Anderson model
@@ -111,12 +113,16 @@ class Siam:
         return self.n - 1
 
     @property
-    def c_imp_up(self):
-        return self.ops[0]
+    def c_up(self):
+        return self.ops[::2]
 
     @property
-    def c_imp_dn(self):
-        return self.ops[1]
+    def c_down(self):
+        return self.ops[1::2]
+
+    def _build_operators(self):
+        self.ops = annihilators(self.states, 2 * self.n)
+        self.ham_op = siam_operator(self.ops)
 
     def set_basis(self, particles=None):
         allstates = fock_basis(self.n)
@@ -127,8 +133,11 @@ class Siam:
                 if allstates[i].particles not in particles:
                     states.remove(allstates[i])
         self.states = states
-        self.ops = annihilators(self.states, 2 * self.n)
-        self.ham_op = siam_operator(self.ops)
+        self._build_operators()
+
+    def sort_states(self, *args, **kwargs):
+        self.states = sorted(self.states, *args, **kwargs)
+        self._build_operators()
 
     def update_bath_energy(self, eps_bath):
         eps_bath = ensure_array(eps_bath)
@@ -162,9 +171,9 @@ class Siam:
         ham = ham.dense[1:, 1:] if not zerostate else ham.dense
         return Hamiltonian(ham)
 
-    def impurity_gf(self, z, idx=0):
+    def impurity_gf(self, z, spin=0):
         ham = self.hamiltonian()
-        return greens_function(ham, self.ops[idx], z + self.mu, self.beta)
+        return greens_function(ham, self.ops[spin], z + self.mu, self.beta)
 
     def impurity_gf_free2(self, z):
         ham0 = self.hamiltonian_free()

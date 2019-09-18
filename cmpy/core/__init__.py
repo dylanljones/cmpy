@@ -7,8 +7,9 @@ project: cmpy
 version: 1.0
 """
 from .lattice import Lattice, LatticePlot2D
-from .state import *
 from .hamiltonian import Hamiltonian
+from .operators import *
+from .state import *
 from .bethe import *
 from .greens import *
 from .utils import *

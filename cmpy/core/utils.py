@@ -19,7 +19,7 @@ def get_eta(omegas, n):
     return 1j * n * dw
 
 
-def get_omegas(omax=5, n=1000, deta=1):
+def get_omegas(omax=5, n=1000, deta=0.5):
     omegas = np.linspace(-omax, omax, n)
     return omegas, get_eta(omegas, deta)
 

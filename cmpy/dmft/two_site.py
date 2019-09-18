@@ -50,6 +50,8 @@ def quasiparticle_weight(omegas, sigma):
     win = (-dw <= omegas) * (omegas <= dw)
     dsigma = np.polyfit(omegas[win], sigma.real[win], 1)[0]
     z = 1/(1 - dsigma)
+    if z < 0.01:
+        z = 0
     return max(0, z)
 
 
@@ -119,34 +121,18 @@ class TwoSiteDmft:
             v_new = new * v_new + old * self.v
         return v_new
 
-    def solve_self_consistent(self, thresh=1e-4, mixing=0.0, verbose=True, inline=True, nmax=10000,
-                              header=""):
-        cout = Terminal(enabled=verbose)
-        if inline:
-            cout.write()
-            writer = cout.updateln
-        else:
-            writer = cout.writeln
-        slen = len(str(nmax-1))
-
+    def solve_self_consistent(self, thresh=1e-4, mixing=0.0, nmax=10000):
         v = self.v + 0.1
+        delta, i = 0, 0
         for i in range(nmax):
             self.update_hybridization(v)
             self.solve()
+            if self.quasiparticle_weight == 0:
+                break
             v_new = self.new_hybridization(mixing)
             delta = abs(v - v_new)
             v = v_new
-
-            idxstr = f"[{i}]"
-            writer(header + f"{idxstr:<{slen+2}} v={float(v):.4f} (delta={float(delta):.2e})")
             if delta <= thresh:
                 break
         self.update_hybridization(v)
-
-        if i == (nmax - 1):
-            writer(header + f"Aborted: maximal iteration {nmax} reached (delta={float(delta):.2e})")
-        else:
-            writer(header + f"Threshold of {thresh:.1e} reached (iter: {i}, delta={float(delta):.2e})")
-        if inline:
-            cout.writeln()
         return delta

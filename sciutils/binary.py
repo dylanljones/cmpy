@@ -9,6 +9,14 @@ version: 1.0
 import numpy as np
 
 
+def get_bit(binary, i):
+    return int(binary >> i) & 1
+
+
+def flip_bit(binary, i):
+    return binary ^ (1 << i)
+
+
 class Binary:
 
     def __init__(self, x=0):
@@ -100,6 +108,9 @@ class Binary:
     def __ge__(self, other):
         return self.int >= self._get_value(other)
 
+    def __bool__(self):
+        return bool(self.int)
+
     # -------------- Math operators -------------
 
     def __add__(self, other):
@@ -164,3 +175,7 @@ class Binary:
             if self.get_bit(i):
                 array[i] = 1
         return array
+
+
+def brange(*args):
+    return [Binary(i) for i in range(*args)]
