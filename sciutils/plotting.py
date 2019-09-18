@@ -407,6 +407,12 @@ class Plot:
         if axis == "y":
             self.yaxis.label.set_color(color)
 
+    def invert_yaxis(self):
+        return self.ax.invert_yaxis()
+
+    def invert_xaxis(self):
+        return self.ax.invert_xaxis()
+
     # =========================================================================
     # Drawing
     # =========================================================================

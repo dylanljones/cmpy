@@ -106,9 +106,9 @@ class TwoSiteDmft:
 
     # =========================================================================
 
-    def solve(self):
+    def solve(self, spin=0):
         self.gf_imp0 = self.siam.impurity_gf_free(self.z)
-        self.gf_imp = self.siam.impurity_gf(self.z)
+        self.gf_imp = self.siam.impurity_gf(self.z, spin=spin)
         self.sigma = self_energy(self.gf_imp0, self.gf_imp)
         self.gf_latt = bethe_gf_omega(self.z + self.mu - self.sigma, 2*self.t)
         self.quasiparticle_weight = quasiparticle_weight(self.z.real, self.sigma)
@@ -121,12 +121,12 @@ class TwoSiteDmft:
             v_new = new * v_new + old * self.v
         return v_new
 
-    def solve_self_consistent(self, thresh=1e-4, mixing=0.0, nmax=10000):
+    def solve_self_consistent(self, spin=0, thresh=1e-4, mixing=0.0, nmax=10000):
         v = self.v + 0.1
         delta, i = 0, 0
         for i in range(nmax):
             self.update_hybridization(v)
-            self.solve()
+            self.solve(spin)
             if self.quasiparticle_weight == 0:
                 break
             v_new = self.new_hybridization(mixing)
