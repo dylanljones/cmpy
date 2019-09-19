@@ -8,6 +8,7 @@ version: 1.0
 """
 import numpy as np
 from scipy import integrate
+from scipy import optimize
 from sciutils import Terminal
 from cmpy import Siam, bethe_dos, bethe_gf_omega, self_energy, get_eta
 
@@ -38,7 +39,11 @@ def potthoff_sigma(u, v, omegas):
 
 def filling(omegas, gf):
     idx = np.argmin(np.abs(omegas)) + 1
-    return -2 * integrate.trapz(gf[:idx].imag, omegas[:idx]) / np.pi
+    x = omegas[:idx]
+    y = -gf[:idx].imag
+    x[-1] = 0
+    y[-1] = (y[-1] + y[-2]) / 2
+    return integrate.simps(y, x)
 
 
 def m2_weight(t):
@@ -58,8 +63,8 @@ def quasiparticle_weight(omegas, sigma):
 class TwoSiteDmft:
 
     def __init__(self, z, u=5, eps=0, t=1, mu=None, eps_bath=None, beta=10.):
-        mu = mu or u/2
-        eps_bath = eps_bath or mu
+        mu = u / 2 if mu is None else mu
+        eps_bath = mu if eps_bath is None else eps_bath
         self.z = z
         self.t = t
         self.m2 = m2_weight(t)
@@ -104,6 +109,13 @@ class TwoSiteDmft:
     def update_bath(self, eps_bath, v):
         self.siam.update_bath(eps_bath, v)
 
+    def param_str(self, dec=2):
+        u = f"u={self.u:.{dec}}"
+        eps_imp = f"eps_imp={self.eps_imp:.{dec}}"
+        eps_bath = f"eps_bath={self.eps_bath:.{dec}}"
+        v = f"v={self.v:.{dec}}"
+        return ", ".join([u, eps_imp, eps_bath, v])
+
     # =========================================================================
 
     def solve(self, spin=0):
@@ -121,10 +133,32 @@ class TwoSiteDmft:
             v_new = new * v_new + old * self.v
         return v_new
 
+    def impurity_filling(self):
+        # c = self.siam.c_up[0]
+        return filling(self.omega, self.gf_imp) / np.pi
+
+    def lattice_filling(self):
+        return filling(self.omega, self.gf_latt) / np.pi
+
+    def filling_condition(self, eps_bath):
+        self.update_bath_energy(eps_bath)
+        self.solve()
+        return self.impurity_filling() - self.lattice_filling()
+
+    def optimize_filling(self, tol=1e-2):
+        sol = optimize.root(self.filling_condition, x0=self.eps_bath, tol=tol)
+        if not sol.success:
+            raise ValueError(f"Failed to optimize filling! ({self.param_str()})")
+        else:
+            self.update_bath_energy(sol.x)
+            self.solve()
+
     def solve_self_consistent(self, spin=0, thresh=1e-4, mixing=0.0, nmax=10000):
         v = self.v + 0.1
         delta, i = 0, 0
         for i in range(nmax):
+            self.optimize_filling()
+
             self.update_hybridization(v)
             self.solve(spin)
             if self.quasiparticle_weight == 0:

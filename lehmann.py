@@ -8,27 +8,27 @@ version: 1.0
 """
 import numpy as np
 import scipy.linalg as la
+from scipy import integrate
 from itertools import product
-from sciutils import Plot, use_cycler
-from cmpy import get_omegas, annihilate
+from sciutils import Plot, use_cycler, adj
+from cmpy import get_omegas, annihilate, expectation
 from cmpy.models import Siam
 
 use_cycler()
 
 
 def diagonalize(operator):
-    eig_values, eig_vecs = la.eigh(operator)
-    emin = np.amin(eig_values)
-    eig_values -= emin
-    return eig_values, eig_vecs
+    eigvals, eigvecs = la.eig(operator)
+    eigvals -= np.amin(eigvals)
+    idx = np.argsort(eigvals)
+    return eigvals, eigvecs
 
 
-def greens_function(ham, c, z, beta=1.):
+def greens_function(eigvals, eigstates, c, z, beta=1.):
     """Outputs the lehmann representation of the greens function
        omega has to be given, as matsubara or real frequencies"""
     c = c.dense
 
-    eigvals, eigstates = diagonalize(ham)  # la.eigh(ham)
     ew = np.exp(-beta*eigvals)
     partition = ew.sum()
 
@@ -44,28 +44,11 @@ def greens_function(ham, c, z, beta=1.):
     return gf / partition
 
 
-def greens_function2(ham, states, z, beta, spin=0):
-    eigvals, eigstates = diagonalize(ham)  # la.eigh(ham)
-    eigstates_adj = np.conj(eigstates).T
-    ew = np.exp(-beta*eigvals)
-    partition = ew.sum()
-
-    tmat = np.square(np.inner(eigstates_adj, eigstates))
-    gap = np.add.outer(-eigvals, eigvals)
-    weights = np.add.outer(ew, ew)
-
-    n = len(states)
-    gf = np.zeros_like(z)
-    for j in range(n):
-        ket = states[j]
-        other = annihilate(ket, spin)
-        if other is not None:
-            try:
-                i = states.index(other)
-                gf += tmat[i, j] / (z - gap[i, j]) * weights[i, j]
-            except ValueError:
-                pass
-    return gf / partition
+def expectation(eigvals, eigstates, operator, beta):
+    operator = operator.todense()
+    ew = np.exp(-beta * eigvals)
+    aux = np.einsum('i,ji,ji', ew, eigstates, operator.dot(eigstates))
+    return aux / ew.sum()
 
 
 def main():
@@ -73,24 +56,24 @@ def main():
     mu = u/2
     eps, t = 0, 1
     beta = 1/100
-    omegas, eta = get_omegas(8)
+    omegas, eta = get_omegas(10, deta=0.1)
     z = omegas + eta
 
     siam = Siam(u, eps, mu, t, mu, beta)
+    c = siam.c_up[0]
     # siam.set_basis([1, 2])
     # siam.sort_states(key=lambda x: x.particles)
     ham = siam.hamiltonian()
-    ham.show(False, show_values=True, labels=siam.state_labels())
-    # siam.show_hamiltonian(False)
 
-    gf = greens_function(ham, siam.c_up[0], z + mu, beta)
-    gf2 = greens_function2(ham, siam.states, z + mu, beta)
+    eigvals, eigstates = diagonalize(ham)
+    gf = greens_function(eigvals, eigstates, c, z + mu, beta)
 
-    plot = Plot()
-    plot.plot(omegas, -gf.imag, label=r"G")
-    plot.plot(omegas, -gf2.imag, label=r"G$_2$")
-    plot.legend()
-    plot.show()
+
+    print(expectation(eigvals, eigstates, c.T * c, beta))
+
+    Plot.quickplot(omegas, -gf.imag)
+
+
 
 
 if __name__ == "__main__":

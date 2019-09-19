@@ -47,6 +47,7 @@ def plot_lattice_gf(u=1.0):
 
     for file in folder.search_files("gf_latt_"):
         data, u_val = load_pkl(file)
+        print(u_val)
         if u_val == u:
             data, u = load_pkl(file)
             omega, gf = data
@@ -85,6 +86,7 @@ def plot_quasiparticle_weights():
     plot = Plot(xlabel=r"$U$", ylabel=r"$z(u)$", width=WIDTH)
     for file in folder.search_files("qpweight_"):
         u, z, beta = load_pkl(file)
+
         plot.plot(u, z, label=r"$\beta=$" + f"{beta}")
     plot.set_limits(xlim=0, ylim=[0, 1.05])
     plot.grid()
@@ -103,11 +105,11 @@ def main():
     z = omegas + eta
     # ----------------------------------------------
 
-    calculte_lattice_gf(z, t, thresh, mixing=0.)
+    # calculte_lattice_gf(z, t, thresh, mixing=0.)
     # calculate_quasiparticle_weight(omegas + eta, t, thresh, mixing=0.)
     plot_lattice_gf(2)
     plot_lattice_gf(5)
-    plot_lattice_gf(10)
+    plot_lattice_gf(6)
     plot_quasiparticle_weights()
 
 

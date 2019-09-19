@@ -8,7 +8,7 @@ version: 1.0
 """
 import numpy as np
 from cmpy.core import fock_basis, annihilators, free_basis, state_indices
-from cmpy.core.utils import ensure_array
+from cmpy.core.utils import ensure_array, expectation, diagonalize
 from cmpy.core.greens import greens_function_free, greens_function, self_energy
 from cmpy import Hamiltonian, HamiltonOperator
 # from cmpy.dmft.two_site import self_energy, gf_lehmann
@@ -89,10 +89,10 @@ class Siam:
         v: float or array_like
         mu: float, optional
         """
-        self.u = u
-        self.eps_imp = eps_imp
-        self.eps_bath = np.asarray(ensure_array(eps_bath))
-        self.v = np.asarray(ensure_array(v))
+        self.u = float(u)
+        self.eps_imp = float(eps_imp)
+        self.eps_bath = np.asarray(ensure_array(eps_bath), dtype="float")
+        self.v = np.asarray(ensure_array(v), dtype="float")
         self.mu = u / 2 if mu is None else mu
         self.beta = beta
 
@@ -101,6 +101,7 @@ class Siam:
         self.states = None
         self.ops = None
         self.ham_op = None
+        self.eig = None
 
         self.free_states = free_basis(self.n)
         self.free_ops = annihilators(self.free_states, self.n)
@@ -111,6 +112,10 @@ class Siam:
     @property
     def n_bath(self):
         return self.n - 1
+
+    @property
+    def n_states(self):
+        return len(self.states)
 
     @property
     def c_up(self):
@@ -143,17 +148,19 @@ class Siam:
         eps_bath = ensure_array(eps_bath)
         if len(eps_bath) != self.n_bath:
             raise ValueError("Number of bath-parameters doesn't match existing ones")
-        self.eps_bath = np.asarray(ensure_array(eps_bath))
+        self.eps_bath = np.asarray(ensure_array(eps_bath), dtype="float")
 
     def update_hybridization(self, v):
         v = ensure_array(v)
         if len(v) != self.n_bath:
             raise ValueError("Number of bath-parameters doesn't match existing ones")
-        self.v = np.asarray(ensure_array(v))
+        self.v = np.asarray(ensure_array(v), dtype="float")
 
     def update_bath(self, eps_bath, v):
         self.update_bath_energy(eps_bath)
         self.update_hybridization(v)
+
+    # =========================================================================
 
     def hybridization(self, z):
         delta = self.v[np.newaxis, :]**2 / (z + self.mu - self.eps_bath[np.newaxis, :])
@@ -163,8 +170,8 @@ class Siam:
         ham = self.ham_op.build(u=self.u, eps_imp=self.eps_imp, eps_bath=self.eps_bath, v=self.v)
         return Hamiltonian(ham.dense)
 
-    def hamiltonian_manual(self):
-        return siam_hamiltonian(self.states, self.u, self.eps_imp, self.eps_bath[0], self.v[0])
+    def diagonalize(self):
+        self.eig = diagonalize(self.hamiltonian())
 
     def hamiltonian_free(self, zerostate=False):
         ham = self.free_ham_op.build(eps_imp=self.eps_imp, eps_bath=self.eps_bath, v=self.v)
@@ -172,8 +179,9 @@ class Siam:
         return Hamiltonian(ham)
 
     def impurity_gf(self, z, spin=0):
-        ham = self.hamiltonian()
-        return greens_function(ham, self.ops[spin], z + self.mu, self.beta)
+        self.diagonalize()
+        eigvals, eigstates = self.eig
+        return greens_function(eigvals, eigstates, self.ops[spin], z + self.mu, self.beta)
 
     def impurity_gf_free2(self, z):
         ham0 = self.hamiltonian_free()
@@ -181,6 +189,13 @@ class Siam:
 
     def impurity_gf_free(self, z):
         return 1/(z + self.mu - self.eps_imp - self.hybridization(z))
+
+    # =========================================================================
+
+    def expectation(self, observable):
+        self.diagonalize()
+        eigvals, eigstates = self.eig
+        return expectation(eigvals, eigstates, observable.todense(), self.beta)
 
     def state_labels(self):
         return [s.label(self.n) for s in self.states]

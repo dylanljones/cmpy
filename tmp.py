@@ -37,20 +37,20 @@ def greens_function2(ham, states, z, beta, idx=None):
 
 def main():
     u = 2
-    t = 2
+    t = 1
     mu = u/2
     beta = 1/100
     eps_imp, eps_bath, v = 0, mu, 1
     omegas, eta = get_omegas(6, 1000, 0.5)
     z = omegas + eta
     # ----------------------------------------------
-
-    siam = Siam(u, eps_imp, eps_bath, t)
-    # siam.set_basis([1, 2])
-    for s in siam.states:
-        print(s)
-
-
+    solver = TwoSiteDmft(z, u, eps_imp, v)
+    solver.solve_self_consistent()
+    print(f"Self-consistency reached: {solver.param_str()}")
+    print()
+    solver.solve()
+    gf = solver.gf_latt
+    Plot.quickplot(omegas, -gf.imag)
 
 
 

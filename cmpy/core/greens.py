@@ -128,24 +128,16 @@ def self_energy(gf_imp0, gf_imp):
     return 1/gf_imp0 - 1/gf_imp
 
 
-def diagonalize(operator):
-    """diagonalizes single site Spin Hamiltonian"""
-    eig_values, eig_vecs = la.eigh(operator)
-    emin = np.amin(eig_values)
-    eig_values -= emin
-    return eig_values, eig_vecs
-
-
-def greens_function(ham, d_dag, z, beta=1.):
+def greens_function(eigvals, eigstates, operator, z, beta=1.):
     """Outputs the lehmann representation of the greens function
        omega has to be given, as matsubara or real frequencies"""
-    d_dag = d_dag.dense
 
-    eigvals, eigstates = diagonalize(ham)  # la.eigh(ham)
+    operator = operator.todense()
+
     ew = np.exp(-beta*eigvals)
     partition = ew.sum()
 
-    basis = np.dot(eigstates.T, d_dag.dot(eigstates))
+    basis = np.dot(eigstates.T, operator.dot(eigstates))
     tmat = np.square(basis)
     # tmat *= np.add.outer(ew, ew)
     gap = np.add.outer(-eigvals, eigvals)

@@ -7,6 +7,7 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
+import scipy.linalg as la
 from sciutils import Plot
 
 
@@ -88,14 +89,21 @@ def fermi_dist(energy, beta, mu=1):
     return 1. / (np.exp(exponent) + 1)
 
 
+def diagonalize(operator):
+    """diagonalizes single site Spin Hamiltonian"""
+    eig_values, eig_vecs = la.eigh(operator)
+    eig_values -= np.amin(eig_values)
+    return eig_values, eig_vecs
+
+
 def partition_func(beta, energies):
     return np.exp(-beta*energies).sum()
 
 
-def expected_value(operator, eig_values, eig_states, beta):
-    aux = np.einsum('i,ji,ji', np.exp(-beta*eig_values),
-                    eig_states, operator.dot(eig_states))
-    return aux / partition_func(beta, eig_values)
+def expectation(eigvals, eigstates, operator, beta):
+    ew = np.exp(-beta * eigvals)
+    aux = np.einsum('i,ji,ji', ew, eigstates, operator.dot(eigstates))
+    return aux / ew.sum()
 
 
 # =========================================================================
