@@ -19,11 +19,11 @@ DATA = Path(r"_data/dmft/two_site", init=True)
 
 
 def calculte_lattice_gf(z, t=1., thresh=1e-4, mixing=0.):
-    u_values = np.arange(0, 5.1, 0.5)
+    u_values = np.arange(0, 10.1, 0.5)
     for i, u in enumerate(u_values):
         print(f"{i} Calculating lattice Gf (u={u})")
         solver = TwoSiteDmft(z, u=u, t=t)
-        solver.solve_self_consistent(thresh)
+        solver.solve_self_consistent(0, thresh=thresh, mixing=mixing)
         data = [solver.omega, solver.gf_latt]
         save_pkl(Path(DATA, f"gf_latt_{i}.pkl"), data, info=u)
 
@@ -57,7 +57,6 @@ def plot_lattice_gf(u=1.0):
             plot.tight()
             # plot.save(IMG, "twosite_half_z.png")
             plot.show()
-
 
 
 def calculate_quasiparticle_weight(z, t=1., thresh=1e-4, mixing=0.):
@@ -99,15 +98,18 @@ def main():
     u = 3
     t = 2
     thresh = 1e-5
-    omegas = np.linspace(-8, 8, 10000)
+    omegas = np.linspace(-10, 10, 10000)
     eta = 0.01j
     z = omegas + eta
     # ----------------------------------------------
 
-    # calculte_lattice_gf(z, t, thresh, mixing=0.)
+    calculte_lattice_gf(z, t, thresh, mixing=0.)
     # calculate_quasiparticle_weight(omegas + eta, t, thresh, mixing=0.)
+    plot_lattice_gf(2)
     plot_lattice_gf(5)
+    plot_lattice_gf(10)
     plot_quasiparticle_weights()
+
 
 if __name__ == "__main__":
     main()
