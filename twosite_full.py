@@ -21,7 +21,7 @@ def bethe_dos(z, t):
     return np.sqrt(4 * t**2 - energy**2) / (2 * np.pi * t**2)
 
 
-def bethe_gf_omega(z, half_bandwidth=1):
+def bethe_gf_omega(z, t=1.0):
     """Local Green's function of Bethe lattice for infinite Coordination number.
 
     Taken from gf_tools by Weh Andreas
@@ -31,14 +31,14 @@ def bethe_gf_omega(z, half_bandwidth=1):
     ----------
     z : complex ndarray or complex
         Green's function is evaluated at complex frequency `z`
-    half_bandwidth : float
-        half-bandwidth of the DOS of the Bethe lattice
-        The `half_bandwidth` corresponds to the nearest neighbor hopping `t=D/2`
+    t : float
+        Hopping parameter of the bethe lattice. This defines the bandwidth 'D=4t'
     Returns
     -------
     bethe_gf_omega : complex ndarray or complex
         Value of the Green's function
     """
+    half_bandwidth = 2 * t
     z_rel = z / half_bandwidth
     return 2. / half_bandwidth * z_rel * (1 - np.sqrt(1 - 1 / (z_rel * z_rel)))
 
@@ -192,7 +192,7 @@ def quasiparticle_weight(omegas, sigma):
     z = 1/(1 - dsigma)
     if z < 0.01:
         z = 0
-    return max(0, z)
+    return z
 
 
 def filling(omegas, gf):
@@ -215,7 +215,7 @@ class HamiltonOperator:
         self.v_op = (c0u.T * c1u + c1u.T * c0u) + (c0d.T * c1d + c1d.T * c0d)
 
     def build(self, u=5., eps_imp=0., eps_bath=0., v=1.):
-        return u * self.u_op + eps_imp * self.eps_imp_op + eps_bath * self.eps_bath_op + v * self.v_op
+        return u * self.u_op + eps_imp * self.eps_imp_op + eps_bath * self.eps_bath_op + v * np.abs(self.v_op)
 
 
 class TwoSiteSiam:
@@ -282,7 +282,7 @@ class TwoSiteDmft:
         self.t = t
         eps_bath = mu if eps_bath is None else eps_bath
         self.siam = TwoSiteSiam(u, eps, eps_bath, t, mu, beta)
-        self.m2 = m2_weight(t)
+        self.m2 =  t #m2_weight(t)
 
         self.gf_imp0 = None
         self.gf_imp = None
@@ -294,7 +294,7 @@ class TwoSiteDmft:
         self.gf_imp0 = self.siam.impurity_gf_free(self.z)
         self.gf_imp = self.siam.impurity_gf(self.z, spin=spin)
         self.sigma = self_energy(self.gf_imp0, self.gf_imp)
-        self.gf_latt = bethe_gf_omega(self.z + self.mu - self.sigma, 2*self.t)
+        self.gf_latt = bethe_gf_omega(self.z + self.mu - self.sigma, self.t)
         self.quasiparticle_weight = quasiparticle_weight(self.z.real, self.sigma)
 
     def impurity_filling(self):
@@ -321,26 +321,22 @@ class TwoSiteDmft:
     def new_hybridization(self, mixing=1.0):
         z = self.quasiparticle_weight
         v_new = np.sqrt(z * self.m2)
-        if mixing:
-            new, old = mixing, 1 - mixing
-            v_new = new * v_new + old * self.siam.v
-        return v_new
+        new, old = mixing, 1.0 - mixing
+        return (v_new * new) + (self.siam.v * old)
 
-    def solve_self_consistent(self, spin=0, mixing=1.0, vtol=1e-4, ntol=1e-2, nmax=10000):
-        v = self.siam.v + 0.1
+    def solve_self_consistent(self, spin=0, mixing=1.0, vtol=1e-4, ntol=1e-2, nmax=1000):
+        v = self.siam.v + 1e-10
         it, delta_v, delta_n = 0, 0, 0
         for it in range(nmax):
-            try:
-                delta_n = self.optimize_filling(ntol)
-            except ValueError as e:
-                print(e)
-                break
+            # self.optimize_filling(ntol)
             self.siam.update_hybridization(v)
             self.solve(spin)
+            if self.quasiparticle_weight == 0:
+                break
             v_new = self.new_hybridization(mixing)
             delta_v = abs(v - v_new)
             v = v_new
-            if abs(v) == 0 or delta_v <= vtol:
+            if delta_v <= vtol:
                 break
 
         self.siam.update_hybridization(v)
@@ -358,36 +354,46 @@ def plot_lattice_dos(z, u, eps, t, mu, eps_bath=0):
     ax.set_xlabel(r"$\omega$")
     ax.set_ylabel(r"$A_{latt}$")
     ax.plot(dmft.z.real, -dmft.gf_latt.imag)
-    ax.plot(dmft.z.real, -dmft.sigma.imag, color="k", ls="--")
+    # ax.plot(dmft.z.real, -dmft.sigma.imag, color="k", ls="--")
     plt.show()
 
 
-def plot_quasiparticle_weight(z, eps, t, n=20, beta=0.01):
-    u_values = np.linspace(0, 5, n)
+def quasiparticle_line(z, eps, t, umax=8, n=20, beta=0.01):
+    u_values = np.linspace(0, umax, n)
     qp_weights = np.zeros_like(u_values)
     for i, u in enumerate(u_values):
-        print(f"U={u}")
+        # print(f"U={u}")
         mu = u/2
         dmft = TwoSiteDmft(z, u, eps, t, mu, eps_bath=mu, beta=beta)
-        dmft.solve_self_consistent()
+        it, delta_v, _ = dmft.solve_self_consistent()
         qp_weights[i] = dmft.quasiparticle_weight
+        print(f"U={u:.1f}  {it} Delta: {delta_v:.2e}")
+    return u_values, qp_weights
 
+
+def plot_quasiparticle_weight(z, eps, t, umax=8, n=20, betas=(0.01)):
     fig, ax = plt.subplots()
     ax.set_xlabel(r"$U$")
     ax.set_ylabel(r"$z$")
-    ax.plot(u_values, qp_weights)
+    ax.set_xlim(0, umax)
+    ax.set_ylim(0, 1)
+    for beta in betas:
+        u_values, qp_weights = quasiparticle_line(z, eps, t, umax, n, beta=beta)
+        ax.plot(u_values, qp_weights, label=f"{beta}")
+        print()
+    ax.legend()
     plt.show()
 
 
 def main():
-    u = 2
+    u = 0.1
     eps, t = 0, 1
     mu = u/2
     omegas = np.linspace(-10, 10, 10000)
     z = omegas + 0.01j
 
-    plot_lattice_dos(z, u, eps, t, mu, eps_bath=0)
-    # plot_quasiparticle_weight(z, eps, t, n=20, beta=0.1)
+    # plot_lattice_dos(z, u, eps, t, mu, eps_bath=mu)
+    plot_quasiparticle_weight(z, eps, t, n=40, umax=8, betas=(0.001, 0.1, 10))
 
 
 if __name__ == "__main__":

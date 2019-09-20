@@ -15,10 +15,10 @@ from cmpy.models import Siam
 from cmpy.dmft.two_site import TwoSiteDmft
 
 
-def greens_function2(ham, states, z, beta, idx=None):
-    eigvals, eigvecs = diagonalize(ham)  # ham.eig()
+
+def greens_function2(eigvals, eigstates, states, z, beta, idx=None):
     idx = idx if idx is not None else np.arange(len(eigvals))
-    eigvecs_adj = np.conj(eigvecs).T
+    eigstates_adj = np.conj(eigstates).T
 
     ew = np.exp(-beta * eigvals)
     partition = ew[idx].sum()
@@ -26,37 +26,42 @@ def greens_function2(ham, states, z, beta, idx=None):
     gap = np.add.outer(-eigvals, eigvals)
 
     gf = np.zeros_like(z)
-    for n in idx:
-        bra = states[n]
-        for m in idx:
-            ket = states[m]
-            if bra == ket.annihilate(0):
-                gf += np.dot(eigvecs_adj[n], eigvecs[m])**2 / (z - gap[n, m]) * weight[n, m]
+    for j in idx:
+        ket = states[j]
+        try:
+            i = states.index(ket.annihilate(0))
+        except ValueError:
+            pass
+        else:
+            gf += np.dot(eigstates_adj[i], eigstates[j])**2 / (z - gap[i, j]) * weight[i, j]
     return gf / partition
 
 
 def main():
-    u = 1
+    u = 5
     eps, t = 0, 1
     mu = u/2
-    beta = 1/100
+    beta = 1/1
     omegas, eta = get_omegas(6, 1000, 0.5)
     z = omegas + eta
     # ----------------------------------------------
-    solver = TwoSiteDmft(z, u, eps, t, mu=mu, beta=beta)
-    solver.siam.show_hamiltonian()
-    # solver.solve_self_consistent()
-    print(f"Self-consistency reached: {solver.param_str()}")
-    print()
-    solver.solve()
-    gf = solver.gf_latt
-    # Plot.quickplot(omegas, -solver.siam.impurity_gf(z).imag)
+    siam = Siam(u, eps, mu, t, mu=mu)
+
+    states = siam.states
+    ops = siam.ops
+    ham = siam.hamiltonian()
+    eigvals, eigstates = diagonalize(ham)
+
+    gf = greens_function2(eigvals, eigstates, states, z + mu, beta)
+    gf0 = siam.impurity_gf_free(z)
 
     plot = Plot()
-    plot.plot(omegas, -solver.siam.impurity_gf(z).imag)
     plot.plot(omegas, -gf.imag)
-    plot.plot(omegas, -solver.sigma.imag)
+    plot.plot(omegas, -gf0.imag)
     plot.show()
+
+
+
 
 
 if __name__ == "__main__":
