@@ -107,9 +107,9 @@ def main():
 
     # calculte_lattice_gf(z, t, thresh, mixing=0.)
     # calculate_quasiparticle_weight(omegas + eta, t, thresh, mixing=0.)
+    plot_lattice_gf(0.5)
     plot_lattice_gf(2)
     plot_lattice_gf(5)
-    plot_lattice_gf(6)
     plot_quasiparticle_weights()
 
 

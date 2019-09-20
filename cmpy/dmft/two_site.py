@@ -157,8 +157,7 @@ class TwoSiteDmft:
         v = self.v + 0.1
         delta, i = 0, 0
         for i in range(nmax):
-            self.optimize_filling()
-
+            # self.optimize_filling()
             self.update_hybridization(v)
             self.solve(spin)
             if self.quasiparticle_weight == 0:

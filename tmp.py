@@ -36,22 +36,27 @@ def greens_function2(ham, states, z, beta, idx=None):
 
 
 def main():
-    u = 2
-    t = 1
+    u = 1
+    eps, t = 0, 1
     mu = u/2
     beta = 1/100
-    eps_imp, eps_bath, v = 0, mu, 1
     omegas, eta = get_omegas(6, 1000, 0.5)
     z = omegas + eta
     # ----------------------------------------------
-    solver = TwoSiteDmft(z, u, eps_imp, v)
-    solver.solve_self_consistent()
+    solver = TwoSiteDmft(z, u, eps, t, mu=mu, beta=beta)
+    solver.siam.show_hamiltonian()
+    # solver.solve_self_consistent()
     print(f"Self-consistency reached: {solver.param_str()}")
     print()
     solver.solve()
     gf = solver.gf_latt
-    Plot.quickplot(omegas, -gf.imag)
+    # Plot.quickplot(omegas, -solver.siam.impurity_gf(z).imag)
 
+    plot = Plot()
+    plot.plot(omegas, -solver.siam.impurity_gf(z).imag)
+    plot.plot(omegas, -gf.imag)
+    plot.plot(omegas, -solver.sigma.imag)
+    plot.show()
 
 
 if __name__ == "__main__":

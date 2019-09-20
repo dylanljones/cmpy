@@ -11,44 +11,38 @@ import scipy.linalg as la
 from scipy import integrate
 from itertools import product
 from sciutils import Plot, use_cycler, adj
-from cmpy import get_omegas, annihilate, expectation
+from cmpy import get_omegas, annihilate, expectation, phase
 from cmpy.models import Siam
 
 use_cycler()
 
 
+def self_energy(gf_imp0, gf_imp):
+    """ Calculate the self energy from the non-interacting and interacting Green's function"""
+    return 1/gf_imp0 - 1/gf_imp
+
+
 def diagonalize(operator):
-    eigvals, eigvecs = la.eig(operator)
+    eigvals, eigvecs = la.eigh(operator)
     eigvals -= np.amin(eigvals)
-    idx = np.argsort(eigvals)
     return eigvals, eigvecs
 
 
 def greens_function(eigvals, eigstates, c, z, beta=1.):
-    """Outputs the lehmann representation of the greens function
-       omega has to be given, as matsubara or real frequencies"""
-    c = c.dense
-
-    ew = np.exp(-beta*eigvals)
-    partition = ew.sum()
-
     basis = np.dot(eigstates.T, c.dot(eigstates))
-    tmat = np.square(basis)
+    qmat = np.square(basis)
+    # Calculate the energy gap matrix
     gap = np.add.outer(-eigvals, eigvals)
+    # Calculate weights and partition function
+    ew = np.exp(-beta*eigvals)
     weights = np.add.outer(ew, ew)
-
+    partition = ew.sum()
+    # Construct Green's function
     n = eigvals.size
     gf = np.zeros_like(z)
     for i, j in product(range(n), range(n)):
-        gf += tmat[i, j] / (z - gap[i, j]) * weights[j, i]
+        gf += qmat[i, j] / (z - gap[i, j]) * weights[i, j]
     return gf / partition
-
-
-def expectation(eigvals, eigstates, operator, beta):
-    operator = operator.todense()
-    ew = np.exp(-beta * eigvals)
-    aux = np.einsum('i,ji,ji', ew, eigstates, operator.dot(eigstates))
-    return aux / ew.sum()
 
 
 def main():
@@ -56,7 +50,7 @@ def main():
     mu = u/2
     eps, t = 0, 1
     beta = 1/100
-    omegas, eta = get_omegas(10, deta=0.1)
+    omegas, eta = get_omegas(5, deta=0.01)
     z = omegas + eta
 
     siam = Siam(u, eps, mu, t, mu, beta)
@@ -66,14 +60,14 @@ def main():
     ham = siam.hamiltonian()
 
     eigvals, eigstates = diagonalize(ham)
-    gf = greens_function(eigvals, eigstates, c, z + mu, beta)
+    gf0 = siam.impurity_gf_free(z)
+    gf = greens_function(eigvals, eigstates, c.todense(), z + mu, beta)
 
-
-    print(expectation(eigvals, eigstates, c.T * c, beta))
-
-    Plot.quickplot(omegas, -gf.imag)
-
-
+    plot = Plot()
+    plot.plot(omegas, -gf.imag)
+    plot.plot(omegas, -gf0.imag)
+    plot.plot(omegas, -self_energy(gf0, gf).imag)
+    plot.show()
 
 
 if __name__ == "__main__":

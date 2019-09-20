@@ -85,6 +85,9 @@ class Binary:
     def __int__(self):
         return self.int
 
+    def __index__(self):
+        return self.int
+
     # -------------- Comparisons -------------
 
     def __eq__(self, other):
