@@ -11,7 +11,7 @@ import numpy as np
 import cmpy.transport as tb
 from cmpy import DATA_DIR
 from cmpy.models import TightBinding
-from sciutils import Plot, Progress, load_pkl, save_pkl, Path, eta
+from scitools import Plot, Progress, load_pkl, save_pkl, Path, eta
 
 IPR_DIR = Path(DATA_DIR, "ipr")
 

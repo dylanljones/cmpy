@@ -7,7 +7,7 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
-from sciutils import Binary
+from scitools import Binary
 from .operators import annihilators
 
 UP_CHAR = "\u2191"

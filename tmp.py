@@ -9,7 +9,7 @@ version: 1.0
 import numpy as np
 import scipy.linalg as la
 from itertools import product
-from sciutils import Plot, Colors, set_cycler
+from scitools import Plot, Colors, set_cycler
 from cmpy.core import get_omegas, diagonalize, plot_greens_function
 from cmpy.models import Siam
 from cmpy.dmft.two_site import TwoSiteDmft

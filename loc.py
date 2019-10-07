@@ -7,7 +7,7 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
-from sciutils import Path, Plot, Data, prange
+from scitools import Path, Plot, Data, prange
 from cmpy import DATA_DIR
 # from cmpy.models import TightBinding
 from cmpy.transport import TbDevice, LtData

@@ -8,12 +8,16 @@ version: 1.0
 """
 import numpy as np
 import scipy.linalg as la
-from sciutils import Plot
+from scitools import Plot
 
+paulix = np.array([[0, 1], [1, 0]])
+pauliy = np.array([[0, -1j], [1j, 0]])
+pauliz = np.array([[1, 0], [0, -1]])
 
 # =========================================================================
 #                               GENERAL
 # =========================================================================
+
 
 def get_eta(omegas, n):
     dw = abs(omegas[1] - omegas[0])

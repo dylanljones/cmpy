@@ -7,7 +7,7 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
-from sciutils import Matrix, eta
+from scitools import Matrix, eta
 from .greens import gf_lehmann
 
 

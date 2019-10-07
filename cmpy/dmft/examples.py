@@ -7,7 +7,7 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
-from sciutils import Plot
+from scitools import Plot
 from cmpy import spectral
 from cmpy.dmft import solvers, quasiparticle_weight
 

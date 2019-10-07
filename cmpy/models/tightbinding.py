@@ -8,8 +8,8 @@ version: 1.0
 """
 import numpy as np
 from scipy import interpolate
-from sciutils import distance, chain, vlinspace, normalize, eta, List2D
-from sciutils.terminal import Progress
+from scitools import distance, chain, vlinspace, normalize, eta, List2D
+from scitools.terminal import Progress
 from cmpy.core.lattice import Lattice
 from cmpy.core.hamiltonian import Hamiltonian, HamiltonianCache
 from cmpy.core.utils import plot_bands, uniform_eye

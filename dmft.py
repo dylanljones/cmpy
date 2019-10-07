@@ -8,7 +8,7 @@ version: 1.0
 """
 import numpy as np
 from scipy import integrate
-from sciutils import Plot
+from scitools import Plot
 from cmpy import spectral, gf_lehmann, bethe_gf_omega
 from cmpy.dmft import solvers, quasiparticle_weight
 

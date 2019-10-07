@@ -10,7 +10,7 @@ import numpy as np
 import scipy.linalg as la
 from scipy import integrate
 from itertools import product
-from sciutils import Plot, use_cycler, adj
+from scitools import Plot, use_cycler, adj
 from cmpy import get_omegas, annihilate, expectation, phase
 from cmpy.models import Siam
 

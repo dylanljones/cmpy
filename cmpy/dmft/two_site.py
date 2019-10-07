@@ -9,7 +9,6 @@ version: 1.0
 import numpy as np
 from scipy import integrate
 from scipy import optimize
-from sciutils import Terminal
 from cmpy import Siam, bethe_dos, bethe_gf_omega, self_energy, get_eta
 
 # ========================== REFERENCES =======================================

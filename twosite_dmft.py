@@ -7,7 +7,7 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
-from sciutils import Plot, use_cycler, Terminal, save_pkl, load_pkl, Path
+from scitools import Plot, use_cycler, Terminal, save_pkl, load_pkl, Path
 from cmpy.core import get_omegas, spectral
 from cmpy.dmft.two_site import TwoSiteDmft
 

@@ -9,7 +9,7 @@ version: 1.0
 ISING MODEL
 """
 import numpy as np
-from sciutils import Plot
+from scitools import Plot
 import random
 
 

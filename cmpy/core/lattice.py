@@ -8,7 +8,7 @@ version: 1.0
 """
 import itertools
 import numpy as np
-from sciutils import vrange, distance, Plot
+from scitools import vrange, distance, Plot
 from matplotlib.collections import LineCollection
 
 

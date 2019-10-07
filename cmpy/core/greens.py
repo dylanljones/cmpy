@@ -9,7 +9,7 @@ version: 1.0
 import numpy as np
 from itertools import product
 from scipy import linalg as la
-from sciutils import eig_banded
+from scitools import eig_banded
 
 
 def gf(ham, omega, expand=True):

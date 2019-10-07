@@ -7,8 +7,7 @@ project: cmpy2
 version: 1.0
 """
 import numpy as np
-from sciutils import fit, build_fit, eta, Data
-from sciutils import Progress, Plot
+from scitools import fit, build_fit, eta, Data, Progress, Plot
 
 
 def transfunc(x, l, y0):
