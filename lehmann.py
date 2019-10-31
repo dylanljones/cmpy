@@ -10,64 +10,111 @@ import numpy as np
 import scipy.linalg as la
 from scipy import integrate
 from itertools import product
-from scitools import Plot, use_cycler, adj
-from cmpy import get_omegas, annihilate, expectation, phase
+from scitools import Plot
+from cmpy import get_omegas
 from cmpy.models import Siam
 
-use_cycler()
+
+def basis_states(n):
+    return list(range(int(n)))
 
 
-def self_energy(gf_imp0, gf_imp):
-    """ Calculate the self energy from the non-interacting and interacting Green's function"""
-    return 1/gf_imp0 - 1/gf_imp
+def binstr(x, n=None):
+    string = bin(x)[2:]
+    n = n or len(string)
+    return f"{string:0>{n}}"
 
 
-def diagonalize(operator):
-    eigvals, eigvecs = la.eigh(operator)
-    eigvals -= np.amin(eigvals)
-    return eigvals, eigvecs
+def set_bit(binary, bit, value):
+    if value:
+        return binary | (1 << bit)
+    else:
+        return binary & ~(1 << bit)
 
 
-def greens_function(eigvals, eigstates, c, z, beta=1.):
-    basis = np.dot(eigstates.T, c.dot(eigstates))
-    qmat = np.square(basis)
-    # Calculate the energy gap matrix
-    gap = np.add.outer(-eigvals, eigvals)
-    # Calculate weights and partition function
-    ew = np.exp(-beta*eigvals)
-    weights = np.add.outer(ew, ew)
-    partition = ew.sum()
-    # Construct Green's function
-    n = eigvals.size
-    gf = np.zeros_like(z)
-    for i, j in product(range(n), range(n)):
-        gf += qmat[i, j] / (z - gap[i, j]) * weights[i, j]
-    return gf / partition
+def get_bit(binary, bit):
+    return binary >> bit & 1
+
+
+class FockBasis:
+
+    def __init__(self, n, spins=2):
+        self.states = [FockState(idx, n) for idx in product(range(2**n), repeat=spins)]
+
+    def __getitem__(self, item):
+        return self.states[item]
+
+
+class FockState:
+
+    def __init__(self, ints, n=None):
+        self.ints = list(ints)
+        self.n = n
+
+    def copy(self):
+        return FockState(self.ints.copy(), self.n)
+
+    def __repr__(self):
+        string = ", ".join([binstr(x, self.n)[::-1] for x in self.ints])
+        return f"State({string})"
+
+    def __eq__(self, other):
+        for x1, x2 in zip(self.ints, other.ints):
+            if x1 != x2:
+                return False
+        return True
+
+    def __getitem__(self, item):
+        return self.ints[item]
+
+    def __setitem__(self, item, value):
+        self.ints[item] = value
+
+    def array(self):
+        return np.asarray([[int(b) for b in binstr(x, self.n)] for x in self.ints])
+
+    @property
+    def particles(self):
+        return sum([bin(x)[2:].count("1") for x in self.ints])
+
+    @property
+    def spins(self):
+        return [bin(x)[2:].count("1") for x in self.ints]
+
+    @property
+    def occupations(self):
+        return np.sum(self.array(), axis=0)
+
+    def create(self, i, spin):
+        if get_bit(self[spin], i) == 1:
+            return None
+        new = self.copy()
+        new[spin] = set_bit(new[spin], i, 1)
+        return new
+
+    def annihilate(self, i, spin):
+        if get_bit(self.ints[spin], i) == 0:
+            return None
+        new = self.copy()
+        new[spin] = set_bit(new[spin], i, 0)
+        return new
+
+    def hopping(self, other):
+        n = 0
+        for x1, x2 in zip(self.ints, other.ints):
+            diff = x1 ^ x2
+            if bin(diff)[2:].count("1") == 2:
+                print(binstr(diff).index("1"))
+                n += 1
+        return n == 1
 
 
 def main():
-    u = 5
-    mu = u/2
-    eps, t = 0, 1
-    beta = 1/100
-    omegas, eta = get_omegas(5, deta=0.01)
-    z = omegas + eta
-
-    siam = Siam(u, eps, mu, t, mu, beta)
-    c = siam.c_up[0]
-    # siam.set_basis([1, 2])
-    # siam.sort_states(key=lambda x: x.particles)
-    ham = siam.hamiltonian()
-
-    eigvals, eigstates = diagonalize(ham)
-    gf0 = siam.impurity_gf_free(z)
-    gf = greens_function(eigvals, eigstates, c.todense(), z + mu, beta)
-
-    plot = Plot()
-    plot.plot(omegas, -gf.imag)
-    plot.plot(omegas, -gf0.imag)
-    plot.plot(omegas, -self_energy(gf0, gf).imag)
-    plot.show()
+    n = 2
+    basis = FockBasis(n)
+    s1, s2 = basis[5], basis[6]
+    print(s1, s2)
+    print(s1.hopping(s2))
 
 
 if __name__ == "__main__":
