@@ -50,7 +50,7 @@ class BasisState:
         return f"State({string})"
 
     def __eq__(self, other):
-        for x1, x2 in zip(self.spins, other.ints):
+        for x1, x2 in zip(self.spins, other.spins):
             if x1 != x2:
                 return False
         return True
@@ -119,9 +119,9 @@ class BasisState:
 class FState(BasisState):
 
     EMPTY = r"."
-    UP = u"\u2193"
-    DOWN = u"\u2193"
-    DOUBLE = r"d"
+    UP = "u"
+    DOWN = "d"
+    DOUBLE = r"2"
 
     def __init__(self, up, down, n_sites=2):
         super().__init__([up, down], n_sites)
@@ -142,14 +142,29 @@ class FState(BasisState):
             chars.append(char)
         return "".join(chars)
 
+    @property
+    def spin(self):
+        s = self.s
+        return 0.5 * (s[0] - s[1])
+
     def __str__(self):
-        return self.label
+        return f"FState({self.label}, n={self.n}, s={self.spin})"
 
 
 class FBasis:
 
-    def __init__(self, n, spins=2):
-        self.states = [FState(idx, n) for idx in product(range(2**n), repeat=spins)]
+    def __init__(self, n_sites, particles=None, spin=None):
+        states = list()
+        for spins in product(range(2**n_sites), repeat=2):
+            s = FState(*spins, n_sites)
+            add = True
+            if particles is not None and s.n != particles:
+                add = False
+            if spin is not None and s.spin != spin:
+                add = False
+            if add:
+                states.append(s)
+        self.states = states
 
     @property
     def n(self):
@@ -184,18 +199,9 @@ def hamiltonian(basis, u, eps, t):
 def main():
     u, eps, t = 4, 1, 2
 
-    s = FState(0, 0, 3)
-
-    print(s)
-    return
-
-    n = 2
-    basis = FockBasis(n)
-    basis.sort(key=lambda x: x.particles)
-    ham = hamiltonian(basis, u, eps, t)
-
-
-    ham.show()
+    basis = FBasis(2, particles=2)
+    for s in basis:
+        print(s, s.n)
 
 
 
