@@ -8,7 +8,7 @@ version: 1.0
 """
 import numpy as np
 import scipy.linalg as la
-from scipy import integrate
+from scipy import integrate, sparse
 from itertools import product
 from scitools import Plot, Matrix
 from cmpy import get_omegas
@@ -36,60 +36,41 @@ def get_bit(binary, bit):
     return binary >> bit & 1
 
 
-class FockBasis:
+class BasisState:
 
-    def __init__(self, n, spins=2):
-        self.states = [FockState(idx, n) for idx in product(range(2**n), repeat=spins)]
-
-    @property
-    def n(self):
-        return len(self.states)
-
-    def sort(self, key):
-        self.states.sort(key=key)
-
-    def __getitem__(self, item):
-        return self.states[item]
-
-    def __iter__(self):
-        return iter(self.states)
-
-
-class FockState:
-
-    def __init__(self, ints, n=None):
-        self.ints = list(ints)
-        self.n = n
+    def __init__(self, spins, n_sites=None):
+        self.spins = list(spins)
+        self.n_sites = n_sites
 
     def copy(self):
-        return FockState(self.ints.copy(), self.n)
+        return self.__class__(self.spins.copy(), self.n)
 
     def __repr__(self):
-        string = ", ".join([binstr(x, self.n)[::-1] for x in self.ints])
+        string = ", ".join([binstr(x, self.n_sites)[::-1] for x in self.spins])
         return f"State({string})"
 
     def __eq__(self, other):
-        for x1, x2 in zip(self.ints, other.ints):
+        for x1, x2 in zip(self.spins, other.ints):
             if x1 != x2:
                 return False
         return True
 
     def __getitem__(self, item):
-        return self.ints[item]
+        return self.spins[item]
 
     def __setitem__(self, item, value):
-        self.ints[item] = value
+        self.spins[item] = value
 
     def array(self):
-        return np.asarray([[int(b) for b in binstr(x, self.n)] for x in self.ints])
+        return np.asarray([[int(b) for b in binstr(x, self.n_sites)] for x in self.spins])
 
     @property
-    def particles(self):
-        return sum([bin(x)[2:].count("1") for x in self.ints])
+    def n(self):
+        return sum([bin(x)[2:].count("1") for x in self.spins])
 
     @property
-    def spins(self):
-        return [bin(x)[2:].count("1") for x in self.ints]
+    def s(self):
+        return [bin(x)[2:].count("1") for x in self.spins]
 
     @property
     def occupations(self):
@@ -103,7 +84,7 @@ class FockState:
     def hopping(self, other):
         changed = 0
         hop_count = 0
-        for s1, s2 in zip(self.ints, other.ints):
+        for s1, s2 in zip(self.spins, other.ints):
             diff = s1 ^ s2
             if diff:
                 changed += 1
@@ -128,34 +109,34 @@ class FockState:
         return new
 
     def annihilate(self, i, spin):
-        if get_bit(self.ints[spin], i) == 0:
+        if get_bit(self.spins[spin], i) == 0:
             return None
         new = self.copy()
         new[spin] = set_bit(new[spin], i, 0)
         return new
 
 
-class FermionState(FockState):
+class FState(BasisState):
 
-    EMPTY =  r"."
-    UP =     u"\u2193"
-    DOWN =   r"dn"
+    EMPTY = r"."
+    UP = u"\u2193"
+    DOWN = u"\u2193"
     DOUBLE = r"d"
 
-    def __init__(self, int1, int2):
-        super().__init__([int1, int2], 2)
+    def __init__(self, up, down, n_sites=2):
+        super().__init__([up, down], n_sites)
 
     @property
     def label(self):
         chars = list()
-        for i in range(self.n):
-            u = get_bit(self.ints[0], i)
-            d = get_bit(self.ints[1], i)
+        for i in range(self.n_sites):
+            u = get_bit(self.spins[0], i)
+            d = get_bit(self.spins[1], i)
             char = self.EMPTY
             if u and d:
                 char = self.DOUBLE
             elif u:
-                char = str(self.UP.encode("utf-8"))
+                char = self.UP
             elif d:
                 char = self.DOWN
             chars.append(char)
@@ -165,7 +146,28 @@ class FermionState(FockState):
         return self.label
 
 
+class FBasis:
+
+    def __init__(self, n, spins=2):
+        self.states = [FState(idx, n) for idx in product(range(2**n), repeat=spins)]
+
+    @property
+    def n(self):
+        return len(self.states)
+
+    def sort(self, key):
+        self.states.sort(key=key)
+
+    def __getitem__(self, item):
+        return self.states[item]
+
+    def __iter__(self):
+        return iter(self.states)
+
+
 def hamiltonian(basis, u, eps, t):
+
+
     ham = Matrix.zeros(basis.n)
     for i in range(basis.n):
         s1 = basis[i]
@@ -179,12 +181,13 @@ def hamiltonian(basis, u, eps, t):
     return ham
 
 
-
 def main():
     u, eps, t = 4, 1, 2
 
-    s = FermionState(2, 1)
+    s = FState(0, 0, 3)
+
     print(s)
+    return
 
     n = 2
     basis = FockBasis(n)
