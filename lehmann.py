@@ -39,6 +39,8 @@ def get_bit(binary, bit):
 class BasisState:
 
     def __init__(self, spins, n_sites=None):
+        if isinstance(spins, int):
+            spins = [spins]
         self.spins = list(spins)
         self.n_sites = n_sites
 
@@ -50,7 +52,7 @@ class BasisState:
         return f"State({string})"
 
     def __eq__(self, other):
-        for x1, x2 in zip(self.spins, other.spins):
+        for x1, x2 in zip(self.spins, other.ints):
             if x1 != x2:
                 return False
         return True
@@ -84,7 +86,7 @@ class BasisState:
     def hopping(self, other):
         changed = 0
         hop_count = 0
-        for s1, s2 in zip(self.spins, other.ints):
+        for s1, s2 in zip(self.spins, other.spins):
             diff = s1 ^ s2
             if diff:
                 changed += 1
@@ -119,11 +121,11 @@ class BasisState:
 class FState(BasisState):
 
     EMPTY = r"."
-    UP = "u"
-    DOWN = "d"
-    DOUBLE = r"2"
+    UP = u"\u2193"
+    DOWN = u"\u2193"
+    DOUBLE = r"d"
 
-    def __init__(self, up, down, n_sites=2):
+    def __init__(self, up, down=0, n_sites=2):
         super().__init__([up, down], n_sites)
 
     @property
@@ -142,29 +144,14 @@ class FState(BasisState):
             chars.append(char)
         return "".join(chars)
 
-    @property
-    def spin(self):
-        s = self.s
-        return 0.5 * (s[0] - s[1])
-
     def __str__(self):
-        return f"FState({self.label}, n={self.n}, s={self.spin})"
+        return self.label
 
 
 class FBasis:
 
-    def __init__(self, n_sites, particles=None, spin=None):
-        states = list()
-        for spins in product(range(2**n_sites), repeat=2):
-            s = FState(*spins, n_sites)
-            add = True
-            if particles is not None and s.n != particles:
-                add = False
-            if spin is not None and s.spin != spin:
-                add = False
-            if add:
-                states.append(s)
-        self.states = states
+    def __init__(self, n, spins=2):
+        self.states = [FState(*idx, n_sites=n) for idx in product(range(2**n), repeat=spins)]
 
     @property
     def n(self):
@@ -181,8 +168,6 @@ class FBasis:
 
 
 def hamiltonian(basis, u, eps, t):
-
-
     ham = Matrix.zeros(basis.n)
     for i in range(basis.n):
         s1 = basis[i]
@@ -199,10 +184,10 @@ def hamiltonian(basis, u, eps, t):
 def main():
     u, eps, t = 4, 1, 2
 
-    basis = FBasis(2, particles=2)
-    for s in basis:
-        print(s, s.n)
-
+    basis = FBasis(2, spins=1)
+    basis.sort(key=lambda x: x.n)
+    ham = hamiltonian(basis, u, eps, t)
+    ham.show()
 
 
 
