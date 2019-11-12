@@ -8,46 +8,26 @@ version: 1.0
 """
 import numpy as np
 from scipy.sparse import csr_matrix
-from .hamiltonian import Hamiltonian
 
 
-def annihilate(state, i):
-    if not int(state >> i) & 1:
-        return None
-    return state ^ (1 << i)
-
-
-def create(state, i):
-    if int(state >> i) & 1:
-        return None
-    return state ^ (1 << i)
-
-
-def phase(state, i):
+def _phase(state, i):
     particles = (state >> i + 1).particles
     return 1 if particles % 2 == 0 else -1
 
 
-def annihilation_operator(states, idx):
-    n = len(states)
+def annihilation_op_csr(basis, idx, spin):
+    n = basis.n
     row, col, data = list(), list(), list()
-    for j in range(n):
-        state = states[j]
-        other = annihilate(state, idx)
+    for j, state in enumerate(basis):
+        other = state.annihilate(idx, spin)
         if other is not None:
             try:
-                i = states.index(other)
-                val = phase(state, idx)
-                row.append(i)
-                col.append(j)
-                data.append(val)
-            except ValueError:
-                pass
+                i = basis.index(other)
+                val = 1  # _phase(state, idx)
+                row.append(i), col.append(j), data.append(val)
+            except ValueError as e:
+                print(e)
     return csr_matrix((data, (row, col)), shape=(n, n), dtype="int")
-
-
-def annihilators(states, n):
-    return [Operator.annihilation_operator(states, x) for x in range(n)]
 
 
 class Operator:
@@ -58,13 +38,13 @@ class Operator:
         self.csr = csr_matrix(array)
 
     @classmethod
-    def annihilation_operator(cls, states, idx):
-        mat = annihilation_operator(states, idx)
+    def annihilation_operator(cls, basis, idx, spin):
+        mat = annihilation_op_csr(basis, idx, spin)
         return cls(mat)
 
     @classmethod
-    def creation_operator(cls, idx, states):
-        return cls.annihilation_operator(idx, states).dag
+    def creation_operator(cls, idx, states, spin):
+        return cls.annihilation_operator(idx, states, spin).dag
 
     def todense(self):
         return self.csr.todense()
@@ -120,6 +100,16 @@ class Operator:
         return str(self.dense)
 
 
+def annihilation_operators(basis):
+    operators = list()
+    for s in range(basis.n_spins):
+        ops = list()
+        for i in range(basis.n_sites):
+            ops.append(Operator.annihilation_operator(basis, i, s))
+        operators.append(ops)
+    return operators
+
+
 class HamiltonOperator:
 
     def __init__(self, **opkwargs):
@@ -149,6 +139,3 @@ class HamiltonOperator:
                 val = 0
             ops.append(self.build_operator(key, val))
         return sum(ops)
-
-    def hamiltonian(self, **params):
-        return Hamiltonian(self.build(**params).dense)

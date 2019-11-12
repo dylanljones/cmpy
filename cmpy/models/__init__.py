@@ -8,5 +8,3 @@ version: 1.0
 """
 from .ising import IsingModel
 from .tightbinding import TightBinding, configure_s_basis, configure_p3_basis, configure_sp3_basis
-from .hubbard import HubbardModel
-from .siam import Siam

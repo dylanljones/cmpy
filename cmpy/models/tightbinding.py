@@ -12,7 +12,7 @@ from scitools import distance, chain, vlinspace, normalize, eta, List2D
 from scitools.terminal import Progress
 from cmpy.core.lattice import Lattice
 from cmpy.core.hamiltonian import Hamiltonian, HamiltonianCache
-from cmpy.core.utils import plot_bands, uniform_eye
+from cmpy.core.utils import plot_bands
 
 ORBITALS = "s", "p_x", "p_y", "p_z"
 
@@ -546,7 +546,8 @@ class TightBinding:
     def shuffle(self):
         if self.w_eps:
             size = self.n_elements
-            self._disorder_onsite = uniform_eye(self.w_eps, size)
+            disorder = np.eye(size) * np.random.uniform(-self.w_eps / 2, self.w_eps / 2, size=size)
+            self._disorder_onsite = disorder
 
     def build(self, shape=None):
         """ Build model

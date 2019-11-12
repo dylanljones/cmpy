@@ -8,7 +8,7 @@ version: 1.0
 """
 import itertools
 import numpy as np
-from scitools import vrange, distance, Plot
+from scitools import Plot
 from matplotlib.collections import LineCollection
 
 
@@ -16,66 +16,6 @@ class AppendError(Exception):
 
     def __init__(self, msg):
         super().__init__("Can't append lattice: " + msg)
-
-
-def iter_indices(n_vecs, n_alpha):
-    """ Iterate over range of indices
-
-    Parameters
-    ----------
-    n_vecs: array_like
-        translation vectors
-    n_alpha: array_like
-        atom-indices
-
-    Returns
-    -------
-    idx: np.ndarray
-    """
-    indices = list()
-    for n in n_vecs:
-        for alpha in range(n_alpha):
-            indices.append((n, alpha))
-    return indices
-
-
-def index_array(n_vecs, n_alpha):
-    """ Iterate over range of indices and store as single array
-
-    Parameters
-    ----------
-    n_vecs: array_like
-        translation vectors
-    n_alpha: array_like
-        atom-indices
-
-    Returns
-    -------
-    idx: np.ndarray
-    """
-    indices = list()
-    for n in n_vecs:
-        for alpha in range(n_alpha):
-            indices.append([*n, alpha])
-    return np.array(indices)
-
-
-def translate(vectors, n):
-    """ Calculate the position from the main lattice coefficients
-
-    Parameters
-    ----------
-    vectors: array_like
-        lattice vectors
-    n: array_like:
-        lattice coefficients
-
-    Returns
-    -------
-    position: np.ndarray
-    """
-    return np.asarray(vectors) @ n
-    # return np.sum(np.asarray(n) * np.asarray(vectors), axis=1)
 
 
 class LatticePlotBase(Plot):
@@ -161,6 +101,106 @@ class LatticePlot2D(LatticePlotBase):
         self.set_limits(*self._limits + delta)
 
 
+def iter_indices(n_vecs, n_alpha):
+    """ Iterate over range of indices
+
+    Parameters
+    ----------
+    n_vecs: array_like
+        translation vectors
+    n_alpha: array_like
+        atom-indices
+
+    Returns
+    -------
+    idx: np.ndarray
+    """
+    indices = list()
+    for n in n_vecs:
+        for alpha in range(n_alpha):
+            indices.append((n, alpha))
+    return indices
+
+
+def index_array(n_vecs, n_alpha):
+    """ Iterate over range of indices and store as single array
+
+    Parameters
+    ----------
+    n_vecs: array_like
+        translation vectors
+    n_alpha: array_like
+        atom-indices
+
+    Returns
+    -------
+    idx: np.ndarray
+    """
+    indices = list()
+    for n in n_vecs:
+        for alpha in range(n_alpha):
+            indices.append([*n, alpha])
+    return np.array(indices)
+
+
+def translate(vectors, n):
+    r""" Calculate the position from the main lattice coefficients.
+
+    ..math::
+
+        \mathbf{R} = \sum_i^d n_i \mathbf{v}_i
+
+    Parameters
+    ----------
+    vectors: (N, N) ndarray
+        Lattice vectors
+    n: (N) ndarray
+        Lattice coefficients.
+
+    Returns
+    -------
+    position: (N) ndarray
+    """
+    return np.asarray(vectors) @ n
+    # return np.sum(np.asarray(n) * np.asarray(vectors), axis=1)
+
+
+def vrange(axis_ranges):
+    """ Return evenly spaced vectors within a given interval.
+
+    Parameters
+    ----------
+    axis_ranges: array_like
+        ranges for each axis.
+
+    Returns
+    -------
+    vectors: np.ndarray
+    """
+    axis = np.meshgrid(*axis_ranges)
+    grid = np.asarray([np.asarray(a).flatten("F") for a in axis]).T
+    n_vecs = list(grid)
+    n_vecs.sort(key=lambda x: x[0])
+    return n_vecs
+
+
+def distance(r1, r2):
+    """ Calculates the euclidian distance bewteen two points.
+
+    Parameters
+    ----------
+    r1: (N) ndarray
+        First input point.
+    r2: (N) ndarray
+        Second input point of matching size.
+
+    Returns
+    -------
+    distance: float
+    """
+    return np.sqrt(np.sum((r1 - r2)**2))
+
+
 # =========================================================================
 # LATTICE OBJECT
 # =========================================================================
@@ -173,7 +213,7 @@ class Lattice:
 
         Parameters
         ----------
-        vectors: array_like
+        vectors: (N, N) ndarray
             Primitive vectors of lattice.
         """
         self.vectors = np.asarray(vectors)
@@ -189,8 +229,6 @@ class Lattice:
         self.shape = np.zeros(self.dim)
         self.indices = None
         self.neighbours = list()
-
-    # 1D lattice prefabs
 
     @classmethod
     def chain(cls, size=1, name="A", a=1.):
@@ -217,8 +255,6 @@ class Lattice:
         if shape is not None:
             latt.build(shape)
         return latt
-
-    # 2D lattice prefabs
 
     @classmethod
     def square(cls, shape=(1, 1), name="A", a=1.):
@@ -256,8 +292,6 @@ class Lattice:
         if shape is not None:
             latt.build_rect(*shape)
         return latt
-
-    # 3D lattice prefabs
 
     @classmethod
     def cubic(cls, shape=(1, 1, 1), name="A", a=1):
@@ -322,6 +356,100 @@ class Lattice:
         latt.indices = self.indices
         latt.neighbours = self.neighbours
         return latt
+
+    def equivalent(self, other):
+        """ Check if other lattice has same structure (atoms and their positions)
+
+        Parameters
+        ----------
+        other: Lattice
+
+        Returns
+        -------
+        equivalent: bool
+        """
+        if len(self.atoms) != len(other.atoms):
+            return False
+        unmatched_atoms = list(self.atoms)
+        unmatched_pos = list(self.atom_positions)
+        for i in range(self.n_base):
+            try:
+                unmatched_atoms.remove(other.atoms[i])
+                unmatched_pos.remove(other.atom_positions[i])
+            except ValueError:
+                return False
+        return (not unmatched_atoms) and (not unmatched_pos)
+
+    def __str__(self):
+        name = "".join(self.atoms)
+        string = name + "-Lattice:\n"
+        for i in range(self.n_base):
+            atom = f"'{self.atoms[i]}'"
+            string += f"   {i+1}: {atom:<5} @ {self.atom_positions[i]}\n"
+        string += f"   Distances: " + ", ".join([f"{d}" for d in self.distances])
+        return string + "\n"
+
+    def show(self, show=True, size=10., color=True, margins=1., show_hop=True, lw=1.):
+        """ Plot the cached lattice
+
+        Parameters
+        ----------
+        show: bool, default: True
+            parameter for pyplot
+        size: float, default: 10
+            size of the atom marker
+        color: bool, default: True
+            If True use colors in the plot
+        margins: float, default: 0.5
+            Margins of the plot
+        show_hop: bool, default: True
+            Draw hopping connections if True
+        lw: float, default: 1
+            Line width of the hopping connections
+        Returns
+        -------
+        plot: LatticePlot
+        """
+        if self.n == 0:
+            print("[ERROR] Build lattice before plotting!")
+            return None
+        n_cells = int(self.n / self.n_base)
+        positions = np.asarray([self.position(i) for i in range(self.n)])
+        atom_positions = positions.reshape((self.n_base, n_cells, self.dim), order="F")
+
+        segments = list()
+        if show_hop:
+            for i in range(self.n):
+                neighbours = self.neighbours[i]
+                for i_hop in range(len(self.distances)):
+                    for j in neighbours[i_hop]:
+                        if j > i:
+                            segments.append([positions[i], positions[j]])
+
+        dim = self.real_dim()
+        # 1D Plotting
+        if dim == 1:
+            plot = LatticePlot1D(size=size, color=color, lw=lw)
+            for i_at in range(self.n_base):
+                plot.draw_sites(atom_positions[i_at])
+            if show_hop:
+                plot.draw_hoppings_cont(positions[0], positions[-1])
+        # 2D Plotting
+        elif dim == 2:
+            plot = LatticePlot2D(size=size, color=color, lw=lw)
+            for i_at in range(self.n_base):
+                plot.draw_sites(atom_positions[i_at])
+            if show_hop:
+                plot.draw_hoppings(segments)
+        else:
+            raise NotImplementedError()
+
+        plot.rescale(margins)
+        if show:
+            plot.show()
+        return plot
+
+    # =========================================================================
 
     def add_atom(self, name="A", pos=None):
         """ Add site to lattice cell.
@@ -449,7 +577,7 @@ class Lattice:
         r2 = self.get_position(*idx1)
         return distance(r1, r2)
 
-    def neighbour_range(self, n=None, cell_range=1):
+    def _neighbour_range(self, n=None, cell_range=1):
         """ Get all neighbouring translation vectors of a given cell position
 
         Parameters
@@ -491,7 +619,7 @@ class Lattice:
         idx = n, alpha
         dist = self.distances[dist_idx]
         indices = list()
-        for idx1 in self.neighbour_range(n, dist_idx):
+        for idx1 in self._neighbour_range(n, dist_idx):
             # if np.isclose(self.distance(idx, idx1), dist, atol=1e-5):
             if abs(self.distance(idx, idx1) - dist) < 1e-5:
                 if array:
@@ -537,7 +665,7 @@ class Lattice:
         r = self.get_position(n, alpha)
         dist = self.distances[dist_idx]
         vectors = list()
-        for idx1 in self.neighbour_range(n, dist_idx + 1):
+        for idx1 in self._neighbour_range(n, dist_idx + 1):
             r1 = self.get_position(*idx1)
             if distance(r, r1) == dist:
                 vectors.append(r1-r)
@@ -600,7 +728,7 @@ class Lattice:
         return np.prod(self.slice_shape) * self.n_base
 
     def get(self, i):
-        """ Get the lattice index of a site  with index i in the built lattice
+        """ Get the lattice index of a site with index i in the built lattice
 
         Parameters
         ----------
@@ -712,12 +840,12 @@ class Lattice:
             neighbour_indices.append(dist_neighbours)
         return neighbour_indices
 
-    def build_positions(self, n_vecs):
-        indices = list()
-        for n in n_vecs:
-            for alpha in range(self.n_base):
-                indices.append([*n, alpha])
-        return np.array(indices)
+    # def _build_positions(self, n_vecs):
+    #     indices = list()
+    #     for n in n_vecs:
+    #         for alpha in range(self.n_base):
+    #             indices.append([*n, alpha])
+    #     return np.array(indices)
 
     def build_section(self, n_vecs):
         """ Calculate lattice indices (n, alpha) and indices of cached neighbours
@@ -741,7 +869,11 @@ class Lattice:
         num_sites = len(n_vecs) * self.n_base
 
         # Build lattice indices from translation vectors
-        indices = self.build_positions(n_vecs)
+        indices = list()
+        for n in n_vecs:
+            for alpha in range(self.n_base):
+                indices.append([*n, alpha])
+        indices = np.array(indices)
 
         # get all sites (cached and new)
         if self.indices is not None:
@@ -774,6 +906,14 @@ class Lattice:
 
         n_vecs = vrange([range(s) for s in shape])
         self.indices, self.neighbours = self.build_section(n_vecs)
+
+    def _check_nvec(self, n, width, height):
+        x, y = self.get_position(n)
+        if (x < 0) or (x > width):
+            return False
+        if (y < 0) or (y > height):
+            return False
+        return True
 
     def build_rect(self, width, height):
         """ Build a lattice in shape of a rectangle
@@ -808,19 +948,11 @@ class Lattice:
         n_vecs = vrange([xrange, yrange])
         final_nvecs = list()
         for n in n_vecs:
-            if self.check_nvec(n, width, height):
+            if self._check_nvec(n, width, height):
                 final_nvecs.append(n)
 
         self.shape = shape
         self.indices, self.neighbours = self.build_section(final_nvecs)
-
-    def check_nvec(self, n, width, height):
-        x, y = self.get_position(n)
-        if (x < 0) or (x > width):
-            return False
-        if (y < 0) or (y > height):
-            return False
-        return True
 
     def add_slices(self, n):
         """ Add n slices of allready built lattice cache
@@ -882,97 +1014,3 @@ class Lattice:
         for distidx in range(len(neighbours)):
             for j in neighbours[distidx]:
                 yield distidx, j
-
-    # =========================================================================
-
-    def equivalent(self, other):
-        """ Check if other lattice has same structure (atoms and their positions)
-
-        Parameters
-        ----------
-        other: Lattice
-
-        Returns
-        -------
-        equivalent: bool
-        """
-        if len(self.atoms) != len(other.atoms):
-            return False
-        unmatched_atoms = list(self.atoms)
-        unmatched_pos = list(self.atom_positions)
-        for i in range(self.n_base):
-            try:
-                unmatched_atoms.remove(other.atoms[i])
-                unmatched_pos.remove(other.atom_positions[i])
-            except ValueError:
-                return False
-        return (not unmatched_atoms) and (not unmatched_pos)
-
-    def __str__(self):
-        name = "".join(self.atoms)
-        string = name + "-Lattice:\n"
-        for i in range(self.n_base):
-            atom = f"'{self.atoms[i]}'"
-            string += f"   {i+1}: {atom:<5} @ {self.atom_positions[i]}\n"
-        string += f"   Distances: " + ", ".join([f"{d}" for d in self.distances])
-        return string + "\n"
-
-    def show(self, show=True, size=10., color=True, margins=1., show_hop=True, lw=1.):
-        """ Plot the cached lattice
-
-        Parameters
-        ----------
-        show: bool, default: True
-            parameter for pyplot
-        size: float, default: 10
-            size of the atom marker
-        color: bool, default: True
-            If True use colors in the plot
-        margins: float, default: 0.5
-            Margins of the plot
-        show_hop: bool, default: True
-            Draw hopping connections if True
-        lw: float, default: 1
-            Line width of the hopping connections
-        Returns
-        -------
-        plot: LatticePlot
-        """
-        if self.n == 0:
-            print("[ERROR] Build lattice before plotting!")
-            return None
-        n_cells = int(self.n / self.n_base)
-        positions = np.asarray([self.position(i) for i in range(self.n)])
-        atom_positions = positions.reshape((self.n_base, n_cells, self.dim), order="F")
-
-        segments = list()
-        if show_hop:
-            for i in range(self.n):
-                neighbours = self.neighbours[i]
-                for i_hop in range(len(self.distances)):
-                    for j in neighbours[i_hop]:
-                        if j > i:
-                            segments.append([positions[i], positions[j]])
-
-        dim = self.real_dim()
-        # 1D Plotting
-        if dim == 1:
-            plot = LatticePlot1D(size=size, color=color, lw=lw)
-            for i_at in range(self.n_base):
-                plot.draw_sites(atom_positions[i_at])
-            if show_hop:
-                plot.draw_hoppings_cont(positions[0], positions[-1])
-        # 2D Plotting
-        elif dim == 2:
-            plot = LatticePlot2D(size=size, color=color, lw=lw)
-            for i_at in range(self.n_base):
-                plot.draw_sites(atom_positions[i_at])
-            if show_hop:
-                plot.draw_hoppings(segments)
-        else:
-            raise NotImplementedError()
-
-        plot.rescale(margins)
-        if show:
-            plot.show()
-        return plot

@@ -7,7 +7,7 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
-from scitools import Matrix, eta
+from scitools import Matrix
 from .greens import gf_lehmann
 
 
@@ -32,7 +32,7 @@ class Hamiltonian(Matrix):
         i = np.argmin(eigvals)
         return eigvals[i], eigvectors[i]
 
-    def gf(self, omega=eta, mu=0., only_diag=True, banded=False):
+    def gf(self, omega=0.001j, mu=0., only_diag=True, banded=False):
         """ Calculate the greens function of the Hamiltonian
 
         Parameters
@@ -52,7 +52,7 @@ class Hamiltonian(Matrix):
         """
         return gf_lehmann(self, omega, mu, only_diag, banded)
 
-    def spectral(self, omega=eta, banded=False):
+    def spectral(self, omega=0.001j, banded=False):
         """ Calculate the spectral function of the Hamiltonian
 
         Parameters
@@ -69,7 +69,7 @@ class Hamiltonian(Matrix):
         greens = gf_lehmann(self, omega, only_diag=True, banded=banded)
         return -np.sum(greens.imag, axis=1)
 
-    def ldos(self, omega=eta, banded=False):
+    def ldos(self, omega=0.001j, banded=False):
         """ Calculate the local density of states
 
         Parameters
@@ -87,7 +87,7 @@ class Hamiltonian(Matrix):
         dos = -1 / np.pi * greens.imag
         return dos
 
-    def dos(self, omega=eta, banded=False):
+    def dos(self, omega=0.001j, banded=False):
         """ Calculate the density of states
 
         Parameters
