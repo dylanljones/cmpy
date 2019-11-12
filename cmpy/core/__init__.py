@@ -8,12 +8,9 @@ version: 1.0
 """
 from .math import *
 from .utils import *
-from .basis import BasisState, Basis, FState, FBasis
-
-
-from .lattice import Lattice, LatticePlot2D
+from .basis import FState, FBasis
+from .operators import Operator, annihilation_operators, HamiltonOperator
 from .hamiltonian import Hamiltonian
-from .operators import *
-# from .state import *
+
+from .lattice import Lattice, LatticePlot2D, LatticePlot1D
 from .greens import *
-from .utils import *
