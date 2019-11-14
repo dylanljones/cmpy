@@ -11,7 +11,7 @@ from .utils import *
 from .basis import BasisState, Basis, FState, FBasis
 
 
-from .lattice import Lattice, LatticePlot2D
+from .lattice_2 import Lattice, LatticePlot2D
 from .hamiltonian import Hamiltonian
 from .operators import *
 # from .state import *
