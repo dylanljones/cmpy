@@ -8,7 +8,7 @@ version: 1.0
 """
 from numpy.testing import assert_array_equal
 from unittest import main, TestCase
-from cmpy.core.basis import BasisState, Basis
+from cmpy.core.basis import FState, FBasis
 
 
 class TestBasisState(TestCase):

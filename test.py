@@ -7,18 +7,15 @@ project: cmpy
 version: 1.0
 """
 import numpy as np
-from cmpy import FBasis
-from cmpy import Lattice, FState, FBasis
-from cmpy.core.math import fermi_dist
-from scitools import Plot
+from cmpy.models.siam import Siam
 
 
 def main():
-    basis = FBasis.free(5)
-    for i in range(1, basis.n_sites):
-        print(basis[0].check_hopping(basis[i], 1))
-        print(basis[0].hopping_indices(basis[i]))
-        print()
+    siam = Siam(u=4, eps_imp=0, eps_bath=2, v=1)
+    siam.init_basis(n=[1, 2], key=lambda s: s.n)
+    ham = siam.hamiltonian()
+    ham.show(labels=siam.labels)
+
 
 
 if __name__ == "__main__":

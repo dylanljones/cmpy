@@ -10,12 +10,15 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 
-def _phase(state, i):
-    particles = (state >> i + 1).particles
+def _ordering_phase(spins, i, spin, fermions=True):
+    if not fermions:
+        return 1
+    state = spins[spin]
+    particles = bin(state >> i + 1)[2:].count("1")
     return 1 if particles % 2 == 0 else -1
 
 
-def annihilation_op_csr(basis, idx, spin):
+def annihilation_op_csr(basis, idx, spin, fermions=True):
     n = basis.n
     row, col, data = list(), list(), list()
     for j, state in enumerate(basis):
@@ -23,10 +26,10 @@ def annihilation_op_csr(basis, idx, spin):
         if other is not None:
             try:
                 i = basis.index(other)
-                val = 1  # _phase(state, idx)
+                val = _ordering_phase(state.spins, idx, spin, fermions=True)
                 row.append(i), col.append(j), data.append(val)
             except ValueError as e:
-                print(e)
+                pass
     return csr_matrix((data, (row, col)), shape=(n, n), dtype="int")
 
 
@@ -111,6 +114,13 @@ def annihilation_operators(basis):
 
 
 class HamiltonOperator:
+    """
+
+    Examples
+    --------
+    >>> hamop = HamiltonOperator(u=u_op, eps=eps_op, t=t_op)
+    >>> ham = hamop.build(u=4, eps=0, t=1)
+    """
 
     def __init__(self, **opkwargs):
         self.operators = opkwargs
