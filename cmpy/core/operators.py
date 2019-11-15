@@ -18,7 +18,7 @@ def _ordering_phase(spins, i, spin, fermions=True):
     return 1 if particles % 2 == 0 else -1
 
 
-def annihilation_op_csr(basis, idx, spin, fermions=True):
+def annihilation_op_csr(basis, idx, spin):
     n = basis.n
     row, col, data = list(), list(), list()
     for j, state in enumerate(basis):
@@ -28,7 +28,7 @@ def annihilation_op_csr(basis, idx, spin, fermions=True):
                 i = basis.index(other)
                 val = _ordering_phase(state.spins, idx, spin, fermions=True)
                 row.append(i), col.append(j), data.append(val)
-            except ValueError as e:
+            except ValueError:
                 pass
     return csr_matrix((data, (row, col)), shape=(n, n), dtype="int")
 

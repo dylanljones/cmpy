@@ -99,7 +99,7 @@ class IsingModel:
                 break
 
     def init_plot(self):
-        self.plot = Plot()
+        self.plot = Plot(width=600, ratio=1)
         self.plot.set_title(f"$T={self.temp}$" + r" $J/k_B$")
         self.plot.set_equal_aspect()
         self.im = self.plot.ax.imshow(self.array.T, cmap="RdBu", vmin=-1.2, vmax=1.3)
@@ -109,7 +109,7 @@ class IsingModel:
 
     def update_plot(self, t, sleep=1e-10):
         self.im.set_data(self.array)
-        self.text.set_text(f"t={t:.0f}, M={self.magnetization:.2f}")
+        # self.text.set_text(f"t={t:.0f}, M={self.magnetization:.2f}")
         self.plot.draw(sleep)
 
     def show(self):
@@ -156,3 +156,13 @@ class IsingModel:
                 break
             i += 1
         self.plot.show()
+
+
+def main():
+    model = IsingModel((50, 50), temp=1.)
+    model.simulate(n_check=1)
+
+
+
+if __name__ == "__main__":
+    main()
