@@ -23,7 +23,7 @@ def hamilton_operator(operators):
 def main():
     u, eps, t = 4, 2, 1
 
-    basis = FBasis(2, n=[1, 2])
+    basis = FBasis(2)
     basis.sort()
 
     ops = basis.build_annihilation_ops()

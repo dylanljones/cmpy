@@ -42,6 +42,7 @@ class Operator:
 
     @classmethod
     def annihilation_operator(cls, basis, idx, spin):
+        print("-")
         mat = annihilation_op_csr(basis, idx, spin)
         return cls(mat)
 

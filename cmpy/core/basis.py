@@ -121,11 +121,11 @@ class FState:
 
     @property
     def n(self):
-        return sum([bin(x)[2:].count("1") for x in self.spins])
+        return sum([bin(x).count("1") for x in self.spins])
 
     @property
     def s(self):
-        num_spins = [bin(x)[2:].count("1") for x in self.spins]
+        num_spins = [bin(x).count("1") for x in self.spins]
         if self.n_spins == 2:
             return 0.5 * (num_spins[0] - [1])
         else:
@@ -160,17 +160,17 @@ class FState:
         return True
 
     def create(self, i, spin):
-        if get_bit(self.spins[spin], i) == 1:
+        if self.spins[spin] >> i & 1:
             return None
         new = self.copy()
-        new[spin] = set_bit(new[spin], i, 1)
+        new[spin] = new[spin] | (1 << i)
         return new
 
     def annihilate(self, i, spin):
-        if get_bit(self.spins[spin], i) == 0:
+        if not self.spins[spin] >> i & 1:
             return None
         new = self.copy()
-        new[spin] = set_bit(new[spin], i, 0)
+        new[spin] = new[spin] & ~(1 << i)
         return new
 
 
