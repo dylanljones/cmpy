@@ -127,7 +127,7 @@ class FState:
     def s(self):
         num_spins = [bin(x).count("1") for x in self.spins]
         if self.n_spins == 2:
-            return 0.5 * (num_spins[0] - [1])
+            return 0.5 * (num_spins[0] - num_spins[1])
         else:
             return 0.5 * sum(self.spins[0])
 
@@ -217,12 +217,14 @@ class FBasis:
         return True
 
     def get(self, n=None, s=None):
-        if particles is not None and not hasattr(particles, "__len__"):
-            particles = [particles]
+        if n is not None and not hasattr(n, "__len__"):
+            n = [n]
+        if s is not None and not hasattr(s, "__len__"):
+            s = [s]
         states = list()
-        for s in self.states:
-            if check_sector(s.spins, n, s):
-                states.append(s)
+        for state in self.states:
+            if check_sector(state.spins, n, s):
+                states.append(state)
         return states
 
     def subbasis(self, n=None, s=None):

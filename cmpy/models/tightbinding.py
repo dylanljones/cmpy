@@ -10,7 +10,7 @@ import numpy as np
 from scipy import interpolate
 from scitools import distance, chain, vlinspace, normalize, eta, List2D
 from scitools.terminal import Progress
-from cmpy.core.lattice import Lattice
+from cmpy.core.lattice_2 import Lattice
 from cmpy.core.hamiltonian import Hamiltonian, HamiltonianCache
 from cmpy.core.utils import plot_bands
 
