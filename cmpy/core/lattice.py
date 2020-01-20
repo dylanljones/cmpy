@@ -49,7 +49,8 @@ class LatticePlotBase:
 
     def __init__(self, size=10, color=True, lw=1.):
         self.fig, self.ax = plt.subplots()
-        self.atom_size = size
+        self.radius = size
+        self.atom_size = size ** 2
         self.color = color
         self.lw = lw
 
@@ -80,6 +81,12 @@ class LatticePlotBase:
         coll = LineCollection(segments, color=color, lw=self.lw, zorder=1)
         self.ax.add_collection(coll)
 
+    def print_indices(self, positions, offset=0.1):
+        offset = np.ones_like(positions[0]) * offset
+        for i, pos in enumerate(positions):
+            lowerleft = np.asarray(pos) + offset
+            self.ax.text(*lowerleft, s=str(i), va="bottom", ha="left")
+
     def tight(self, *args, **kwargs):
         self.fig.tight_layout(*args, **kwargs)
 
@@ -104,7 +111,7 @@ class LatticePlot1D(LatticePlotBase):
         if xmax > self._limits[1]:
             self._limits[1] = xmax
         col = "k" if not self.color else col
-        self.ax.scatter(x, y, zorder=10, s=self.atom_size**2, color=col, label=label)
+        self.ax.scatter(x, y, zorder=10, s=self.atom_size, color=col, label=label)
         self.rescale()
 
     def draw_hoppings_cont(self, start, stop, color="k"):
@@ -141,7 +148,7 @@ class LatticePlot2D(LatticePlotBase):
         self._limits[idx, 1] = maxs[idx]
 
         col = "k" if not self.color else col
-        self.ax.scatter(*positions, zorder=10, s=self.atom_size**2, color=col, label=label)
+        self.ax.scatter(*positions, zorder=10, s=self.atom_size, color=col, label=label)
         self.rescale()
 
     def add_map(self, data, cmap="Reds", colorbar=False, label=None):
@@ -984,41 +991,48 @@ class Lattice:
         self._set_chache(shape, indices, neighbours)
         return indices, neighbours
 
-    def set_periodic_boundary(self):
-        """ Adds the indices of the neighbors cycled around the x-axis.
+    def set_periodic_boundary(self, axis=0):
+        """ Adds the indices of the neighbours cycled around the given axis.
 
-        To Do:
-        ------
-        Add cycling along all axis. Currently only the x-direction is supported.
+        Notes
+        -----
+        The lattice has to be buildt before applying the periodic boundarie conditions.
+        Also the lattice has to be at least three atoms big in the specified directions.
+
+        Parameters
+        ----------
+        axis: int or (N) array_like, optional
+            One or multiple axises to apply the periodic boundary conditions.
+            The default is the x-direction.
         """
-        # Window size used for searching for neighbours
-        window = int((self.n_dist + 1) * self.slice_sites)
-        indices_1 = np.arange(window)
-        indices_2 = self.n_sites - indices_1 - 1
+        axis = np.atleast_1d(axis)
+        for ax in axis:
+            # Check the maximal distance of cells along the axis
+            celldist_max = 0.0
+            for i in range(self.n_sites):
+                nx1 = self.indices[i, ax]
+                for j in range(i + 1, self.n_sites):
+                    nx2 = self.indices[j, ax]
+                    delta = float(nx2 - nx1)
+                    if delta > celldist_max:
+                        celldist_max = delta
 
-        # Check the maximal distance of cells in x-direction
-        celldist_max_x = 0.0
-        for i in indices_1:
-            nx1 = self.indices[i, 0]
-            for j in indices_2:
-                nx2 = self.indices[j, 0]
-                delta = float(nx2 - nx1)
-                if delta > celldist_max_x:
-                    celldist_max_x = delta
+            # Add the cycling neighbour indices to the chached list.
+            for i_dist in range(self.n_dist):
+                for i in range(self.n_sites):
+                    pos1 = self.position(i)
+                    for j in range(i + 1, self.n_sites):
+                        pos2 = self.position(j)
+                        dist_offset = 0 if i_dist == 0 else self.distances[i_dist - 1]
+                        dist = np.round(distance(pos1, pos2), decimals=self.DIST_DECIMALS)
+                        if dist == celldist_max + dist_offset:
+                            diff = pos2 - pos1
+                            maxdist_axis = np.where(diff == np.amax(np.abs(diff)))[0]
+                            if maxdist_axis == ax:
+                                self.neighbours[i][i_dist].append(j)
+                                self.neighbours[j][i_dist].append(i)
 
-        # Add the cycling neighbour indices to the chached list.
-        for i_dist in range(self.n_dist):
-            for i in indices_1:
-                pos1 = self.position(i)
-                for j in indices_2:
-                    pos2 = self.position(j)
-                    dist_offset = 0 if i_dist == 0 else self.distances[i_dist - 1]
-                    dist = np.round(distance(pos1, pos2), decimals=self.DIST_DECIMALS)
-                    if dist == celldist_max_x + dist_offset:
-                        self.neighbours[i][i_dist].append(j)
-                        self.neighbours[j][i_dist].append(i)
-
-    def show(self, show=True, size=10., color=True, margins=1., show_hop=True, lw=1.):
+    def show(self, show=True, size=10., color=True, margins=1., show_hop=True, lw=1., show_indices=False):
         """ Plot the cached lattice
 
         Parameters
@@ -1035,6 +1049,9 @@ class Lattice:
             Draw hopping connections if True
         lw: float, default: 1
             Line width of the hopping connections
+        show_indices: bool, optional
+            If 'True' the index of the sites will be shown.
+
         Returns
         -------
         plot: LatticePlot
@@ -1077,6 +1094,10 @@ class Lattice:
                 plot.draw_hoppings(segments)
         else:
             raise NotImplementedError()
+
+        if show_indices:
+            positions = [self.position(i) for i in range(self.n_sites)]
+            plot.print_indices(positions)
 
         plot.rescale(margins)
         if show:
