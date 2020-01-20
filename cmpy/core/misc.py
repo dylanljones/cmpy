@@ -15,11 +15,113 @@ sy = np.array([[0, -1j], [1j, 0]])
 sz = np.array([[1, 0], [0, -1]])
 
 
+def vlinspace(start, stop, n=1000):
+    """ Vector linspace
+
+    Parameters
+    ----------
+    start: array_like
+        d-dimensional start-point
+    stop: array_like
+        d-dimensional stop-point
+    n: int, optional
+        number of points, default=1000
+
+    Returns
+    -------
+    vectors: np.ndarray
+    """
+    axes = [np.linspace(start[i], stop[i], n) for i in range(len(start))]
+    return np.asarray(axes).T
+
+
+def chain(items, cycle=False):
+    """ Create chain between items
+
+    Parameters
+    ----------
+    items: array_like
+        items to join to chain
+    cycle: bool, optional
+        cycle to the start of the chain if True, default: False
+
+    Returns
+    -------
+    chain: list
+        chain of items
+
+    Example
+    -------
+    >>> print(chain(["x", "y", "z"]))
+    [['x', 'y'], ['y', 'z']]
+
+    >>> print(chain(["x", "y", "z"], True))
+    [['x', 'y'], ['y', 'z'], ['z', 'x']]
+    """
+    result = list()
+    for i in range(len(items)-1):
+        result.append([items[i], items[i+1]])
+    if cycle:
+        result.append([items[-1], items[0]])
+    return result
+
+
+def normalize(array):
+    """ Normalizes a given array
+
+    Parameters
+    ----------
+    array: array_like
+        Un-normalized array
+
+    Returns
+    -------
+    arr_normalized: np.ndarray
+    """
+    return np.asarray(array) / np.linalg.norm(array, ord=1)
+
+
+def update_mean(mean, num, x):
+    """ Calculate average iteratively
+
+    Parameters
+    ----------
+    mean: float
+        old mean-value
+    num: int
+        number of iteration
+    x: float
+        new value
+
+    Returns
+    -------
+    mena: float
+    """
+    return mean + (x - mean) / num
+
+
+def distance(r1, r2):
+    """ calculate distance bewteen two points
+    Parameters
+    ----------
+    r1: array_like
+        first point
+    r2: array_like
+        second point
+
+    Returns
+    -------
+    distance: float
+    """
+    diff = np.abs(np.asarray(r1) - np.asarray(r2))
+    return np.sqrt(np.dot(diff, diff))
+
+
 def check_hermitian(a, tol=1e-8):
     r""" Checks if the given matrix is hermitian
 
     .. math::
-        A = A^\dagger \quad \Longleftrightarrow A - A^\dagger < tol
+        A = A^\dagger \Longleftrightarrow A - A^\dagger < tol
 
     Parameters
     ----------
@@ -65,7 +167,7 @@ def decompose(a, sym_tol=1e-8):
     eigvecs: (N, N) complex ndarray
         The right eigenvectors of the matrix
     """
-    eigvals, eigvecs = la.eig(a)
+    eigvals, eigvecs = np.linalg.eig(a)
     if check_hermitian(a, sym_tol):
         eigvecs_inv = eigvecs.conj().T
     else:

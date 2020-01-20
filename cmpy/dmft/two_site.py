@@ -9,34 +9,61 @@ version: 1.0
 import numpy as np
 from scipy import integrate
 from scipy import optimize
-from cmpy import Siam, bethe_dos, bethe_gf_omega, self_energy, get_eta
+from cmpy import bethe_dos, bethe_gf_omega
+from cmpy.models import Siam
+
 
 # ========================== REFERENCES =======================================
 
-
-def potthoff_gf_imp0_original(eps_imp, eps_bath, v, omegas, mu=0.):
-    e = (eps_imp - eps_bath) / 2
+# Reference functions taken from M. Potthof:
+# 'Two-site dynamical mean-field theory'
+def impurity_gf_free_ref(z, eps0, eps1, v):
+    e = (eps1 - eps0) / 2
     r = np.sqrt(e*e + v*v)
-    p1 = (r + e) / (omegas + mu - e - r)
-    p2 = (r - e) / (omegas + mu - e + r)
-    return (p1 + p2) / (2 * r)
+    term1 = (r - e) / (z - e - r)
+    term2 = (r + e) / (z - e + r)
+    return 1/(2*r) * (term1 + term2)
 
 
-def potthoff_gf_imp0(eps_imp, eps_bath, v, omegas, mu=0.):
-    e = (eps_bath - eps_imp) / 2
-    r = np.sqrt(e*e + v*v)
-    p1 = (r - e) / (omegas + mu - e - r)
-    p2 = (r + e) / (omegas + mu - e + r)
-    return (p1 + p2) / (2 * r)
+# Reference functions taken from E. Lange:
+# 'Renormalized vs. unrenormalized perturbation-theoretical
+# approaches to the Mott transition'
+def impurity_gf_ref(z, u, v):
+    sqrt16 = np.sqrt(u ** 2 + 16 * v ** 2)
+    sqrt64 = np.sqrt(u ** 2 + 64 * v ** 2)
+    a1 = 1/4 * (1 - (u ** 2 - 32 * v ** 2) / np.sqrt((u ** 2 + 64 * v ** 2) * (u ** 2 + 16 * v ** 2)))
+    a2 = 1/2 - a1
+    e1 = 1/4 * (sqrt64 - sqrt16)
+    e2 = 1/4 * (sqrt64 + sqrt16)
+    return (a1 / (z - e1) + a1 / (z + e1)) + (a2 / (z - e2) + a2 / (z + e2))
 
-
-def potthoff_sigma(u, v, omegas):
-    return u/2 + u**2/8 * (1/(omegas - 3*v) + 1/(omegas + 3*v))
 
 # =============================================================================
 
 
+def self_energy(gf_imp0, gf_imp):
+    """ Calculate the self energy from the non-interacting and interacting Green's function"""
+    return 1/gf_imp0 - 1/gf_imp
+
+
+def m2_weight(t):
+    """ Calculates the second moment weight"""
+    return integrate.quad(lambda x: x*x * bethe_dos(x, t), -2*t, 2*t)[0]
+
+
+def quasiparticle_weight(omegas, sigma):
+    """ Calculates the quasiparticle weight"""
+    dw = omegas[1] - omegas[0]
+    win = (-dw <= omegas) * (omegas <= dw)
+    dsigma = np.polyfit(omegas[win], sigma.real[win], 1)[0]
+    z = 1/(1 - dsigma)
+    if z < 0.01:
+        z = 0
+    return z
+
+
 def filling(omegas, gf):
+    """ Calculate the filling using the Green's function of the corresponding model"""
     idx = np.argmin(np.abs(omegas)) + 1
     x = omegas[:idx]
     y = -gf[:idx].imag
@@ -45,18 +72,8 @@ def filling(omegas, gf):
     return integrate.simps(y, x)
 
 
-def m2_weight(t):
-    return integrate.quad(lambda x: x*x * bethe_dos(x, t), -2*t, 2*t)[0]
+# =========================================================================
 
-
-def quasiparticle_weight(omegas, sigma):
-    dw = omegas[1] - omegas[0]
-    win = (-dw <= omegas) * (omegas <= dw)
-    dsigma = np.polyfit(omegas[win], sigma.real[win], 1)[0]
-    z = 1/(1 - dsigma)
-    if z < 0.01:
-        z = 0
-    return max(0, z)
 
 
 class TwoSiteDmft:

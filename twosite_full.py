@@ -282,7 +282,7 @@ class TwoSiteDmft:
         self.t = t
         eps_bath = mu if eps_bath is None else eps_bath
         self.siam = TwoSiteSiam(u, eps, eps_bath, t, mu, beta)
-        self.m2 =  t #m2_weight(t)
+        self.m2 = t  # m2_weight(t)
 
         self.gf_imp0 = None
         self.gf_imp = None
@@ -371,7 +371,7 @@ def quasiparticle_line(z, eps, t, umax=8, n=20, beta=0.01):
     return u_values, qp_weights
 
 
-def plot_quasiparticle_weight(z, eps, t, umax=8, n=20, betas=(0.01)):
+def plot_quasiparticle_weight(z, eps, t, umax=8, n=20, betas=(0.01, )):
     fig, ax = plt.subplots()
     ax.set_xlabel(r"$U$")
     ax.set_ylabel(r"$z$")

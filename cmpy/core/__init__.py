@@ -6,14 +6,9 @@ Created on 14 Oct 2018
 project: cmpy
 version: 1.0
 """
-from .math import *
-from .utils import *
-from .basis import BasisState, Basis, FState, FBasis
-
-
-from .lattice_2 import Lattice, LatticePlot2D
-from .hamiltonian import Hamiltonian
-from .operators import *
-# from .state import *
+from .misc import *
+from .plotting import *
+from .basis import *
 from .greens import *
-from .utils import *
+from .matrix import Matrix, MatrixPlot, cc
+from .lattice import Lattice, LatticePlot2D

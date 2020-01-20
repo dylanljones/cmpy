@@ -9,7 +9,7 @@ version: 1.0
 import numpy as np
 from itertools import product
 from scipy import linalg as la
-from scitools import eig_banded
+from .matrix import eig_banded
 
 
 def gf(ham, omega, expand=True):
@@ -144,10 +144,10 @@ def greens_function(eigvals, eigstates, operator, z, beta=1.):
     weights = np.add.outer(ew, ew)
 
     n = eigvals.size
-    gf = np.zeros_like(z)
+    gf_tmp = np.zeros_like(z)
     for i, j in product(range(n), range(n)):
-        gf += tmat[i, j] / (z - gap[i, j]) * weights[j, i]
-    return gf / partition
+        gf_tmp += tmat[i, j] / (z - gap[i, j]) * weights[j, i]
+    return gf_tmp / partition
 
 
 # =========================================================================
