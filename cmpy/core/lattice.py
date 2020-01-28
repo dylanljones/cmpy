@@ -10,6 +10,8 @@ import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
+from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # Golden ratio as standard ratio for plot-figures
@@ -47,8 +49,9 @@ def get_figsize(width=None, height=None, ratio=None):
 
 class LatticePlotBase:
 
-    def __init__(self, size=10, color=True, lw=1.):
-        self.fig, self.ax = plt.subplots()
+    def __init__(self, size=10, color=True, lw=1., proj=None):
+        self.fig = plt.figure()
+        self.ax = self.fig.add_subplot(111, projection=proj)
         self.radius = size
         self.atom_size = size ** 2
         self.color = color
@@ -164,6 +167,48 @@ class LatticePlot2D(LatticePlotBase):
         xlim, ylim = self._limits + delta
         self.ax.set_xlim(xlim)
         self.ax.set_ylim(ylim)
+
+
+class LatticePlot3D(LatticePlotBase):
+
+    def __init__(self, size=10, color=True, lw=1.):
+        super().__init__(size, color, lw, proj="3d")
+        self.set_equal_aspect()
+        self.ax.set_xlabel("$x$")
+        self.ax.set_ylabel("$y$")
+        self.ax.set_ylabel("$z$")
+        self._limits = np.zeros((3, 2))
+
+    def draw_sites(self, positions, label="", col=None):
+        positions = positions.T
+        mins, maxs = np.min(positions, axis=1), np.max(positions, axis=1)
+        idx = mins < self._limits[:, 0]
+        self._limits[idx, 0] = mins[idx]
+        idx = maxs > self._limits[:, 1]
+        self._limits[idx, 1] = maxs[idx]
+
+        col = "k" if not self.color else col
+        self.ax.scatter(*positions, zorder=3, s=self.atom_size, color=col, label=label, alpha=1)
+        self.rescale()
+
+    def draw_hoppings(self, segments, color="k"):
+        coll = Line3DCollection(segments, color=color, lw=self.lw, zorder=1)
+        self.ax.add_collection(coll)
+
+    def add_map(self, data, cmap="Reds", colorbar=False, label=None):
+        im = self.ax.contourf(*data, zorder=0, cmap=cmap)
+        if colorbar:
+            cb = self.colorbar(im, orientation="vertical")
+            if label:
+                cb.set_label(label)
+        return im
+
+    def rescale(self, offset=1.):
+        delta = np.array([[-offset, offset], [-offset, offset], [-offset, offset]])
+        xlim, ylim, zlim = self._limits + delta
+        self.ax.set_xlim(xlim)
+        self.ax.set_ylim(ylim)
+        self.ax.set_ylim(zlim)
 
 
 def iter_indices(n_vecs, n_alpha):
@@ -315,40 +360,24 @@ class Lattice:
         self.neighbours = None
 
     @classmethod
-    def square_vecs(cls, a=1.):
-        """ Creates a lattice with square primitive vectors.
-
-        Parameters
-        ----------
-        a: float, optional
-            The lattice constant, default: 1
-
-        Returns
-        -------
-        latt: Lattice
-        """
+    def square_cell(cls, a=1.):
+        """ Creates a lattice with square primitive vectors."""
         return cls(np.eye(2) * a)
 
     @classmethod
+    def hexagonal_cell(cls, a=1.):
+        """ Creates a lattice with hexagonal primitive vectors."""
+        vectors = a * np.array([[np.sqrt(3), np.sqrt(3) / 2], [0, 3 / 2]])
+        return cls(vectors)
+
+    @classmethod
+    def cubic_cell(cls, a=1.):
+        """ Creates a lattice with cubic primitive vectors."""
+        return cls(np.eye(3) * a)
+
+    @classmethod
     def square(cls, name="A", a=1., neighbour_dist=1, shape=None):
-        """ square lattice prefab with one atom at the origin of the unit cell
-
-        Parameters
-        ----------
-        name: str, optional
-            name of the atom, default: "A"
-        a: float, optional
-            The lattice constant, default: 1
-        neighbour_dist: int, optional
-            The number of neighbor distance to calculate. The default is 1.
-            If not calculated, this has to be done manually after configuring lattice.
-        shape: tuple of int, optional
-            If a shape is given, lattice will be built and chached. The default is None.
-
-        Returns
-        -------
-        latt: Lattice
-        """
+        """ Simple-square lattice prefab with one atom at the origin of the unit cell. """
         latt = cls(np.eye(2) * a)
         latt.add_atom(name=name)
         latt.calculate_distances(neighbour_dist)
@@ -358,26 +387,7 @@ class Lattice:
 
     @classmethod
     def hexagonal(cls, atom1="A", atom2="B", a=1., neighbour_dist=1, shape=None):
-        """ Hexagonal lattice prefab with otwo atoms in the unit cell
-
-        Parameters
-        ----------
-        atom1: str, optional
-            The name of the first atom, default: "A"
-        atom2: str, optional
-            The name of the second atom, default: "B"
-        a: float, optional
-            The lattice constant, default: 1
-        neighbour_dist: int, optional
-            The number of neighbor distance to calculate. The default is 1.
-            If not calculated, this has to be done manually after configuring lattice.
-        shape: tuple of int, optional
-            If a shape is given, lattice will be built and chached. The default is None.
-
-        Returns
-        -------
-        latt: Lattice
-        """
+        """ Hexagonal lattice prefab with otwo atoms in the unit cell. """
         vectors = a * np.array([[np.sqrt(3), np.sqrt(3) / 2],
                                 [0, 3 / 2]])
         latt = cls(vectors)
@@ -389,27 +399,22 @@ class Lattice:
         return latt
 
     @classmethod
-    def cubic(cls, name="A", a=1., neighbour_dist=1, shape=None):
-        """ cubic lattice prefab with one atom at the origin of the unit cell
-
-        Parameters
-        ----------
-        name: str, optional
-            the name of the atom, default: "A"
-        a: float, optional
-            The lattice constant, default: 1
-        neighbour_dist: int, optional
-            The number of neighbor distance to calculate. The default is 1.
-            If not calculated, this has to be done manually after configuring lattice.
-        shape: tuple of int, optional
-            If a shape is given, lattice will be built and chached. The default is None.
-
-        Returns
-        -------
-        latt: Lattice
-        """
-        latt = cls(np.eye(3) * a)
+    def sc(cls, name="A", a=1., neighbour_dist=1, shape=None):
+        """ Simple-cubic lattice."""
+        latt = cls.cubic_cell(a)
         latt.add_atom(name=name)
+        latt.calculate_distances(neighbour_dist)
+        if shape is not None:
+            latt.build(shape)
+        return latt
+
+    @classmethod
+    def bcc(cls, name1="A", name2=None, a=1., neighbour_dist=1, shape=None):
+        """ Body-centered-cubic lattice."""
+        latt = cls.cubic_cell(a)
+        name2 = name2 or name1
+        latt.add_atom(name1, pos=(0, 0, 0))
+        latt.add_atom(name2, pos=np.ones(3) * a / 2)
         latt.calculate_distances(neighbour_dist)
         if shape is not None:
             latt.build(shape)
@@ -718,6 +723,14 @@ class Lattice:
                 site_neighbours.append(self.calculate_neighbours(alpha=alpha, dist_idx=i_dist, array=True))
             neighbours.append(site_neighbours)
         self._base_neighbors = neighbours
+
+    def cell_volume(self):
+        if self.dim == 3:
+            cross = np.cross(self.vectors[1], self.vectors[2])
+            v = np.dot(self.vectors[0], cross)
+        else:
+            v = np.cross(self.vectors[0], self.vectors[1])
+        return abs(v)
 
     # =========================================================================
     # CACHED LATTICE METHODS
@@ -1088,6 +1101,12 @@ class Lattice:
         # 2D Plotting
         elif dim == 2:
             plot = LatticePlot2D(size=size, color=color, lw=lw)
+            for i_at in range(self.n_base):
+                plot.draw_sites(atom_positions[i_at])
+            if show_hop:
+                plot.draw_hoppings(segments)
+        elif dim == 3:
+            plot = LatticePlot3D(size=size, color=color, lw=lw)
             for i_at in range(self.n_base):
                 plot.draw_sites(atom_positions[i_at])
             if show_hop:
