@@ -1,18 +1,16 @@
 # -*- coding: utf-8 -*-
 """
 Created on  06 2019
-author: dylan
+author: Dylan Jones
 
-project: cmpy2
+project: cmpy
 version: 1.0
 """
 import numpy as np
 from scipy import interpolate
-from scitools import distance, chain, vlinspace, normalize, eta, List2D
-from scitools.terminal import Progress
-from cmpy.core.lattice_2 import Lattice
-from cmpy.core.hamiltonian import Hamiltonian, HamiltonianCache
-from cmpy.core.utils import plot_bands
+from scitools import List2D
+from cmpy.core import distance, chain, vlinspace, normalize
+from cmpy.core import Lattice, Matrix, plot_bands
 
 ORBITALS = "s", "p_x", "p_y", "p_z"
 
@@ -28,6 +26,8 @@ s_z = np.array([[1, 0], [0, -1]])
 SOC = np.array([[s_0,     -1j*s_z, +1j*s_y],
                 [+1j*s_z,     s_0, -1j*s_x],
                 [-1j*s_y, +1j*s_x,     s_0]])
+
+eta = 1e-3j
 
 # =========================================================================
 # METHODS
@@ -143,6 +143,50 @@ def get_atom_basis(energy=0., orbitals=None, spin=True):
     return states, np.eye(n_orbs) * energy
 
 
+class HamiltonianCache:
+
+    def __init__(self):
+        self._ham = None
+
+        self._memory = None
+        self._mask = None
+
+    def __bool__(self):
+        return self._ham is not None
+
+    def load(self, ham):
+        self._ham = ham
+        self._memory = ham.copy()
+        mask = Matrix.zeros(ham.shape[0], dtype="bool")
+        mask.fill_diag(True)
+        for i in range(1, ham.max_offdiag_number+1):
+            mask.fill_diag(True, offset=i)
+            mask.fill_diag(True, offset=-i)
+        self._mask = mask
+
+    def read(self):
+        return self._ham
+
+    def reset(self):
+        self._ham[self._mask] = self._memory[self._mask]
+
+    def clear(self):
+        self._ham = None
+        self._memory = None
+        self._mask = None
+
+    def __str__(self):
+        string = "HamiltonianCache: "
+        if not self:
+            string += "empty"
+        else:
+            string += "\nHamiltonain:\n" + str(self._ham)
+            string += "\nMemory:\n" + str(self._memory)
+            string += "\nMask:\n" + str(self._mask)
+        return string
+
+
+
 # =========================================================================
 # BASIS SET-UP
 # =========================================================================
@@ -155,8 +199,6 @@ def configure_s_basis(model, eps=0., t=1., spin=True):
 
 
 def configure_p3_basis(model, eps_p=0., t_pps=1., t_ppp=1., d=None, spin=True, soc=0., ordering="spin"):
-
-
     d = np.ones(3) if d is None else np.asarray(d)
     t_direct = d ** 2 + (1 - d ** 2) * t_ppp
 
@@ -242,7 +284,7 @@ class TightBinding:
 
         Returns
         -------
-        model: cls
+        model: TightBinding
         """
         self = cls(a * np.eye(2))
         self.add_atom(name, energy=eps)
@@ -586,12 +628,12 @@ class TightBinding:
         datalist = List2D.empty(n)
         for i in range(n):
             # Site energies
-            a1 = self.lattice.get_alpha(i)
+            a1 = self.lattice.alpha(i)
             datalist[i, i] = self.energies[a1]
             # Hopping energies
-            for distidx, j in self.lattice.iter_neighbor_indices(i):
+            for distidx, j in self.lattice.iter_neighbours(i):
                 if j > i:
-                    a2 = self.lattice.get_alpha(j)
+                    a2 = self.lattice.alpha(j)
                     try:
                         datalist[i, j] = self.get_hopping(a1, a2, distidx)
                         datalist[j, i] = self.get_hopping(a2, a1, distidx)
@@ -601,10 +643,10 @@ class TightBinding:
 
     def cell_hamiltonian(self):
         if self.n_base == 1:
-            return Hamiltonian(self.energies[0])
+            return Matrix(self.energies[0])
         else:
             arr = self._ham_data(self.n_base)
-            return Hamiltonian.block(arr)
+            return Matrix.block(arr)
 
     def slice_hamiltonian(self):
         """ Get the slice hamiltonian of the model
@@ -632,7 +674,7 @@ class TightBinding:
                         a2 = self.lattice.get_alpha(j)
                         array[i, j] = self.get_hopping(a1, a2, distidx)
                         array[j, i] = self.get_hopping(a2, a1, distidx)
-            ham = Hamiltonian.block(array.arr)
+            ham = Matrix.block(array.arr)
             self._slice_ham_cache.load(ham)
         else:
             # Reset slice Hamiltonian
@@ -700,7 +742,7 @@ class TightBinding:
                             t = self.get_hopping(a1, a2, dist)
                             array[i, j] = t
 
-            ham = Hamiltonian.block(array.arr)
+            ham = Matrix.block(array.arr)
             self._slice_hop_cache.load(ham)
 
         return self._slice_hop_cache.read()
@@ -727,15 +769,15 @@ class TightBinding:
             array = List2D.empty(n)
             for i in range(n):
                 # Site energies
-                a1 = self.lattice.get_alpha(i)
+                a1 = self.lattice.alpha(i)
                 array[i, i] = self.energies[a1]
                 # Hopping energies
-                for distidx, j in self.lattice.iter_neighbor_indices(i):
+                for distidx, j in self.lattice.iter_neighbours(i):
                     if j > i:
-                        a2 = self.lattice.get_alpha(j)
+                        a2 = self.lattice.alpha(j)
                         array[i, j] = self.get_hopping(a1, a2, distidx)
                         array[j, i] = self.get_hopping(a2, a1, distidx)
-            ham = Hamiltonian.block(array.arr)
+            ham = Matrix.block(array.arr)
             self._ham_cache.load(ham)
         else:
             # Reset Hamiltonian
@@ -846,21 +888,21 @@ class TightBinding:
         return ham.eigvals()
 
     def bands(self, points, n_e=1000, thresh=1e-9, scale=True, verbose=True, cycle=True):
-        """ Calculate Bandstructure in k-space between given k-points
+        """ Calculate Bandstructure in k-space between given points
 
         Parameters
         ----------
         points: list of array_like
             k-points for the bandstructure
-        n_e: int, default: 1000
+        n_e: int, optional
             number of energy samples in each section
-        thresh: float, default: 1e-9
+        thresh: float, optional
             threshold to find energy-values
-        scale: bool, default: True
+        scale: bool, optional
             scale lengths of sections
-        verbose: bool, default: True
+        verbose: bool, optional
             print progress if True
-        cycle: bool, default: True
+        cycle: bool, optional
             Connect the first and last point
 
         Returns
@@ -874,21 +916,25 @@ class TightBinding:
             sect_sizes = [int(n_e * dist / max(distances)) for dist in distances]
         else:
             sect_sizes = [n_e] * n_sections
-        n = sum(sect_sizes)
+
         band_sections = list()
-        with Progress(total=n, header="Calculating dispersion", enabled=verbose) as p:
-            for i in range(n_sections):
-                p1, p2 = pairs[i]
-                n_points = sect_sizes[i]
-                e_vals = np.zeros((n_points, self.base_elements))
-                k_vals = vlinspace(p1, p2, n_points)
-                for j in range(n_points):
-                    p.update(f"Section {i+1}/{n_sections}")
-                    disp = self.dispersion(k_vals[j])
-                    indices = np.where(np.isclose(disp, 0., atol=thresh))[0]
-                    disp[indices] = np.nan
-                    e_vals[j] = disp
-                band_sections.append(e_vals)
+        if verbose:
+            print("Calculating dispersion", end="", flush=True)
+        for sect in range(n_sections):
+            p1, p2 = pairs[sect]
+            n_points = sect_sizes[sect]
+            e_vals = np.zeros((n_points, self.base_elements))
+            k_vals = vlinspace(p1, p2, n_points)
+            for j in range(n_points):
+                if verbose:
+                    print(f"\rCalculating dispersion: Section {sect+1}/{n_sections}", end="", flush=True)
+                disp = self.dispersion(k_vals[j])
+                indices = np.where(np.isclose(disp, 0., atol=thresh))[0]
+                disp[indices] = np.nan
+                e_vals[j] = disp
+            band_sections.append(e_vals)
+        if verbose:
+            print()
         return band_sections
 
     # =========================================================================

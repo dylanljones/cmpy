@@ -8,187 +8,234 @@ version: 1.0
 """
 import numpy as np
 from itertools import product
-from .operators import annihilation_operators
+from scipy.sparse import csr_matrix
+
+EMPTY = "."
+UP_CHAR = "↑"
+DN_CHAR = "↓"
+UD_CHAR = "⇅"  # "d"
 
 
-def basis_states(n):
-    return list(range(int(n)))
+def binstr(st, fill=0):
+    return f"{st:0{fill}b}"
 
 
-def binstr(x, n=None):
-    string = bin(x)[2:]
-    n = n or len(string)
-    return f"{string:0>{n}}"
+def one_particle_state(i):
+    return 1 << i
 
 
-def set_bit(binary, bit, value):
-    if value:
-        return binary | (1 << bit)
+def particle_op(st, i):
+    return (1 << i) & st
+
+
+def particle_number(st):
+    return bin(st).count("1")
+
+
+def create(st, i):
+    op = 1 << i
+    if op & st == 0:
+        return op ^ st
+
+
+def annihilate(st, i):
+    op = 1 << i
+    if op & st == 1:
+        return op ^ st
+
+
+def spin_basis(num_sites, n=None):
+    max_int = int("1" * num_sites, 2)
+    if n is None:
+        return list(range(max_int + 1))
     else:
-        return binary & ~(1 << bit)
+        states = list()
+        for st in range(max_int + 1):
+            if particle_number(st) == n:
+                states.append(st)
+        return states
 
 
-def get_bit(binary, bit):
-    return binary >> bit & 1
+def iter_basis_states(n_sites):
+    return product(range(2 ** n_sites), repeat=2)
 
 
-def check_filling(spins, particles=None):
+def state_label(up, dn, n_sites):
+    chars = list()
+    for i in range(n_sites):
+        char = EMPTY
+        u = up >> i & 1
+        d = dn >> i & 1
+        if u and d:
+            char = UD_CHAR
+        elif u:
+            char = UP_CHAR
+        elif d:
+            char = DN_CHAR
+        chars.append(char)
+    return "".join(chars)[::-1]
+
+
+def check_filling(up, dn, particles=None):
     if particles is None:
         return True
-    n = sum([bin(x)[2:].count("1") for x in spins])
+    if not hasattr(particles, "__len__"):
+        particles = [particles]
+    n = bin(up).count("1") + bin(dn).count("1")
     return n in particles
 
 
-def check_spin(spins, spin_values=None):
+def check_spin(up, dn, spin_values=None):
     if spin_values is None:
         return True
-    s = [bin(x)[2:].count("1") for x in spins]
-    return 0.5 * (s[0] - s[1]) in spin_values
+    if not hasattr(spin_values, "__len__"):
+        spin_values = [spin_values]
+    s = 0.5 * (bin(up).count("1") - bin(dn).count("1"))
+    return s in spin_values
 
 
-def check_sector(spins, n=None, s=None):
-    return check_filling(spins, n) and check_spin(spins, s)
+def check_sector(up, down, n=None, s=None):
+    return check_filling(up, down, n) and check_spin(up, down, s)
+
+# =========================================================================
 
 
-def iter_state_binaries(n_sites, n_spins, n=None, s=None):
-    if n is not None and not hasattr(n, "__len__"):
-        n = [n]
-    if s is not None and not hasattr(s, "__len__"):
-        s = [s]
-    for spins in product(range(2 ** n_sites), repeat=n_spins):
-        if check_sector(spins, n, s):
-            yield spins
+class State:
 
+    BITS = 2
+    UP, DN = 0, 1
+    BITSTR_ORDER = +1
 
-class FState:
+    __slots__ = ["up", "dn"]
 
-    EMPTY = "."
-    UP = "↑"
-    DOWN = "↓"
-    DOUBLE = "⇅"  # "d"
+    def __init__(self, up, dn):
+        self.up = up if not isinstance(up, str) else int(up, 2)
+        self.dn = dn if not isinstance(dn, str) else int(dn, 2)
 
-    def __init__(self, spins, n_sites=None):
-        if isinstance(spins, int):
-            spins = [spins]
-        self.spins = list(spins)
-        self.n_sites = n_sites
+    @staticmethod
+    def set_bitcount(n):
+        State.BITS = n
 
-    def copy(self):
-        return self.__class__(self.spins, self.n_sites)
-
-    @property
-    def label(self):
-        chars = list()
-        for i in range(self.n_sites):
-            char = self.EMPTY
-            u = get_bit(self.spins[0], i)
-            if self.n_spins == 2:
-                d = get_bit(self.spins[1], i)
-                if u and d:
-                    char = self.DOUBLE
-                elif u:
-                    char = self.UP
-                elif d:
-                    char = self.DOWN
-            else:
-                if u:
-                    char = self.UP
-            chars.append(char)
-        return "".join(chars)[::-1]
+    def __format__(self, format_spec):
+        up_str = f"{self.up:{format_spec}}"
+        dn_str = f"{self.dn:{format_spec}}"
+        return f"State({up_str[::-self.BITSTR_ORDER]}, {dn_str[::self.BITSTR_ORDER]})"
 
     def __repr__(self):
-        string = ", ".join([binstr(x, self.n_sites)[::-1] for x in self.spins])
-        return f"State({string})"
+        up_str = f"{binstr(self.up, self.BITS)}"
+        dn_str = f"{binstr(self.dn, self.BITS)}"
+        return f"State({up_str[::self.BITSTR_ORDER]}, {dn_str[::self.BITSTR_ORDER]})"
 
-    def __str__(self):
-        return self.label
+    def label(self, n_sites=None):
+        n_sites = self.BITS if n_sites is None else n_sites
+        return state_label(self.up, self.dn, n_sites)[::self.BITSTR_ORDER]
 
     def __eq__(self, other):
-        return self.spins == other.spins
-
-    def __getitem__(self, item):
-        return self.spins[item]
-
-    def __setitem__(self, item, value):
-        self.spins[item] = value
-
-    def array(self):
-        return np.asarray([[int(b) for b in binstr(x, self.n_sites)] for x in self.spins])
+        return self.up == other.up and self.dn == other.dn
 
     @property
-    def n_spins(self):
-        return len(self.spins)
+    def n_up(self):
+        return bin(self.up).count("1")
+
+    @property
+    def n_dn(self):
+        return bin(self.dn).count("1")
 
     @property
     def n(self):
-        return sum([bin(x).count("1") for x in self.spins])
+        return bin(self.up).count("1") + bin(self.dn).count("1")
+
+    @property
+    def s_up(self):
+        return +0.5 * bin(self.up).count("1")
+
+    @property
+    def s_dn(self):
+        return -0.5 * bin(self.dn).count("1")
 
     @property
     def s(self):
-        num_spins = [bin(x).count("1") for x in self.spins]
-        if self.n_spins == 2:
-            return 0.5 * (num_spins[0] - num_spins[1])
+        return 0.5 * (bin(self.up).count("1") - bin(self.dn).count("1"))
+
+    def get_spinstate(self, sigma):
+        return self.up if sigma == self.UP else self.dn
+
+    def get_particles(self, sigma):
+        return self.n_up if sigma == self.UP else self.n_dn
+
+    def get_spin(self, sigma):
+        return self.s_up if sigma == self.UP else self.s_dn
+
+    def get_indices(self, sigma):
+        return [i for i, char in enumerate(binstr(self.get_spinstate(sigma))) if char == "1"]
+
+    def create(self, i, sigma):
+        op = 1 << i
+        if sigma == self.UP:
+            if op & self.up == 0:
+                return State(op ^ self.up, self.dn)
         else:
-            return 0.5 * sum(self.spins[0])
+            if op & self.dn == 0:
+                return State(self.up, op ^ self.dn)
 
-    @property
-    def occupations(self):
-        return np.sum(self.array(), axis=0)
+    def annihilate(self, i, sigma):
+        op = 1 << i
+        if sigma == self.UP:
+            if op & self.up == 1:
+                return State(op ^ self.up, self.dn)
+        else:
+            if op & self.dn == 1:
+                return State(self.up, op ^ self.dn)
 
-    @property
-    def interactions(self):
-        arr = self.occupations
-        return (arr == 2).astype("int")
+    def spin_hopping_indices(self, other, sigma):
+        st1 = self.get_spinstate(sigma)
+        st2 = other.get_spinstate(sigma)
+        diff = st1 ^ st2
+        if diff:
+            if bin(st1).count("1") == bin(st2).count("1"):
+                indices = [i for i, char in enumerate(binstr(diff, 0)) if char == "1"]
+                if len(indices) == 2:
+                    return indices
 
     def hopping_indices(self, other):
-        partners = list()
-        for s1, s2 in zip(self.spins, other.spins):
-            diff = s1 ^ s2
-            if diff:
-                if binstr(s1).count("1") == binstr(s2).count("1"):
-                    indices = [i for i, char in enumerate(binstr(diff)) if char == "1"]
-                    if len(indices) == 2:
-                        partners.append(indices)
-        return partners[0] if len(partners) == 1 else None
-
-    def check_hopping(self, other, delta=None):
-        indices = self.hopping_indices(other)
-        if indices is None:
-            return False
-        elif delta is not None and abs(indices[1] - indices[0]) != delta:
-            return False
-        return True
-
-    def create(self, i, spin):
-        if self.spins[spin] >> i & 1:
+        if self.s != other.s:
             return None
-        new = self.copy()
-        new[spin] = new[spin] | (1 << i)
-        return new
-
-    def annihilate(self, i, spin):
-        if not self.spins[spin] >> i & 1:
+        up_indices = self.spin_hopping_indices(other, self.UP)
+        dn_indices = self.spin_hopping_indices(other, self.DN)
+        if up_indices is not None and dn_indices is None:
+            return up_indices
+        elif dn_indices is not None and up_indices is None:
+            return dn_indices
+        else:
             return None
-        new = self.copy()
-        new[spin] = new[spin] & ~(1 << i)
-        return new
 
 
-class FBasis:
+class Basis:
 
-    def __init__(self, n_sites, n_spins=2, states=None, n=None, s=None):
+    def __init__(self, n_sites, n=None, s=None, states=None):
+        State.set_bitcount(n_sites)
         self.n_sites = n_sites
-        self.n_spins = n_spins
         if states is None:
-            states = list()
-            for spins in iter_state_binaries(n_sites, n_spins, n, s):
-                states.append(FState(spins, n_sites))
+            states = self.get_particle_states(n, s)
         self.states = states
+        # self.sort()
 
-    @classmethod
-    def free(cls, n_sites):
-        states = [FState([2**i], n_sites) for i in range(n_sites)]
-        return cls(n_sites, 1, states)
+    def get_particle_states(self, n=None, s=None):
+        states = list()
+        if n != 1:
+            for up, dn in iter_basis_states(self.n_sites):
+                if check_sector(up, dn, n, s):
+                    states.append(State(up, dn))
+        else:
+            s = s or +0.5
+            for i in range(self.n_sites):
+                spin_state = 1 << i
+                state = State(spin_state, 0) if s == 0.5 else State(0, spin_state)
+                states.append(state)
+        return states
+
+    def subbasis(self, n=None, s=None):
+        return Basis(self.n_sites, n, s)
 
     @property
     def n(self):
@@ -196,47 +243,165 @@ class FBasis:
 
     @property
     def labels(self):
-        return [s.label for s in self.states]
+        return [s.label(self.n_sites) for s in self.states]
 
     def __str__(self):
         string = "Basis:"
-        for s in self.states:
-            string += f"\n  {s}"
+        for label in self.labels:
+            string += f"\n  {label}"
         return string
 
     def __getitem__(self, item):
-        return self.states[item]
-
-    def __iter__(self):
-        return iter(self.states)
-
-    def __eq__(self, other):
-        for s1, s2 in zip(self.states, other.states):
-            if s1 == s2:
-                return False
-        return True
-
-    def get(self, n=None, s=None):
-        if n is not None and not hasattr(n, "__len__"):
-            n = [n]
-        if s is not None and not hasattr(s, "__len__"):
-            s = [s]
-        states = list()
-        for state in self.states:
-            if check_sector(state.spins, n, s):
-                states.append(state)
-        return states
-
-    def subbasis(self, n=None, s=None):
-        return self.__class__(self.n_sites, self.n_spins, self.get(n, s))
+        if hasattr(item, "__len__"):
+            return [self.states[i] for i in item]
+        else:
+            return self.states[item]
 
     def sort(self, key=None):
         if key is None:
-            key=lambda s: s.n
+            key = lambda s: s.n
         self.states.sort(key=key)
+
+    def get(self, n=None, s=None):
+        states = list()
+        for state in self.states:
+            if state.check_sector(n, s):
+                states.append(state)
+        return states
 
     def index(self, state):
         return self.states.index(state)
 
-    def build_annihilation_ops(self):
+    def c_operators(self):
         return annihilation_operators(self)
+
+
+def _ordering_phase(spin_state, i):
+    particles = bin(spin_state >> i + 1)[2:].count("1")
+    return 1 if particles % 2 == 0 else -1
+
+
+def annihilation_op_csr(basis, idx, spin):
+    n = basis.n
+    row, col, data = list(), list(), list()
+    for j, state in enumerate(basis):
+        other = state.annihilate(idx, spin)
+        if other is not None:
+            try:
+                i = basis.index(other)
+                spin_state = state.spin(spin)
+                val = _ordering_phase(spin_state, idx)
+                row.append(i), col.append(j), data.append(val)
+            except ValueError:
+                pass
+    return csr_matrix((data, (row, col)), shape=(n, n), dtype="int")
+
+
+class Operator:
+
+    def __init__(self, array=None):
+        if isinstance(array, Operator):
+            array = array.csr
+        self.csr = csr_matrix(array)
+
+    @classmethod
+    def c(cls, basis, idx, spin):
+        mat = annihilation_op_csr(basis, idx, spin)
+        return cls(mat)
+
+    @classmethod
+    def cdag(cls, idx, states, spin):
+        return cls.c(idx, states, spin).dag
+
+    def todense(self):
+        return self.csr.todense()
+
+    @property
+    def dense(self):
+        return self.csr.todense()
+
+    @property
+    def T(self):
+        return Operator(self.csr.T)
+
+    @property
+    def dag(self):
+        return Operator(np.conj(self.csr).T)
+
+    @property
+    def abs(self):
+        return Operator(np.abs(self.csr))
+
+    @property
+    def nop(self):
+        return self.dag * self
+
+    @staticmethod
+    def _get_value(other):
+        if isinstance(other, Operator):
+            other = other.csr
+        return other
+
+    def dot(self, other):
+        return Operator(self.csr.dot(self._get_value(other)))
+
+    def __mul__(self, other):
+        return Operator(self.csr * self._get_value(other))
+
+    def __rmul__(self, other):
+        return Operator(self._get_value(other) * self.csr)
+
+    def __truediv__(self, other):
+        return Operator(self.csr / self._get_value(other))
+
+    def __rtruediv__(self, other):
+        return Operator(self._get_value(other) / self.csr)
+
+    def __add__(self, other):
+        return Operator(self.csr + self._get_value(other))
+
+    def __radd__(self, other):
+        return Operator(self._get_value(other) + self.csr)
+
+    def __str__(self):
+        return str(self.dense)
+
+
+class HamiltonOperator:
+
+    def __init__(self, **opkwargs):
+        self.operators = opkwargs
+
+    @property
+    def keys(self):
+        return self.operators.keys()
+
+    def set_operator(self, key, value):
+        self.operators.update({key: value})
+
+    def build_operator(self, key, val):
+        ops = self.operators[key]
+        if hasattr(ops, "__len__"):
+            if not hasattr(val, "__len__"):
+                val = [val] * len(ops)
+            return sum([x * o for x, o in zip(val, ops)])
+        else:
+            return val * ops
+
+    def build(self, **params):
+        ops = list()
+        for key in self.keys:
+            val = params.get(key, None)
+            if val is None:
+                val = 0
+            ops.append(self.build_operator(key, val))
+        return sum(ops)
+
+    def dense(self, **params):
+        return self.build(**params).todense()
+
+
+def annihilation_operators(basis):
+    up_ops = [Operator.c(basis, i, State.UP) for i in range(basis.n_sites)]
+    dn_ops = [Operator.c(basis, i, State.DN) for i in range(basis.n_sites)]
+    return up_ops, dn_ops

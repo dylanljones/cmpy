@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 """
-Created on 11 Nov 2019
+Created on 18 Jan 2020
 author: Dylan Jones
 
 project: cmpy
