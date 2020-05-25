@@ -1,20 +1,14 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 """
 Created on 18 Sep 2019
-author: Dylan Jones
-
-project: cmpy
-version: 1.0
+Author: Dylan Jones
 """
 import numpy as np
 from scipy.sparse import csr_matrix
 
 
-def _ordering_phase(spins, i, spin, fermions=True):
-    if not fermions:
-        return 1
-    state = spins[spin]
-    particles = bin(state >> i + 1)[2:].count("1")
+def _ordering_phase(spin_state, i):
+    particles = bin(spin_state >> i + 1)[2:].count("1")
     return 1 if particles % 2 == 0 else -1
 
 
@@ -26,7 +20,8 @@ def annihilation_op_csr(basis, idx, spin):
         if other is not None:
             try:
                 i = basis.index(other)
-                val = _ordering_phase(state.spins, idx, spin, fermions=True)
+                spin_state = state.get_spinstate(spin)
+                val = _ordering_phase(spin_state, idx)
                 row.append(i), col.append(j), data.append(val)
             except ValueError:
                 pass
@@ -41,14 +36,13 @@ class Operator:
         self.csr = csr_matrix(array)
 
     @classmethod
-    def annihilation_operator(cls, basis, idx, spin):
-        print("-")
+    def c(cls, basis, idx, spin):
         mat = annihilation_op_csr(basis, idx, spin)
         return cls(mat)
 
     @classmethod
-    def creation_operator(cls, idx, states, spin):
-        return cls.annihilation_operator(idx, states, spin).dag
+    def cdag(cls, idx, states, spin):
+        return cls.c(idx, states, spin).dag
 
     def todense(self):
         return self.csr.todense()
@@ -104,24 +98,7 @@ class Operator:
         return str(self.dense)
 
 
-def annihilation_operators(basis):
-    operators = list()
-    for s in range(basis.n_spins):
-        ops = list()
-        for i in range(basis.n_sites):
-            ops.append(Operator.annihilation_operator(basis, i, s))
-        operators.append(ops)
-    return operators
-
-
 class HamiltonOperator:
-    """
-
-    Examples
-    --------
-    >>> hamop = HamiltonOperator(u=u_op, eps=eps_op, t=t_op)
-    >>> ham = hamop.build(u=4, eps=0, t=1)
-    """
 
     def __init__(self, **opkwargs):
         self.operators = opkwargs
@@ -150,3 +127,12 @@ class HamiltonOperator:
                 val = 0
             ops.append(self.build_operator(key, val))
         return sum(ops)
+
+    def dense(self, **params):
+        return self.build(**params).todense()
+
+
+def annihilation_operators(basis):
+    up_ops = [Operator.c(basis, i, +1) for i in range(basis.n_sites)]
+    dn_ops = [Operator.c(basis, i, -1) for i in range(basis.n_sites)]
+    return up_ops, dn_ops

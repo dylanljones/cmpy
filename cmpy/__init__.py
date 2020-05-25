@@ -1,10 +1,6 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 """
-Created on 26 Mar 2019
-author: Dylan
-
-project: cmpy
-version: 1.0
+Created on 25 May 2020
+Author: Dylan Jones
 """
-from .core import *
-from .models import *
+from .misc import *

@@ -1,10 +1,7 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 """
-Created on  06 2019
-author: dylan
-
-project: scitools
-version: 1.0
+Created on 31 Mar 2020
+Author: Dylan Jones
 """
 import itertools
 import numpy as np
@@ -718,7 +715,10 @@ class Matrix(np.ndarray):
         eigenvectors: np.ndarray
             eigenvectors of the matrix
         """
-        return la.eig(self)
+        if self.is_hermitian:
+            return la.eigh(self)
+        else:
+            return la.eig(self)
 
     def eigvals(self, num_range=None):
         """ np.ndarray: eigenvalues of the matrix """
@@ -766,7 +766,7 @@ class Matrix(np.ndarray):
     # =========================================================================
 
     def show(self, show=True, cmap=cc.m_coolwarm, norm_offset=0.2, colorbar=True, values=False,
-             x_ticklabels=None, y_ticklabels=None, xrotation=45):
+             x_ticklabels=None, y_ticklabels=None, ticklabels=None, xrotation=45):
         """ Plot the matrix using the MatrixPlot object
 
         Parameters
@@ -779,10 +779,13 @@ class Matrix(np.ndarray):
             if True, print values in boxes
         cmap: str, optional
             colormap used in the plot
-        x_ticklabels: bool, optional
+        x_ticklabels: list, optional
             Optional labels of the right basis states of the matrix, default: None
-        y_ticklabels: bool, optional
+        y_ticklabels: list, optional
             Optional labels of the left basis states of the matrix, default: None
+        ticklabels: list, optional
+            Optional ticklabels for setting both axis ticks instead of using
+            x_ticklabels and x_ticklabels seperately. The default is None.
         xrotation: int, optional
             Amount of rotation of the x-labels, default: 45
         norm_offset: float, optional
@@ -796,6 +799,9 @@ class Matrix(np.ndarray):
             mp.show_colorbar()
         if max(self.shape) < 20:
             mp.set_tickstep(1)
+
+        if ticklabels is not None:
+            x_ticklabels = y_ticklabels = ticklabels
         mp.set_ticklabels(x_ticklabels, y_ticklabels, xrotation)
         if show:
             mp.show()
