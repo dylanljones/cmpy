@@ -2,8 +2,6 @@
 __pycache__/
 .idea/
 
-test.py
-main.py
 _data/
 
 _plots.py
