@@ -6,9 +6,13 @@ Author: Dylan Jones
 import itertools
 import numpy as np
 from scipy import linalg as la
+from functools import partial
 from matplotlib import cm, colors
 import matplotlib.pyplot as plt
 import colorcet as cc
+
+
+transpose = partial(np.swapaxes, axis1=-2, axis2=-1)
 
 
 class MatrixPlot:
@@ -87,6 +91,115 @@ class MatrixPlot:
         if tight:
             self.fig.tight_layout()
         plt.show()
+
+
+# =========================================================================
+# MATRIX-BLOCKING
+# =========================================================================
+
+
+def _diag_sizes(shape, size):
+    n_max = max(shape)
+    if hasattr(size, "__len__"):
+        total_size = sum(size)
+        if total_size < n_max:
+            n = int(n_max/total_size)
+            diag_sizes = list(itertools.chain(*itertools.repeat(size, n)))
+        else:
+            diag_sizes = size
+    else:
+        n = int(n_max / size)
+        diag_sizes = [size for _ in range(n)]
+    return diag_sizes
+
+
+def blockmatrix_slices(shape, size):
+    n, m = shape
+    block_sizes = _diag_sizes(shape, size)
+    # Build row-indices
+    r_indices = [0]
+    for i in range(1, n+1):
+        idx = sum(block_sizes[:i])
+        r_indices.append(idx)
+
+        if idx >= n:
+            break
+    # Build collumn-indices
+    c_indices = [0]
+    for i in range(1, m+1):
+        idx = sum(block_sizes[:i])
+        c_indices.append(idx)
+        if idx >= m:
+            break
+
+    # Construct slices
+    slices = list()
+    for i in range(len(r_indices)-1):
+        row = list()
+        for j in range(len(c_indices)-1):
+            idx0 = slice(r_indices[i], r_indices[i+1])
+            idx1 = slice(c_indices[j], c_indices[j+1])
+            row.append((idx0, idx1))
+        slices.append(row)
+
+    return slices
+
+
+class MatrixBlocks(list):
+
+    def __init__(self, slices):
+        super().__init__(slices)
+
+    @property
+    def shape(self):
+        return len(self), len(self[0])
+
+    def __getitem__(self, idx):
+        if isinstance(idx, int):
+            return super().__getitem__(idx)
+        else:
+            return super().__getitem__(idx[0])[idx[1]]
+
+
+# =========================================================================
+# METHODS
+# =========================================================================
+
+def hermitian(a):
+    """ Returns the hermitian of the array
+
+    Parameters
+    ----------
+    a: array_like
+
+    Returns
+    -------
+    hermitian: np.ndarray
+    """
+    return np.conj(np.transpose(a))
+
+
+def is_hermitian(a, rtol=1e-5, atol=1e-8, equal_nan=False):
+    """ Returns True if the array is hermitian and False otherwise.
+
+    Checks if the hermitian of the given array equals the array within a tolerance by calling np.allcloe.
+
+    Parameters
+    ----------
+    a: array_like
+        The array to check.
+    rtol: float, optional
+        The relative tolerance parameter used in the comparison (see np.allclose).
+    atol: float, optional
+        The absolute tolerance parameter used in the comparison (see np.allclose).
+    equal_nan: bool, optional
+        Flag if NaN's are compared.
+
+    Returns
+    -------
+    hermitian: bool
+    """
+    return np.allclose(a, np.conj(np.transpose(a)), rtol, atol, equal_nan)
 
 
 def diagonal(mat, offset=0):
@@ -384,72 +497,44 @@ def eig_banded(a, lower=False):
     return la.eig_banded(a_band, lower=lower)
 
 
-# =========================================================================
-# MATRIX-BLOCKING
-# =========================================================================
+class Decomposition:
 
+    __slots__ = ('rv', 'xi', 'rv_inv')
 
-def _diag_sizes(shape, size):
-    n_max = max(shape)
-    if hasattr(size, "__len__"):
-        total_size = sum(size)
-        if total_size < n_max:
-            n = int(n_max/total_size)
-            diag_sizes = list(itertools.chain(*itertools.repeat(size, n)))
+    def __init__(self, rv, xi, rv_inv):
+        self.rv = rv
+        self.xi = xi
+        self.rv_inv = rv_inv
+
+    def transform_basis(self, transformation):
+        rv = self.rv @ np.asarray(transformation)
+        self.rv = rv
+        self.rv_inv = np.linalg.inv(rv)
+
+    @classmethod
+    def decompose(cls, a):
+        a = np.asarray(a)
+        if is_hermitian(a):
+            xi, rv = np.linalg.eigh(a)
+            rv_inv = np.conj(rv.T)
         else:
-            diag_sizes = size
-    else:
-        n = int(n_max / size)
-        diag_sizes = [size for _ in range(n)]
-    return diag_sizes
+            xi, rv = np.linalg.eig(a)
+            rv_inv = np.linalg.inv(rv)
+        return cls(rv, xi, rv_inv)
 
-
-def blockmatrix_slices(shape, size):
-    n, m = shape
-    block_sizes = _diag_sizes(shape, size)
-    # Build row-indices
-    r_indices = [0]
-    for i in range(1, n+1):
-        idx = sum(block_sizes[:i])
-        r_indices.append(idx)
-
-        if idx >= n:
-            break
-    # Build collumn-indices
-    c_indices = [0]
-    for i in range(1, m+1):
-        idx = sum(block_sizes[:i])
-        c_indices.append(idx)
-        if idx >= m:
-            break
-
-    # Construct slices
-    slices = list()
-    for i in range(len(r_indices)-1):
-        row = list()
-        for j in range(len(c_indices)-1):
-            idx0 = slice(r_indices[i], r_indices[i+1])
-            idx1 = slice(c_indices[j], c_indices[j+1])
-            row.append((idx0, idx1))
-        slices.append(row)
-
-    return slices
-
-
-class MatrixBlocks(list):
-
-    def __init__(self, slices):
-        super().__init__(slices)
-
-    @property
-    def shape(self):
-        return len(self), len(self[0])
-
-    def __getitem__(self, idx):
-        if isinstance(idx, int):
-            return super().__getitem__(idx)
+    def reconstrunct(self, xi=None, method='full'):
+        method = method.lower()
+        xi = self.xi if xi is None else xi
+        if 'diag'.startswith(method):
+            a = ((transpose(self.rv_inv)*self.rv) @ xi[..., np.newaxis])[..., 0]
+        elif 'full'.startswith(method):
+            a = (self.rv * xi[..., np.newaxis, :]) @ self.rv_inv
         else:
-            return super().__getitem__(idx[0])[idx[1]]
+            a = np.einsum(method, self.rv, xi, self.rv_inv)
+        return a
+
+    def __str__(self):
+        return f"{self.__class__.__name__}[{self.rv.shape}x{self.xi.shape}x{self.rv_inv.shape}]"
 
 
 # =========================================================================
@@ -496,6 +581,23 @@ class Matrix(np.ndarray):
         """
         m = n if m is None else m
         return cls(np.zeros((n, m)), dtype)
+
+    @classmethod
+    def zeros_like(cls, a, dtype=None):
+        """ Initialize Matrix filled with zeros based on the given array
+
+        Parameters
+        ----------
+        a: array_like
+            The shape and dtype of this array will be copied.
+        dtype: str or np.dtype, optional
+            Optional datatype of the matrix
+
+        Returns
+        -------
+        matrix: Matrix
+        """
+        return cls(np.zeros_like(a), dtype)
 
     @classmethod
     def nan(cls, n, m=None, dtype=None):
@@ -643,11 +745,8 @@ class Matrix(np.ndarray):
     def equal(self, other):
         return np.array_equal(self, other)
 
-    def almost_equal(self, other, thresh=1e-6):
-        diff = np.abs(self - other)
-        if np.any(diff > thresh):
-            return False
-        return True
+    def almost_equal(self, other, rtol=1e-5, atol=1e-8, equal_nan=False):
+        return np.allclose(self, other, rtol, atol, equal_nan)
 
     @property
     def h(self):
@@ -655,7 +754,7 @@ class Matrix(np.ndarray):
 
     @property
     def is_hermitian(self):
-        return self.almost_equal(self.h)
+        return self.almost_equal(np.conj(self).T)
 
     @property
     def offdiag_numbers(self):
@@ -698,15 +797,22 @@ class Matrix(np.ndarray):
         val: scalar or array_like
             Value to be written on the diagonal, its type must be compatible
             with that of the array a.
-        offset: int, default: 0
-            offset index of diagonal. An offset of 1 results
+        offset: int or (2) tuple, default: 0
+            Offset index of diagonal. An offset of 1 results
             in the first upper offdiagonal of the matrix,
             an offset of -1 in the first lower offdiagonal.
         """
-        fill_diagonal(self, val, offset)
+        offset = np.atleast_1d(offset)
+        for off in offset:
+            fill_diagonal(self, val, off)
 
-    def eig(self):
-        """ Calculate eigenvalues and -vectors of the matrix
+    def eig(self, check_hermitian=True):
+        """ Calculate eigenvalues and -vectors of the Matrix-instance.
+
+        Parameters
+        ----------
+        check_hermitian: bool, optional
+            If True and the instance of the the mnatrix is hermitian, np.eigh is used as eigensolver.
 
         Returns
         -------
@@ -715,18 +821,46 @@ class Matrix(np.ndarray):
         eigenvectors: np.ndarray
             eigenvectors of the matrix
         """
-        if self.is_hermitian:
+        if check_hermitian and self.is_hermitian:
             return la.eigh(self)
         else:
             return la.eig(self)
 
-    def eigvals(self, num_range=None):
-        """ np.ndarray: eigenvalues of the matrix """
-        return la.eigvalsh(self, eigvals=num_range)
+    def eigh(self):
+        """ Calculate eigenvalues and -vectors of the hermitian matrix.
 
-    def eigvecs(self):
-        """ np.ndarray: eigenvectors of the matrix """
-        return la.eig(self)[1]
+        Returns
+        -------
+        eigenvalues: np.ndarray
+            eigenvalues of the matrix
+        eigenvectors: np.ndarray
+            eigenvectors of the matrix
+        """
+        return la.eigh(self)
+
+    def eigvals(self, check_hermitian=True, num_range=None):
+        """ np.ndarray: The eigenvalues of the matrix """
+        if check_hermitian and self.is_hermitian:
+            return la.eigvalsh(self, eigvals=num_range)
+        else:
+            return la.eigvals(self)
+
+    def eigvecs(self, check_hermitian=True):
+        """ np.ndarray: The eigenvectors of the matrix """
+        return self.eig(check_hermitian)[1]
+
+    def decompose(self):
+        """ Decomposes the matrix into it's eigen-decomposition (eigenvalues and eigenvectors).
+
+        Returns
+        -------
+        decomposition: Decomposition
+        """
+        return Decomposition.decompose(self)
+
+    @classmethod
+    def reconstruct(cls, decomposition, xi=None, method='full'):
+        return cls(decomposition.reconstrunct(xi, method))
 
     # =========================================================================
 
@@ -765,7 +899,7 @@ class Matrix(np.ndarray):
 
     # =========================================================================
 
-    def show(self, show=True, cmap=cc.m_coolwarm, norm_offset=0.2, colorbar=True, values=False,
+    def show(self, show=True, cmap=cc.m_coolwarm, norm_offset=0.2, colorbar=False, values=False,
              x_ticklabels=None, y_ticklabels=None, ticklabels=None, xrotation=45):
         """ Plot the matrix using the MatrixPlot object
 
@@ -799,10 +933,9 @@ class Matrix(np.ndarray):
             mp.show_colorbar()
         if max(self.shape) < 20:
             mp.set_tickstep(1)
-
-        if ticklabels is not None:
-            x_ticklabels = y_ticklabels = ticklabels
-        mp.set_ticklabels(x_ticklabels, y_ticklabels, xrotation)
+            if ticklabels is not None:
+                x_ticklabels = y_ticklabels = ticklabels
+            mp.set_ticklabels(x_ticklabels, y_ticklabels, xrotation)
         if show:
             mp.show()
         return mp
