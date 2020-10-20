@@ -5,10 +5,10 @@ Author: Dylan Jones
 
 Abstract base classes for physical models.
 """
-from abc import ABC, abstractmethod
+from abc import ABC
+from typing import Any, ItemsView, Dict, Optional, List
 from .basis import FockBasis
 from .operators import HamiltonOperator
-from typing import Any, ItemsView
 
 
 class ModelParameters(object):
@@ -19,7 +19,7 @@ class ModelParameters(object):
      This class is usually used as a base-class for model-classes.
      """
 
-    def __init__(self, **params):
+    def __init__(self, **params: Dict[str, Any]):
         """ Initializes the ModelParameters-instance.
 
         Parameters
@@ -30,7 +30,7 @@ class ModelParameters(object):
         self.__params__ = dict(params)
 
     @property
-    def params(self):
+    def params(self) -> Dict[str, Any]:
         """ dict: Returns a dictionary of all parameters. """
         return self.__params__
 
@@ -38,7 +38,7 @@ class ModelParameters(object):
         """ ItemsView: Returns the items of the parameter dictionary. """
         return self.__params__.items()
 
-    def set_param(self, key: str, value: Any):
+    def set_param(self, key: str, value: Any) -> None:
         """ Sets a parameter
 
         Parameters
@@ -50,11 +50,11 @@ class ModelParameters(object):
         """
         self.__params__[key] = value
 
-    def update_param(self, **params: dict):
+    def update_param(self, **params: Dict[str, Any]) -> None:
         """ Update the parameters """
         self.__params__.update(params)
 
-    def del_param(self, key: str):
+    def del_param(self, key: str) -> None:
         """ Deletes a parameter with the given name
 
         Parameters
@@ -64,7 +64,7 @@ class ModelParameters(object):
         """
         del self.__params__[key]
 
-    def rename_param(self, key, new_key):
+    def rename_param(self, key: str, new_key: str) -> None:
         """ Renames an existing parameter.
 
         Parameters
@@ -77,7 +77,7 @@ class ModelParameters(object):
         self.__params__[new_key] = self.__params__[key]
         del self.__params__[key]
 
-    def __getattribute__(self, key):
+    def __getattribute__(self, key: str) -> Any:
         """ Make parameters accessable as attributes. """
         key = str(key)
         if not key.startswith("__") and key in self.__params__.keys():
@@ -85,7 +85,7 @@ class ModelParameters(object):
         else:
             return super().__getattribute__(key)
 
-    def __setattr__(self, key, value):
+    def __setattr__(self, key: str, value: Any) -> None:
         """ Make parameters accessable as attributes. """
         key = str(key)
         if not key.startswith("__") and key in self.__params__.keys():
@@ -93,18 +93,18 @@ class ModelParameters(object):
         else:
             super().__setattr__(key, value)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Any:
         """ Make parameters accessable as dictionary items. """
         return self.__params__[key]
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: Any) -> None:
         """ Make parameters accessable as dictionary items. """
         self.__params__[key] = value
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}({str(self.__params__)})"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return ", ".join([f"{k}={v}" for k, v in self.__params__.items()])
 
 
@@ -117,7 +117,7 @@ class AbstractModel(ModelParameters, ABC):
     All parameters are accessable as attributes or dictionary-items.
     """
 
-    def __init__(self, **params):
+    def __init__(self, **params: Dict[str, Any]):
         """ Initializes the AbstractModel-instance with the given initial parameters.
 
         Parameters
@@ -127,23 +127,23 @@ class AbstractModel(ModelParameters, ABC):
         ModelParameters.__init__(self, **params)
         ABC.__init__(self)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.__class__.__name__}({ModelParameters.__str__(self)})"
 
 
 # noinspection PyAttributeOutsideInit
 class AbstractBasisModel(AbstractModel):
 
-    def __init__(self, num_sites=0, **params):
+    def __init__(self, num_sites: Optional[int] = 0, **params: Dict[str, Any]):
         super(AbstractModel, self).__init__(**params)
         self.basis = FockBasis(num_sites)
 
     @property
-    def num_sites(self):
+    def num_sites(self) -> int:
         return self.basis.num_sites
 
     @property
-    def sector_keys(self):
+    def sector_keys(self) -> List[int]:
         return self.basis.fillings
 
     @property
