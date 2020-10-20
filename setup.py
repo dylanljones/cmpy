@@ -8,7 +8,7 @@ def requirements():
 
 setup(
     name='cmpy',
-    version='0.0.2',
+    version='0.0.4',
     description='',
     url='https://github.com/dylanljones/cmpy',
     license='MIT',
