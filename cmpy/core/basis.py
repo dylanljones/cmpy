@@ -8,8 +8,10 @@ import numpy as np
 from dataclasses import dataclass
 from collections import defaultdict
 from itertools import product
+from typing import Optional, Union, List
 
-__BITORDER__ = -1
+_BITORDER = -1
+_ARRORDER = -1
 
 BITS = 4
 DTYPE = np.int16
@@ -23,17 +25,18 @@ UD_CHAR = "⇅"  # "d"
 SPIN_CHARS = {0: EMPTY, UP: UP_CHAR, DN: DN_CHAR, 2: UD_CHAR}
 
 
-def set_global_bitnum(bits):
+def set_global_bitnum(bits: int) -> None:
     global BITS
     BITS = bits
 
 
-def set_global_dtype(dtype):
+def set_global_dtype(dtype: Union[int, str]) -> None:
     global DTYPE
     DTYPE = dtype
 
 
-def spinstate_label(spinstate, sigma, digits=None, bra=False, ket=True):
+def spinstate_label(spinstate: int, sigma: int, digits: Optional[int] = None,
+                    bra: bool = False, ket: bool = True) -> str:
     spinchar = UP_CHAR if sigma == UP else DN_CHAR
     digits = digits if digits is not None else BITS
     min_digits = len(bin(spinstate)[2:])
@@ -42,7 +45,7 @@ def spinstate_label(spinstate, sigma, digits=None, bra=False, ket=True):
     for i in range(num_chars):
         char = spinchar if spinstate >> i & 1 else EMPTY
         chars.append(char)
-    label = "".join(chars)[::-__BITORDER__]
+    label = "".join(chars)[::-_BITORDER]
     if bra:
         label = f"⟨{label}|"
     elif ket:
@@ -50,7 +53,8 @@ def spinstate_label(spinstate, sigma, digits=None, bra=False, ket=True):
     return label
 
 
-def state_label(up_num, dn_num, digits=None, bra=False, ket=True):
+def state_label(up_num: int, dn_num: int, digits: Optional[int] = None,
+                bra: bool = False, ket: bool = True) -> str:
     digits = digits if digits is not None else BITS
     min_digits = max(len(bin(up_num)[2:]), len(bin(dn_num)[2:]))
     num_chars = max(min_digits, digits)
@@ -65,7 +69,7 @@ def state_label(up_num, dn_num, digits=None, bra=False, ket=True):
         else:
             char = SPIN_CHARS[u + d]
         chars.append(char)
-    label = "".join(chars)[::-__BITORDER__]
+    label = "".join(chars)[::-_BITORDER]
     if bra:
         label = f"⟨{label}|"
     elif ket:
@@ -73,7 +77,7 @@ def state_label(up_num, dn_num, digits=None, bra=False, ket=True):
     return label
 
 
-def binstr(num, digits=None):
+def binstr(num: int, digits: Optional[int] = None) -> str:
     """ Returns the binary representation of an integer.
 
     Parameters
@@ -84,10 +88,10 @@ def binstr(num, digits=None):
         Minimum number of digits used. The default is the global value `BITS`.
     """
     fill = digits if digits is not None else BITS
-    return f"{num:0{fill}b}"[::__BITORDER__]
+    return f"{num:0{fill}b}"[::_BITORDER]
 
 
-def binarr(num, digits=None, dtype=None):
+def binarr(num: int, digits: Optional[int] = None, dtype: Optional[Union[int, str]] = None) -> np.ndarray:
     """ Returns the bits of an integer as a binary array.
 
     Parameters
@@ -104,80 +108,80 @@ def binarr(num, digits=None, dtype=None):
     binarr: np.ndarray
     """
     fill = digits if digits is not None else BITS
-    return np.fromiter(f"{num:0{fill}b}"[::__BITORDER__], dtype=dtype or DTYPE)
+    return np.fromiter(f"{num:0{fill}b}"[::_ARRORDER], dtype=dtype or DTYPE)
 
 
 class Binary(int):
 
     @property
-    def int(self):
+    def num(self) -> int:
         return int(self)
 
     @property
-    def bin(self):
+    def bin(self) -> bin:
         return bin(self)
 
-    def binstr(self, digits=None):
+    def binstr(self, digits: Optional[int] = None) -> str:
         """ Returns the binary representation of the state """
         return binstr(self, digits)
 
-    def binarr(self, digits=None, dtype=None):
+    def binarr(self, digits: Optional[int] = None, dtype: Optional[Union[int, str]] = None) -> np.ndarray:
         """ Returns the bits of an integer as a binary array. """
         return binarr(self, digits, dtype)
 
-    def count(self, value=1):
+    def count(self, value: int = 1) -> int:
         return bin(self).count(str(value))
 
-    def get(self, bit):
+    def get(self, bit: int) -> int:
         return int(self & (1 << bit))
 
-    def flip(self, bit):
+    def flip(self, bit: int) -> 'Binary':
         return self.__class__(self ^ (1 << bit))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.binstr()})"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.binstr()
 
     # -------------- Math operators -------------
 
-    def __add__(self, other):
+    def __add__(self, other: Union[int, 'Binary']) -> 'Binary':
         return self.__class__(super().__add__(other))
 
-    def __radd__(self, other):
+    def __radd__(self, other: Union[int, 'Binary']) -> 'Binary':
         return self.__class__(super().__radd__(other))
 
-    def __sub__(self, other):
+    def __sub__(self, other: Union[int, 'Binary']) -> 'Binary':
         return self.__class__(super().__sub__(other))
 
-    def __rsub__(self, other):
+    def __rsub__(self, other: Union[int, 'Binary']) -> 'Binary':
         return self.__class__(super().__rsub__(other))
 
-    def __mul__(self, other):
+    def __mul__(self, other: Union[int, 'Binary']) -> 'Binary':
         return self.__class__(super().__mul__(other))
 
-    def __rmul__(self, other):
+    def __rmul__(self, other: Union[int, 'Binary']) -> 'Binary':
         return self.__class__(super().__rmul__(other))
 
     # -------------- Binary operators -------------
 
-    def __invert__(self):
+    def __invert__(self) -> 'Binary':
         return self.__class__(super().__invert__())
 
-    def __and__(self, other):
+    def __and__(self, other: Union[int, 'Binary']) -> 'Binary':
         return self.__class__(super().__and__(other))
 
-    def __or__(self, other):
+    def __or__(self, other: Union[int, 'Binary']) -> 'Binary':
         return self.__class__(super().__or__(other))
 
-    def __xor__(self, other):
+    def __xor__(self, other: Union[int, 'Binary']) -> 'Binary':
         return self.__class__(super().__xor__(other))
 
-    def __lshift__(self, other):
+    def __lshift__(self, other: Union[int, 'Binary']) -> 'Binary':
         return self.__class__(super().__lshift__(other))
 
-    def __rshift__(self, other):
+    def __rshift__(self, other: Union[int, 'Binary']) -> 'Binary':
         return self.__class__(super().__rshift__(other))
 
 
@@ -186,7 +190,8 @@ class Binary(int):
 # =========================================================================
 
 
-def overlap(num1, num2, digits=None, dtype=None):
+def overlap(num1: Union[int, 'SpinState'], num2: Union[int, 'SpinState'],
+            digits: Optional[int] = None, dtype: Optional[Union[int, str]] = None) -> np.ndarray:
     """ Computes the overlap of two integers and returns the results as a binary array.
 
     Parameters
@@ -207,7 +212,8 @@ def overlap(num1, num2, digits=None, dtype=None):
     return binarr(num1 & num2, digits, dtype)
 
 
-def occupations(num, digits=None, dtype=None):
+def occupations(num: Union[int, 'SpinState'], digits: Optional[int] = None,
+                dtype: Optional[Union[int, str]] = None) -> np.ndarray:
     """ Returns the site occupations of a state as a binary array.
 
     Parameters
@@ -226,7 +232,7 @@ def occupations(num, digits=None, dtype=None):
     return binarr(num, digits, dtype)
 
 
-def create(num, pos):
+def create(num: Union[int, 'SpinState'], pos: int) -> Union[int, None]:
     """ Creates a particle at `pos` if possible and returns the new state.
 
     Parameters
@@ -246,7 +252,7 @@ def create(num, pos):
     return None
 
 
-def annihilate(num, pos):
+def annihilate(num: Union[int, 'SpinState'], pos: int) -> Union[int, None]:
     """ Annihilates a particle at `pos` if possible and returns the new state.
 
     Parameters
@@ -268,38 +274,38 @@ def annihilate(num, pos):
 
 class SpinState(Binary):
 
-    def binstr(self, digits=None):
+    def binstr(self, digits: Optional[int] = None) -> str:
         """ Returns the binary representation of the state """
         return binstr(self, digits)
 
-    def binarr(self, digits=None, dtype=None):
+    def binarr(self, digits: Optional[int] = None, dtype: Optional[Union[int, str]] = None) -> np.ndarray:
         """ Returns the bits of the integer as a binary array. """
         return binarr(self, digits, dtype)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.binstr()})"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.binstr()
 
     @property
-    def n(self):
+    def n(self) -> int:
         """int: Total occupation of the state"""
         return bin(self).count("1")
 
-    def occ(self, pos):
+    def occ(self, pos: int) -> int:
         """ Returns the occupation at index `pos`."""
         return self & (1 << pos)
 
-    def occupations(self, dtype=None):
+    def occupations(self, dtype: Optional[Union[int, str]] = None) -> np.ndarray:
         """ Returns the site occupations of a state as a binary array. """
         return occupations(self, dtype=dtype)
 
-    def overlap(self, other, dtype=None):
+    def overlap(self, other: Union[int, 'SpinState'], dtype: Optional[Union[int, str]] = None) -> np.ndarray:
         """ Computes the overlap with another state and returns the results as a binary array. """
         return overlap(self, other, dtype=dtype)
 
-    def create(self, pos):
+    def create(self, pos: int) -> 'SpinState':
         """ Creates a particle at `pos` if possible and returns the new state.
 
         Parameters
@@ -309,7 +315,7 @@ class SpinState(Binary):
         """
         return self.__class__(create(self, pos))
 
-    def annihilate(self, pos):
+    def annihilate(self, pos: int) -> 'SpinState':
         """ Annihilates a particle at `pos` if possible and returns the new state.
 
         Parameters
@@ -320,7 +326,7 @@ class SpinState(Binary):
         return self.__class__(annihilate(self, pos))
 
 
-def create_spinstates(num_sites):
+def create_spinstates(num_sites: int) -> List[SpinState]:
     """ Creates all possible `SpinState`s for the given number of sites.
 
     Parameters
@@ -343,18 +349,20 @@ def create_spinstates(num_sites):
 @dataclass
 class State:
 
+    """ Container class for a state consisting of a up- and down-spinstate. """
+
     __slots__ = ['up', 'dn']
 
     up: int or SpinState
     dn: int or SpinState
 
-    def label(self, digits=None, bra=False, ket=True):
+    def label(self, digits: Optional[int] = None, bra: bool = False, ket: bool = True) -> str:
         return state_label(self.up, self.dn, digits, bra, ket)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.up}, {self.dn})"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.__class__.__name__}: {self.label()}"
 
 
