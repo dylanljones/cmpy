@@ -13,9 +13,6 @@ from typing import Optional, Union, List
 _BITORDER = -1
 _ARRORDER = -1
 
-BITS = 4
-DTYPE = np.int16
-
 UP, DN = +1, -1
 
 EMPTY = "."
@@ -25,22 +22,12 @@ UD_CHAR = "⇅"  # "d"
 SPIN_CHARS = {0: EMPTY, UP: UP_CHAR, DN: DN_CHAR, 2: UD_CHAR}
 
 
-def set_global_bitnum(bits: int) -> None:
-    global BITS
-    BITS = bits
-
-
-def set_global_dtype(dtype: Union[int, str]) -> None:
-    global DTYPE
-    DTYPE = dtype
-
-
-def spinstate_label(spinstate: int, sigma: int, digits: Optional[int] = None,
+def spinstate_label(spinstate: int, sigma: int, width: Optional[int] = None,
                     bra: bool = False, ket: bool = True) -> str:
     spinchar = UP_CHAR if sigma == UP else DN_CHAR
-    digits = digits if digits is not None else BITS
+    width = width if width is not None else 0
     min_digits = len(bin(spinstate)[2:])
-    num_chars = max(min_digits, digits)
+    num_chars = max(min_digits, width)
     chars = list()
     for i in range(num_chars):
         char = spinchar if spinstate >> i & 1 else EMPTY
@@ -53,11 +40,11 @@ def spinstate_label(spinstate: int, sigma: int, digits: Optional[int] = None,
     return label
 
 
-def state_label(up_num: int, dn_num: int, digits: Optional[int] = None,
+def state_label(up_num: int, dn_num: int, width: Optional[int] = None,
                 bra: bool = False, ket: bool = True) -> str:
-    digits = digits if digits is not None else BITS
+    width = width if width is not None else 0
     min_digits = max(len(bin(up_num)[2:]), len(bin(dn_num)[2:]))
-    num_chars = max(min_digits, digits)
+    num_chars = max(min_digits, width)
     chars = list()
     for i in range(num_chars):
         u = up_num >> i & 1
@@ -77,41 +64,49 @@ def state_label(up_num: int, dn_num: int, digits: Optional[int] = None,
     return label
 
 
-def binstr(num: int, digits: Optional[int] = None) -> str:
+def binstr(num: int, width: Optional[int] = None) -> str:
     """ Returns the binary representation of an integer.
 
     Parameters
     ----------
     num: int
         The number to convert.
-    digits: int, optional
-        Minimum number of digits used. The default is the global value `BITS`.
+    width: int, optional
+        Minimum number of digits used. The default is `None`.
     """
-    fill = digits if digits is not None else BITS
+    fill = width if width is not None else 0
     return f"{num:0{fill}b}"[::_BITORDER]
 
 
-def binarr(num: int, digits: Optional[int] = None, dtype: Optional[Union[int, str]] = None) -> np.ndarray:
+def binarr(num: int, width: Optional[int] = None, dtype: Optional[Union[int, str]] = None) -> np.ndarray:
     """ Returns the bits of an integer as a binary array.
 
     Parameters
     ----------
     num: int or Spinstate
         The number representing the binary state.
-    digits: int, optional
-        Minimum number of digits used. The default is the global value `BITS`.
+    width: int, optional
+        Minimum number of digits used. The default is `None`.
     dtype: int or str, optional
-        An optional datatype-parameter. The default is the global value `DTYPE`.
+        An optional datatype-parameter. The default is `None`.
 
     Returns
     -------
     binarr: np.ndarray
     """
-    fill = digits if digits is not None else BITS
-    return np.fromiter(f"{num:0{fill}b}"[::_ARRORDER], dtype=dtype or DTYPE)
+    fill = width if width is not None else 0
+    return np.fromiter(f"{num:0{fill}b}"[::_ARRORDER], dtype=dtype)
 
 
 class Binary(int):
+
+    def __init__(self, *args, **kwargs):  # noqa
+        super().__init__()
+
+    def __new__(cls, *args, width: Optional[int] = None, **kwargs):
+        self = int.__new__(cls, *args, **kwargs)  # noqa
+        self.width = width
+        return self
 
     @property
     def num(self) -> int:
@@ -121,13 +116,13 @@ class Binary(int):
     def bin(self) -> bin:
         return bin(self)
 
-    def binstr(self, digits: Optional[int] = None) -> str:
+    def binstr(self, width: Optional[int] = None) -> str:
         """ Returns the binary representation of the state """
-        return binstr(self, digits)
+        return binstr(self, width or self.width)
 
-    def binarr(self, digits: Optional[int] = None, dtype: Optional[Union[int, str]] = None) -> np.ndarray:
+    def binarr(self, width: Optional[int] = None, dtype: Optional[Union[int, str]] = None) -> np.ndarray:
         """ Returns the bits of an integer as a binary array. """
-        return binarr(self, digits, dtype)
+        return binarr(self, width or self.width, dtype)
 
     def count(self, value: int = 1) -> int:
         return bin(self).count(str(value))
@@ -274,14 +269,6 @@ def annihilate(num: Union[int, 'SpinState'], pos: int) -> Union[int, None]:
 
 class SpinState(Binary):
 
-    def binstr(self, digits: Optional[int] = None) -> str:
-        """ Returns the binary representation of the state """
-        return binstr(self, digits)
-
-    def binarr(self, digits: Optional[int] = None, dtype: Optional[Union[int, str]] = None) -> np.ndarray:
-        """ Returns the bits of the integer as a binary array. """
-        return binarr(self, digits, dtype)
-
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.binstr()})"
 
@@ -338,9 +325,6 @@ def create_spinstates(num_sites: int) -> List[SpinState]:
     -------
     spinstates: list of SpinState
     """
-    # Set length of binary representation
-    global BITS
-    BITS = num_sites
     # create states
     max_int = int("1" * num_sites, base=2)
     return [SpinState(num) for num in range(max_int + 1)]
@@ -475,7 +459,7 @@ class BasisSector(StateContainer):
         idx_dn = state_idx % self.size
         return self.up_states[idx_up], self.dn_states[idx_dn]
 
-    def state_arrays(self, dtype=DTYPE):
+    def state_arrays(self, dtype=None):
         up_states = np.asarray(self.up_states, dtype=dtype)
         dn_states = np.asarray(self.dn_states, dtype=dtype)
         return up_states, dn_states
