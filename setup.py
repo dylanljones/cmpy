@@ -8,12 +8,12 @@ def requirements():
 
 setup(
     name='cmpy',
-    version='0.0.1',
+    version='0.0.2',
     description='',
-    url='',
-    license='',
+    url='https://github.com/dylanljones/cmpy',
+    license='MIT',
     author='Dylan Jones',
-    author_email='',
+    author_email='dylanljones94@gmail.com',
     packages=find_packages(),
     requirements=requirements(),
 )
