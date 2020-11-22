@@ -1,31 +1,106 @@
 # coding: utf-8
-"""
-Created on 25 Apr 2020
-author: Dylan Jones
-"""
+#
+# This code is part of cmpy.
+#
+# Copyright (c) 2020, Dylan Jones
+#
+# This code is licensed under the MIT License. The copyright notice in the
+# LICENSE file in the root directory and this permission notice shall
+# be included in all copies or substantial portions of the Software.
+
 import numpy as np
-from lattpy import chain
-from pyplot import Plot
+import matplotlib.pyplot as plt
+from .utils import chain
 
 
-def dispersion_dos_plot(omega, bins, dos):
-    plot = Plot(newax=False)
-    plot.set_gridspec(1, 2, wr=(3, 1))
+def scale_xaxis(num_points, disp, scales=None):
+    sect_size = len(disp) / (num_points - 1)
+    scales = np.ones(num_points - 1) if scales is None else scales
+    k0, k, ticks = 0, list(), [0]
+    for scale in scales:
+        k.extend(k0 + np.arange(sect_size) * scale)
+        k0 = k[-1]
+        ticks.append(k0)
+    return k, ticks
 
-    ax1 = plot.add_gridsubplot(0)
-    plot.set_labels(r'$q$', r'$\omega(q)$')
-    plot.plot(omega)
-    plot.grid()
 
-    plot.add_gridsubplot(1)
-    plot.yaxis.set_ticklabels([])
-    plot.grid()
-    plot.plot(dos, bins)
-    plot.fill(bins, 0, dos, invert_axis=True, alpha=0.5)
+def band_subplots(ticks, labels, x_label="k", disp_label="E(k)", grid="both"):
+    fig, ax = plt.subplots()
+    ax.set_xlim(0, ticks[-1])
+    ax.set_xticks(ticks)
+    ax.set_xticklabels(labels)
+    if x_label:
+        ax.set_xlabel(f"${x_label}$")
+    if disp_label:
+        ax.set_ylabel(f"${disp_label}$")
 
-    plot.set_limits(x=(0, plot.xlim[1]), y=ax1.get_ylim())
-    plot.set_labels(r'$n(\omega)$')
-    return plot
+    if grid:
+        ax.grid(axis=grid)
+    fig.tight_layout()
+    return fig, ax
+
+
+def plot_dispersion(ax, k, disp, fill=True, alpha=0.2, lw=1.0):
+    for band in disp.T:
+        ax.plot(k, band, lw=lw)
+        if fill:
+            ax.fill_between([0, np.max(k)], min(band), max(band), alpha=alpha)
+
+
+def plot_bands(disp, labels, x_label="k", disp_label="E(k)", grid="both", fill=True,
+               alpha=0.2, lw=1.0, show=True, scales=None):
+
+    num_points = len(labels)
+    k, ticks = scale_xaxis(num_points, disp, scales)
+
+    fig, ax = band_subplots(ticks, labels, x_label, disp_label, grid)
+    plot_dispersion(ax, k, disp, fill, alpha, lw)
+
+    if show:
+        plt.show()
+    return fig, ax
+
+
+def band_dos_subplots(ticks, labels, x_label="k", disp_label="E(k)", dos_label="n(E)",
+                      wratio=(3, 1), grid="both"):
+    fig, axs = plt.subplots(1, 2, gridspec_kw={"width_ratios": wratio}, sharey="all")
+    ax1, ax2 = axs
+
+    ax1.set_xlim(0, ticks[-1])
+    if x_label:
+        ax1.set_xlabel(f"${x_label}$")
+    if disp_label:
+        ax1.set_ylabel(f"${disp_label}$")
+    ax1.set_xticks(ticks)
+    ax1.set_xticklabels(labels)
+
+    if dos_label:
+        ax2.set_xlabel(f"${dos_label}$")
+    ax2.set_xticks([0])
+
+    if grid:
+        ax1.grid(axis=grid)
+        ax2.grid(axis=grid)
+    fig.tight_layout()
+    return fig, axs
+
+
+def plot_band_dos(disp, bins, dos, labels, x_label="k", disp_label="E(k)", dos_label="n(E)",
+                  wratio=(3, 1), grid="both", fill=True, disp_alpha=0.2, dos_color="C0",
+                  dos_alpha=0.2, lw=1.0, scales=None, show=True):
+    num_points = len(labels)
+    k, ticks = scale_xaxis(num_points, disp, scales)
+
+    fig, axs = band_dos_subplots(ticks, labels, x_label, disp_label, dos_label, wratio, grid)
+    ax1, ax2 = axs
+    plot_dispersion(ax1, k, disp, fill=fill, alpha=disp_alpha, lw=lw)
+    ax2.plot(dos, bins, lw=lw, color=dos_color)
+    ax2.fill_betweenx(bins, 0, dos, alpha=dos_alpha, color=dos_color)
+    ax2.set_xlim(0, ax2.get_xlim()[1])
+
+    if show:
+        plt.show()
+    return fig, axs
 
 
 class Bins:

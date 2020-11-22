@@ -1,13 +1,16 @@
 # coding: utf-8
-"""
-Created on 06 Jul 2020
-Author: Dylan Jones
-"""
+#
+# This code is part of cmpy.
+#
+# Copyright (c) 2020, Dylan Jones
+#
+# This code is licensed under the MIT License. The copyright notice in the
+# LICENSE file in the root directory and this permission notice shall
+# be included in all copies or substantial portions of the Software.
+
 import numpy as np
 import numpy.linalg as la
-from scipy import special
-from .utils import FunctionContainer
-from .basis import SPIN_CHARS, UP
+from .basis import UP
 from .operators import CreationOperator
 
 
@@ -80,31 +83,3 @@ def impurity_gf(siam, z, beta=1., sigma=UP):
             accumulate_gf(gf_imp, z, beta, cdag_vec, eigvals, eigvals_p1, eigvecs_p1)
 
     return gf_imp / partition
-
-
-class GreensFunction(FunctionContainer):
-
-    def __init__(self, z, beta, pos=0, sigma=UP):
-        self.pos = pos
-        self.sigma = sigma
-        self.beta = beta
-
-        self.partition = 0.
-        super().__init__(z)
-
-    def accumulate_partition(self, eigvals):
-        self.partition += np.sum(np.exp(-self.beta * eigvals))
-
-    def accumulate(self, hamop_p1, sector, sector_p1, eigvals, eigvecs):
-        cdag = CreationOperator(sector, sector_p1, self.pos, self.sigma)
-        cdag_vec = cdag.matmat(eigvecs)
-        hamop_p1 = hamop_p1.matmat(np.eye(*hamop_p1.shape))
-        eigvals_p1, eigvecs_p1 = la.eigh(hamop_p1)
-
-        overlap = abs(eigvecs_p1.T.conj() @ cdag_vec) ** 2
-        exp_eigvals = np.exp(-self.beta * eigvals)
-        exp_eigvals_p1 = np.exp(-self.beta * eigvals_p1)
-        for m, eig_m in enumerate(eigvals_p1):
-            for n, eig_n in enumerate(eigvals):
-                weights = exp_eigvals[n] + exp_eigvals_p1[m]
-                self.y += overlap[m, n] * weights / (self.x + eig_n - eig_m)
