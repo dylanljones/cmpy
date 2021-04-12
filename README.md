@@ -59,7 +59,7 @@ sector = basis.get_sector(n_up=1, n_dn=1)
 ````
 If no filling for a spin-sector is passed all possible fillings are included.
 The labels of all states in a sector can be created by the ``state_labels`` method:
-````text
+````python
 >>> sector.state_labels()
 ['..⇅', '.↓↑', '↓.↑', '.↑↓', '.⇅.', '↓↑.', '↑.↓', '↑↓.', '⇅..']
 ````
