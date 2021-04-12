@@ -444,11 +444,6 @@ class Basis:
         states = set(int("".join(bits), 2) for bits in permutations(bitvals))
         return np.asarray(sorted(states))
 
-    def generate_sector(self, n_up=None, n_dn=None):
-        up_states = self.generate_states(n_up)
-        dn_states = self.generate_states(n_dn)
-        return Sector(up_states, dn_states, n_up, n_dn, self.num_sites)
-
     def get_states(self, n=None):
         if n in self.sectors:
             # Get cached spin-sector states
