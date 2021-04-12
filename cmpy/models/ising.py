@@ -1,0 +1,167 @@
+# coding: utf-8
+#
+# This code is part of cmpy.
+# 
+# Copyright (c) 2020, Dylan Jones
+
+
+import random
+import numpy as np
+from lattpy import Lattice
+from pyplot import Plot
+from typing import Optional, Union, Any, Sequence, Dict
+
+
+class HsField:
+
+    """ Configuration class representing the discrete Hubbard-Stratonovich (HS) field."""
+
+    def __init__(self, num_sites, time_steps=0, array=None, dtype=np.int8):
+        self.dtype = dtype
+        self.n_sites = num_sites
+        self.time_steps = time_steps
+        self._config = np.ndarray
+        if array is not None:
+            self._config = np.asarray(array, dtype=self.dtype)
+        else:
+            self.initialize()
+
+    @property
+    def config(self):
+        return self._config if self.time_steps else self._config[:, 0]
+
+    def __eq__(self, other):
+        return np.all(self._config == other._config)  # noqa
+
+    def copy(self):
+        """ Creates a (deep) copy of the 'Configuration' instance
+        Returns
+        -------
+        config: Configuration
+        """
+        return HsField(self.n_sites, self.time_steps, array=self._config.copy())
+
+    def initialize(self):
+        """ Initializes the configuration with a random distribution of -1 and +1 """
+        # Create an array of random 0 and 1 and scale array to -1 and 1
+        time_steps = max(1, self.time_steps)
+        field = 2 * np.random.randint(0, 2, size=(self.n_sites, time_steps)) - 1
+        self._config = field.astype(self.dtype)
+
+    def update(self, i, t=0):
+        """ Update element of array by flipping its spin-value
+        Parameters
+        ----------
+        i: int
+            Site index.
+        t: int, optional
+            Time slice index.
+        """
+        self._config[i, t] *= -1
+
+    def mean(self):
+        """ float: Computes the Monte-Carlo sample mean """
+        return np.mean(self._config)
+
+    def var(self):
+        """ float: Computes the Monte-Carlo sample variance """
+        return np.var(self._config)
+
+    def reshape(self, shape, order="C"):
+        shape = np.asarray(shape).astype(np.int) + 1
+        return np.reshape(self.config, shape, order)
+
+    def __getitem__(self, item):
+        return self._config[item]
+
+    def __setitem__(self, key, value):
+        self._config[key] = value
+
+    def string_header(self, delim=" "):
+        return r"i\l  " + delim.join([f"{i:^3}" for i in range(self.time_steps)])
+
+    def string_bulk(self, delim=" "):
+        rows = list()
+        for site in range(self.n_sites):
+            row = delim.join([f"{x:^3}" for x in self._config[site, :]])
+            rows.append(f"{site:<3} [{row}]")
+        return "\n".join(rows)
+
+    def __str__(self):
+        delim = " "
+        string = self.string_header(delim) + "\n"
+        string += self.string_bulk(delim)
+        return string
+
+
+class IsingModel(Lattice):
+
+    def __init__(self, j=1., h=0., temp=0.):
+        super().__init__(vectors=np.eye(2))
+        self.add_atom()
+        self.calculate_distances(1)
+        self.field = None
+        self.j = j
+        self.h = h
+        self.temp = temp
+
+    def build(self, shape: Union[int, Sequence[int]],
+              inbound: Optional[bool] = True,
+              periodic: Optional[bool] = None,
+              pos: Optional[Union[float, Sequence[float]]] = None,
+              window: Optional[int] = None) -> None:
+        super().build(shape, inbound, pos)
+        self.field = HsField(self.num_sites)
+
+    def get_energy_element(self, i, unique=False):
+        s = self.field.config[i]
+        s_neighbours = [self.field.config[j] for j in self.nearest_neighbours(i, unique=unique)]
+        return - self.j * s * np.sum(s_neighbours) - s * self.h
+
+    def try_flip(self, i) -> bool:
+        # Check energy difference from potential spin flip
+        delta_e = - self.get_energy_element(i)
+        # Update field if energy advantage
+        if delta_e < 0:
+            self.field.update(i)
+            return True
+        # At finite temp > 0: Metropolis acceptance
+        elif self.temp > 0 and random.random() < np.exp(-1/self.temp * delta_e):
+            self.field.update(i)
+            return True
+        return False
+
+    def energy(self):
+        energy = 0.0
+        for i in range(self.num_sites):
+            energy += self.get_energy_element(i, unique=True)
+        return energy / self.num_sites
+
+    def magnetization(self):
+        return self.field.mean()
+
+    def info_string(self):
+        return f"<M>: {self.magnetization():.2f}, <E>: {self.energy():.2f}"
+
+    def simulate(self, n_check=10000):
+        shape = int(self.shape[0]) + 1, int(self.shape[1]) + 1
+        plot = Plot()
+        im = plot.ax.imshow(self.field.reshape(shape).T, cmap="RdBu", vmin=-1.2, vmax=1.3)
+        plot.invert_yaxis()
+        plot.set_equal_aspect()
+        indices = np.arange(self.num_sites)
+        i = 0
+        while True:
+            np.random.shuffle(indices)
+            for idx in indices:
+                #  idx = i % self.n_sites  # random.randint(0, self.n_sites-1)
+                self.try_flip(idx)
+                if i % n_check == 0:
+                    im.set_data(self.field.reshape(shape).T)
+                    plot.redraw()
+                    print("\r" + self.info_string(), end="", flush=True)
+                i += 1
+            if len(np.unique(self.field.config)) == 1:
+                break
+        plot.show()
+

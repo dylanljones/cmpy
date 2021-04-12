@@ -9,6 +9,7 @@
 # be included in all copies or substantial portions of the Software.
 
 from .abc import (
+    ModelParameters,
     AbstractModel,
     AbstractManyBodyModel
 )
