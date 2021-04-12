@@ -8,7 +8,6 @@
 import random
 import numpy as np
 from lattpy import Lattice
-from pyplot import Plot
 from typing import Optional, Union, Any, Sequence, Dict
 
 
@@ -142,26 +141,3 @@ class IsingModel(Lattice):
 
     def info_string(self):
         return f"<M>: {self.magnetization():.2f}, <E>: {self.energy():.2f}"
-
-    def simulate(self, n_check=10000):
-        shape = int(self.shape[0]) + 1, int(self.shape[1]) + 1
-        plot = Plot()
-        im = plot.ax.imshow(self.field.reshape(shape).T, cmap="RdBu", vmin=-1.2, vmax=1.3)
-        plot.invert_yaxis()
-        plot.set_equal_aspect()
-        indices = np.arange(self.num_sites)
-        i = 0
-        while True:
-            np.random.shuffle(indices)
-            for idx in indices:
-                #  idx = i % self.n_sites  # random.randint(0, self.n_sites-1)
-                self.try_flip(idx)
-                if i % n_check == 0:
-                    im.set_data(self.field.reshape(shape).T)
-                    plot.redraw()
-                    print("\r" + self.info_string(), end="", flush=True)
-                i += 1
-            if len(np.unique(self.field.config)) == 1:
-                break
-        plot.show()
-
