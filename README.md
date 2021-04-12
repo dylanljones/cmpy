@@ -29,6 +29,21 @@ python setup.py install
 | dos | Methods for computing the density of states |
 | collection | Collection of random functions and constants |
 
+### Models
+
+Collection of common condensed matter models (unstable, might change significantly)
+
+| Module | Description | Lattice support |
+|:-------|:-----|:-------|
+| abc | Model-Parameter container and abstract base classes  |  - |
+| anderson | Anderson imurity models | no |
+| ising | Ising model | yes |
+| hubbard | Hubbard model | no |
+| tightbinding | Thight-Binding model | yes |
+
+
+## Usage
+
 #### Basis
 
 A ``Basis`` object can be initalized with the number of sites in the (many-body) system:
@@ -101,15 +116,3 @@ op.append(2, 2, 1)
 op.matvec(np.ones(3))
 ````
 
-
-### Models
-
-Collection of common condensed matter models (unstable, might change significantly)
-
-| Module | Description | Lattice support |
-|:-------|:-----|:-------|
-| abc | Model-Parameter container and abstract base classes  |  - |
-| anderson | Anderson imurity models | no |
-| ising | Ising model | yes |
-| hubbard | Hubbard model | no |
-| tightbinding | Thight-Binding model | yes |
