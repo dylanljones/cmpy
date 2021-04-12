@@ -3,3 +3,4 @@ matplotlib
 scipy
 setuptools
 colorcet
+h5py
