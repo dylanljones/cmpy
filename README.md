@@ -36,7 +36,7 @@ Models
 Collection of common condensed matter models (unstable, might change significantly)
 
 | Module | Description | Lattice support |
-|:-------|:-----|:-------|:---------|
+|:-------|:-----|:-------|
 | abc | Model-Parameter container and abstract base classes  |  - |
 | anderson | Anderson imurity models | no |
 | ising | Ising model | yes |
