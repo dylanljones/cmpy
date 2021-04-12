@@ -24,6 +24,7 @@ Main modules
 
 | Module | Description  |
 |:-------|:-----|
+| hdf5 | Hdf5-database tools |
 | basis | Tools for many-body basis representations  |
 | matrix | Matrix tools and np.ndarray-wrapper  |
 | operator | Abstract linear operator, sparse implementation and other tools |
