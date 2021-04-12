@@ -35,10 +35,10 @@ Models
 ------
 Collection of common condensed matter models (unstable, might change significantly)
 
-| Module | Description | Many-body | Lattice support |
+| Module | Description | Lattice support |
 |:-------|:-----|:-------|:---------|
-| abc | Model-Parameter container and abstract base classes  | - | - |
-| anderson | Anderson imurity models | yes | no |
-| ising | Ising model | no | yes |
-| tightbinding | Thight-Binding model | no | yes |
-| hubbard | Hubbard model | yes | no |
+| abc | Model-Parameter container and abstract base classes  |  - |
+| anderson | Anderson imurity models | no |
+| ising | Ising model | yes |
+| hubbard | Hubbard model | no |
+| tightbinding | Thight-Binding model | yes |
