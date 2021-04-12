@@ -8,7 +8,7 @@
 # LICENSE file in the root directory and this permission notice shall
 # be included in all copies or substantial portions of the Software.
 
-from .utils import *
+from .collection import *
 
 from .basis import (
     UP, DN, SPIN_CHARS,
@@ -28,10 +28,16 @@ from .basis import (
 
 from .matrix import (
     matshow,
+    transpose,
+    hermitian,
     is_hermitian,
-    Matrix,
-    MatrixPlot
+    diagonal,
+    fill_diagonal,
+    Decomposition,
+    Matrix
 )
+
+from .dos import density_of_states
 
 from .operators import (
     project_up,

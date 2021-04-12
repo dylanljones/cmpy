@@ -8,7 +8,6 @@
 # LICENSE file in the root directory and this permission notice shall
 # be included in all copies or substantial portions of the Software.
 
-
 import numpy as np
 from pytest import mark
 from numpy.testing import assert_array_equal
