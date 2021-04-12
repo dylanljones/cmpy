@@ -21,7 +21,9 @@ Contents
 
 | Module | Description  |
 |:-------|:-----|
-| basis.py | Tools for many-body basis representations  |
-| matrix.py | Matrix tools and np.ndarray-wrapper  |
-| operator.py | Abstract linear operator, sparse implementation and other tools |
-| dos.py | Methods for computing the density of states |
+| basis | Tools for many-body basis representations  |
+| matrix | Matrix tools and np.ndarray-wrapper  |
+| operator | Abstract linear operator, sparse implementation and other tools |
+| dos | Methods for computing the density of states |
+| collection | Collection of random functions and constants | 
+| models | Collection of common condensed matter models (unstable, might change significantly) |
