@@ -329,13 +329,19 @@ class SpinState(Binary):
         """Computes the overlap with another state and returns the results as a binary array."""
         return overlap(self, other, dtype=dtype)
 
-    def create(self, pos: int) -> 'SpinState':
+    def create(self, pos: int) -> Union['SpinState', None]:
         """Creates a particle at `pos` if possible and returns the new state."""
-        return self.__class__(create(self, pos), width=self.width)
+        num = create(self, pos)
+        if num is None:
+            return None
+        return self.__class__(num, width=self.width)
 
-    def annihilate(self, pos: int) -> 'SpinState':
+    def annihilate(self, pos: int) -> Union['SpinState', None]:
         """Annihilates a particle at `pos` if possible and returns the new state."""
-        return self.__class__(annihilate(self, pos), width=self.width)
+        num = annihilate(self, pos)
+        if num is None:
+            return None
+        return self.__class__(num, width=self.width)
 
 
 @dataclass
