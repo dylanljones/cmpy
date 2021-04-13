@@ -209,7 +209,7 @@ def fill_diagonal(mat, val, offset=0):
         np.fill_diagonal(mat, val)
 
 
-def decompose(arr):
+def decompose(arr, h=None):
     """Computes the eigen-decomposition of a matrix.
 
     Finds the eigenvalues and the left and right eigenvectors of a matrix. If the matrix
@@ -219,6 +219,9 @@ def decompose(arr):
     ----------
     arr : (N, N) array_like
         A complex or real matrix whose eigenvalues and eigenvectors will be computed.
+    h : bool, optional
+        Flag if matrix is hermitian. If ``None`` the matrix is checked. This determines the
+        scipy method used for computing the eigenvalue problem.
 
     Returns
     -------
@@ -229,7 +232,9 @@ def decompose(arr):
     vl : (N, N) np.ndarray
         The left eigenvectors of the matrix.
     """
-    if is_hermitian(arr):
+    if h is None:
+        h = is_hermitian(arr)
+    if h:
         xi, vr = np.linalg.eigh(arr)
         vl = np.conj(vr.T)
     else:
@@ -290,19 +295,22 @@ class Decomposition:
         self.rv_inv = rv_inv
 
     @classmethod
-    def decompose(cls, arr):
+    def decompose(cls, arr, h=None):
         """Computes the decomposition of a matrix and initializes a ``Decomposition``-instance.
 
         Parameters
         ----------
         arr : (N, N) array_like
-        A complex or real matrix whose eigenvalues and eigenvectors will be computed.
+            A complex or real matrix whose eigenvalues and eigenvectors will be computed.
+        h : bool, optional
+            Flag if matrix is hermitian. If ``None`` the matrix is checked. This determines the
+            scipy method used for computing the eigenvalue problem.
 
         Returns
         -------
         decomposition : Decomposition
         """
-        rv, xi, rv_inv = decompose(arr)
+        rv, xi, rv_inv = decompose(arr, h)
         return cls(rv, xi, rv_inv)
 
     def reconstrunct(self, xi=None, method='full'):
