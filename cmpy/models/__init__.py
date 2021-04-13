@@ -15,8 +15,8 @@ from .abc import (
 )
 
 from .tightbinding import (
-    BaseTightBindingModel,
-    TightBinding
+    AbstractTightBinding,
+    BaseTightBindingModel
 )
 
 from .hubbard import (

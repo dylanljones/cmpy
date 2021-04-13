@@ -41,7 +41,7 @@ class ModelParameters(MutableMapping):
         """ dict: Returns a dictionary of all parameters. """
         return self.__params__
 
-    def set(self, key: str, value: Any) -> None:
+    def set_param(self, key: str, value: Any) -> None:
         """Sets a parameter
 
         Parameters
@@ -53,7 +53,7 @@ class ModelParameters(MutableMapping):
         """
         self.__params__[key] = value
 
-    def delete(self, key: str) -> None:
+    def delete_param(self, key: str) -> None:
         """Deletes a parameter with the given name
 
         Parameters
@@ -63,7 +63,7 @@ class ModelParameters(MutableMapping):
         """
         del self.__params__[key]
 
-    def rename(self, key: str, new_key: str) -> None:
+    def rename_param(self, key: str, new_key: str) -> None:
         """Renames an existing parameter.
 
         Parameters

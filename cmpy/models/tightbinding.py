@@ -8,147 +8,247 @@
 # LICENSE file in the root directory and this permission notice shall
 # be included in all copies or substantial portions of the Software.
 
+import itertools
 import numpy as np
-from lattpy import Lattice, DispersionPath
-from cmpy.matrix import Matrix
+from scipy import sparse
+from scipy import linalg as la
+from abc import abstractmethod
+from lattpy import Lattice
 from .abc import AbstractModel
-from typing import Optional, Union, Any, Sequence, TypeVar, NewType
 
 
-class BaseTightBindingModel(AbstractModel):
+class AbstractTightBinding(Lattice, AbstractModel):
+    """Abstract Tight-binding model based on a lattice.
 
-    def __init__(self, eps: Union[float, Sequence[float]] = 0.0,
-                 t: Union[float, Sequence[float]] = 1.0,
-                 mu: Optional[float] = 0.0,
-                 temp: Optional[float] = 0.0):
-        """Initializes the ``TightBindingModel``.
+    Parameters
+    ----------
+    vectors : (N, N) array_like
+        The basis vectors of a lattice.
+    """
+
+    def __init__(self, vectors):
+        AbstractModel.__init__(self)
+        Lattice.__init__(self, vectors)
+        self.path = None
+
+    @abstractmethod
+    def get_energy(self, alpha=0):
+        """Returns the on-site energy of an atom in the unit-cell of the lattice.
 
         Parameters
         ----------
-        eps: float or Sequence, optional
-            The onsite energy of the tight-binding model. The default value is ``0``.
-        t: float or Sequence, optional
-            The hopping parameter of the tight-binding model. The default value is ``1``.
-        mu: float, optional
-            Optional chemical potential. The default is ``0``.
-        temp: float, optional
-            Optional temperature in kelvin. The default is ``0``.
+        alpha : int, optional
+            The index of the atom.
+
+        Returns
+        -------
+        energy: array_like
+            The on-site energy of the atom. Can either be a scalar or a square matrix.
         """
-        super().__init__(eps=eps, t=t, mu=mu, temp=temp)
+        pass
 
-    def pformat(self):
-        return f"ε={self.eps}, t={self.t}, μ={self.mu}, T={self.temp}"
-
-
-def get_bandpath(points, names=None, cycle=True):
-    if isinstance(points, DispersionPath):
-        path = points
-    else:
-        path = DispersionPath(len(points[0]))
-        path.add_points(points, names)
-        if cycle:
-            path.cycle()
-    return path
-
-
-class TightBinding(Lattice):
-
-    def __init__(self, vectors, atom=None, pos=None, energy=0., hopping=1., **atom_kwargs):
-        super().__init__(vectors, atom, pos, energy=energy, **atom_kwargs)
-        self.energies = None
-        self.hoppings = list()
-        if self.num_base:
-            self.set_hopping(*np.atleast_1d(hopping))
-
-    def copy(self):
-        new = super().copy()
-        new.hoppings = self.hoppings.copy()
-        new.energies = self.energies.copy()
-        return new
-
-    def add_atom(self, energy=0.0, pos=None, atom=None, neighbours=0, **kwargs):
-        return super().add_atom(pos, atom, neighbours, energy=energy)
-
-    def set_hopping(self, *t):
-        self.hoppings = list(t)
-        if self.num_dist != len(t):
-            self.calculate_distances(len(t))
-
-    def build(self, shape, inbound=True, periodic=None, pos=None, window=None):
-        super().build(shape, inbound, periodic, pos, window)
-        self.energies = np.zeros(self.num_sites)
-        for i in range(self.num_sites):
-            self.energies[i] = self.get_energy(self.data.indices[i, -1])
-
-    def get_energy(self, alpha=0):
-        atom = self.atoms[alpha]
-        return atom.kwargs.get("energy", 0.)
-
-    def energy(self, i):
-        idx = self.data.indices[i]
-        atom = self.atoms[idx[-1]]
-        return atom.kwargs.get("energy", 0.)
-
+    @abstractmethod
     def get_hopping(self, distidx=0):
-        return self.hoppings[distidx]
+        """Returns the hopping-site energy between atoms with a certain distance.
 
-    def cell_hamiltonian(self, dtype=None):
-        n = self.num_base
-        ham = Matrix.zeros(n, dtype=dtype)
+        Parameters
+        ----------
+        distidx : int, optional
+            The distance index of the atom-pair.
+
+        Returns
+        -------
+        energy: array_like
+            The hopping energy. Can either be a scalar or a square matrix.
+        """
+        pass
+
+    def analyze(self) -> None:
+        super().analyze()
+        self.finalize()
+
+    def finalize(self):
+        """Gets called after analyzing the lattice. Default values should be initialized here."""
+        pass
+
+    def hamiltonian_cell(self, dtype=None):
+        """Constructs the hamiltonian of the unit-cell.
+
+        Parameters
+        ----------
+        dtype : str or np.dtype or type, optional
+            Optional datatype of the resulting matrix.
+
+        Returns
+        -------
+        ham : (N, N) np.ndarray
+            The hamiltonian matrix of the unit-cell. The shape is the number of atoms
+            in the unit-cell.
+        """
+        ham = np.zeros((self.num_base, self.num_base), dtype=dtype)
         for alpha in range(self.num_base):
             ham[alpha, alpha] = self.get_energy(alpha)
-            for distidx in range(self.num_dist):
+            for distidx in range(self.num_distances):
                 t = self.get_hopping(distidx)
-                for idx in self.get_neighbours(alpha=alpha, distidx=distidx):
+                for idx in self.get_neighbors(alpha=alpha, distidx=distidx):
                     alpha2 = idx[-1]
-                    if alpha2 != alpha:
-                        try:
-                            ham[alpha, alpha2] = t
-                        except IndexError:
-                            pass
+                    ham[alpha, alpha2] = t
         return ham
 
-    def transform_cell_hamiltonian(self, k, cell_ham=None):
-        if cell_ham is None:
-            ham = self.cell_hamiltonian(np.complex)
-        else:
-            ham = cell_ham.astype(dtype=np.complex)
-        # One atom in the unit cell
+    def hamiltonian_data(self, dtype=None):
+        """Computes the elements of the hamiltonian.
+
+        Parameters
+        ----------
+        dtype : str or np.dtype or type, optional
+            Optional datatype of the data.
+
+        Returns
+        -------
+        rows : (N, ) np.ndarray
+            The row indices of the elements.
+        cols : (N, ) np.ndarray
+            The column indices of the elements.
+        data : (N, ) np.ndarray
+            The elements of the hamiltonian matrix.
+        """
+        dmap = self.data.map()
+        data = np.zeros(dmap.size, dtype=dtype)
+        for alpha in range(self.num_base):
+            data[dmap.onsite(alpha)] = self.get_energy(alpha)
+        for distidx in range(self.num_distances):
+            data[dmap.hopping(distidx)] = self.get_hopping(distidx)
+        rows, cols = dmap.indices
+        return rows, cols, data
+
+    def hamiltonian(self, dtype=None):
+        """Constructs the hamiltonian as a sparse matrix in CSR format.
+
+        Parameters
+        ----------
+        dtype : str or np.dtype or type, optional
+            Optional datatype of the resulting matrix.
+
+        Returns
+        -------
+        ham : (N, N) sparse.csr_matrix
+            The hamiltonian matrix in sparse format.
+        """
+        rows, cols, data = self.hamiltonian_data(dtype)
+        arg = data, (rows, cols)
+        return sparse.csr_matrix(arg)
+
+    def get_neighbor_vectors_to(self, alpha1, alpha2, distidx=0):
+        """Computes the neighbor vector between two sites."""
+        keys = list(sorted(self._base_neighbors[alpha1].keys()))
+        dist = keys[distidx]
+        indices = self._base_neighbors[alpha1][dist]
+        indices = indices[indices[:, -1] == alpha2]
+        pos0 = self._positions[alpha1]
+        positions = self.get_positions(indices)
+        return positions - pos0
+
+    def hamiltonian_kernel(self, k, ham_cell=None):
+        """Computes the fourier transformed hamiltonian of the unit-cell.
+
+        Parameters
+        ----------
+        k : (N, ) array_like
+            The point in frequency-space.
+        ham_cell : (N, N) array_like, optional
+            Optional cell-hamiltonian in real-space. If ``None`` the hamiltonian
+            will be constructed.
+
+        Returns
+        -------
+        ham_k : (N, N) np.ndarray
+            The transformed hamiltonian.
+        """
+        if ham_cell is None:
+            ham_cell = self.hamiltonian_cell(np.complex)
+        ham = ham_cell.copy().astype(np.complex)
+
         if self.num_base == 1:
-            for distidx in range(self.num_dist):
+            ham = np.array([[self.get_energy(0)]], dtype=np.complex)
+            for distidx in range(self.num_distances):
+                ham += self.get_hopping(distidx) * self.fourier_weights(k, distidx=distidx)
+            return ham
+
+        for alpha in range(self.num_base):
+            ham[alpha, alpha] = self.get_energy(alpha)
+            for distidx in range(self.num_distances):
                 t = self.get_hopping(distidx)
-                nn_vecs = self.get_neighbour_vectors(alpha=0, distidx=distidx)
-                ham += t * np.sum([np.exp(1j * np.dot(k, v)) for v in nn_vecs])
-        # Multiple atoms in the unit cell
-        else:
-            for i in range(self.num_base):
-                for j in range(self.num_base):
-                    if i != j:
-                        for distidx in range(self.num_dist):
-                            nn_vecs = self.get_neighbour_vectors(alpha=j, distidx=distidx)
-                            ham[i, j] = ham[i, j] * np.sum([np.exp(1j * np.dot(k, v)) for v in nn_vecs])
+                for alpha2 in range(alpha + 1, self.num_base):
+                    vecs = self.get_neighbor_vectors_to(alpha, alpha2, distidx)
+                    ham[alpha, alpha2] += t * np.sum(np.exp(1j * np.inner(k, +vecs)))
+                    ham[alpha2, alpha] += t * np.sum(np.exp(1j * np.inner(k, -vecs)))
+
         return ham
 
-    def hamiltonian(self):
-        ham = Matrix.zeros(self.num_sites)
-        for i in range(self.num_sites):
-            ham[i, i] = self.energies[i]
-            for distidx in range(self.num_dist):
-                t = self.get_hopping(distidx)
-                for j in self.neighbours(i, distidx, unique=True):
-                    ham[i, j] = t
-                    ham[j, i] = t
-        return ham
+    def dispersion(self, k, mu=0., sort=False):
+        """Computes the energy dispersion for one or multiple points in frequency-space.
 
-    def dispersion(self, k):
-        disp = np.zeros((len(k), self.num_base), dtype=np.complex64)
-        cell_ham = self.cell_hamiltonian()
+        Parameters
+        ----------
+        k : (..., N) array_like
+            The point(s) in frequency-space.
+        mu : float, optional
+            The chemical potential.
+        sort : bool, optional
+            Flag if energy values are sorted. The default is ``False``.
+
+        Returns
+        -------
+        disp : (..., N) np.ndarray
+            The energy values for the given point(s).
+        """
+        k = np.atleast_2d(k)
+        disp = np.zeros((len(k), self.num_base), dtype=np.float32)
+        ham_cell = self.hamiltonian_cell()
         for i, _k in enumerate(k):
-            ham_k = self.transform_cell_hamiltonian(_k, cell_ham)
-            disp[i] = ham_k.eigvals()
-        return disp[0] if len(k) == 1 else disp
+            ham_k = self.hamiltonian_kernel(_k, ham_cell)
+            eigvals = la.eigvalsh(ham_k).real
+            if sort:
+                eigvals = np.sort(eigvals)
+            disp[i] = eigvals
+        return (disp[0] if len(k) == 1 else disp) - mu
 
-    def bands(self, points, names=None, n=1000, cycle=True):
-        path = get_bandpath(points, names, cycle)
-        k = path.build(n)
-        return self.dispersion(k)
+    def bands(self, nums=100, mu=0., sort=False, offset=0.0, check=True):
+        brillouin = self.brillouin_zone()
+        k_ranges = brillouin.linspace(nums, offset)
+        lengths = [len(k) for k in k_ranges]
+        bands = np.zeros((*lengths, self.num_base))
+        ham_cell = self.hamiltonian_cell()
+        for item in itertools.product(*[range(n) for n in lengths]):
+            k = np.array([k_ranges[i][item[i]] for i in range(len(k_ranges))])
+            if not check or brillouin.check(k):
+                ham_k = self.hamiltonian_kernel(k, ham_cell)
+                eigvals = la.eigvalsh(ham_k).real
+                if sort:
+                    eigvals = np.sort(eigvals)
+                bands[item] = eigvals
+            else:
+                bands[item] = np.nan
+        return k_ranges, bands.T - mu
+
+
+class BaseTightBindingModel(AbstractTightBinding):
+
+    def __init__(self, vectors):
+        super().__init__(vectors)
+
+    def set_energies(self, *eps):
+        self.set_param("eps", np.array(eps))
+
+    def set_hopping(self, *t):
+        self.set_param("hop", np.array(t))
+
+    def get_energy(self, alpha=0):
+        return self.eps[alpha]
+
+    def get_hopping(self, distidx=0):
+        return self.hop[distidx]
+
+    def finalize(self):
+        self.set_param("eps", np.zeros(self.num_base))
+        self.set_param("hop", np.ones(self.num_distances))
