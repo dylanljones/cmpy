@@ -2,7 +2,7 @@
 #
 # This code is part of cmpy.
 # 
-# Copyright (c) 2020, Dylan Jones
+# Copyright (c) 2021, Dylan Jones
 
 
 import random
