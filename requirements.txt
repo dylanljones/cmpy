@@ -4,4 +4,3 @@ scipy
 setuptools
 colorcet
 h5py
-lattpy
