@@ -2,11 +2,13 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2020, Dylan Jones
+# Copyright (c) 2021, Dylan Jones
 #
 # This code is licensed under the MIT License. The copyright notice in the
 # LICENSE file in the root directory and this permission notice shall
 # be included in all copies or substantial portions of the Software.
+
+"""Methods and objects for handling dense and sparse matrices."""
 
 import itertools
 import numpy as np
@@ -19,13 +21,13 @@ import matplotlib.pyplot as plt
 import colorcet as cc
 
 __all__ = ["transpose", "matshow", "hermitian", "is_hermitian", "diagonal", "fill_diagonal",
-           "Decomposition", "Matrix"]
+           "decompose", "reconstruct", "Decomposition", "Matrix"]
 
 transpose = partial(np.swapaxes, axis1=-2, axis2=-1)
 
 
 # =============================================================================
-# PLOTTING
+# Plotting
 # =============================================================================
 
 
@@ -105,7 +107,7 @@ def matshow(mat, show=True, cmap=cc.m_coolwarm, normoffset=0.2, colorbar=False, 
 
 
 # =============================================================================
-# METHODS
+# Methods
 # =============================================================================
 
 
@@ -207,8 +209,84 @@ def fill_diagonal(mat, val, offset=0):
         np.fill_diagonal(mat, val)
 
 
-class Decomposition:
+def decompose(arr, h=None):
+    """Computes the eigen-decomposition of a matrix.
 
+    Finds the eigenvalues and the left and right eigenvectors of a matrix. If the matrix
+    is hermitian ``eigh`` is used for computing the right eigenvectors.
+
+    Parameters
+    ----------
+    arr : (N, N) array_like
+        A complex or real matrix whose eigenvalues and eigenvectors will be computed.
+    h : bool, optional
+        Flag if matrix is hermitian. If ``None`` the matrix is checked. This determines the
+        scipy method used for computing the eigenvalue problem.
+
+    Returns
+    -------
+    vr : (N, N) np.ndarray
+        The right eigenvectors of the matrix.
+    xi : (N, ) np.ndarray
+        The eigenvalues of the matrix.
+    vl : (N, N) np.ndarray
+        The left eigenvectors of the matrix.
+    """
+    if h is None:
+        h = is_hermitian(arr)
+    if h:
+        xi, vr = np.linalg.eigh(arr)
+        vl = np.conj(vr.T)
+    else:
+        xi, vl, vr = scipy.linalg.eig(arr, left=True, right=True)
+    return vr, xi, vl
+
+
+def reconstruct(rv, xi, rv_inv, method='full'):
+    """Computes a matrix from an eigen-decomposition.
+
+    The matrix is reconstructed using eigenvalues and left and right eigenvectors.
+
+    Parameters
+    ----------
+    rv : (N, N) np.ndarray
+        The right eigenvectors of a matrix.
+    xi : (N, ) np.ndarray
+        The eigenvalues of a matrix
+    rv_inv : (N, N) np.ndarray
+        The left eigenvectors of a matrix.
+    method : str, optional
+        The mode for reconstructing the matrix. If mode is 'full' the original matrix
+        is reconstructed, if mode is 'diag' only the diagonal elements are computed.
+        The default is 'full'.
+
+    Returns
+    -------
+    arr : (N, N) np.ndarray
+        The reconstructed matrix.
+    """
+    method = method.lower()
+    if 'diag'.startswith(method):
+        arr = ((transpose(rv_inv) * rv) @ xi[..., np.newaxis])[..., 0]
+    elif 'full'.startswith(method):
+        arr = (rv * xi[..., np.newaxis, :]) @ rv_inv
+    else:
+        arr = np.einsum(method, rv, xi, rv_inv)
+    return arr
+
+
+class Decomposition:
+    """Eigen-decomposition of a matrix.
+
+    Parameters
+    ----------
+    rv : (N, N) np.ndarray
+        The right eigenvectors of a matrix.
+    xi : (N, ) np.ndarray
+        The eigenvalues of a matrix
+    rv_inv : (N, N) np.ndarray
+        The left eigenvectors of a matrix.
+    """
     __slots__ = ('rv', 'xi', 'rv_inv')
 
     def __init__(self, rv, xi, rv_inv):
@@ -216,48 +294,75 @@ class Decomposition:
         self.xi = xi
         self.rv_inv = rv_inv
 
-    def transform_basis(self, transformation):
-        rv = self.rv @ np.asarray(transformation)
-        self.rv = rv
-        self.rv_inv = np.linalg.inv(rv)
-
     @classmethod
-    def decompose(cls, a):
-        a = np.asarray(a)
-        if is_hermitian(a):
-            xi, rv = np.linalg.eigh(a)
-            rv_inv = np.conj(rv.T)
-        else:
-            xi, rv = np.linalg.eig(a)
-            rv_inv = np.linalg.inv(rv)
+    def decompose(cls, arr, h=None):
+        """Computes the decomposition of a matrix and initializes a ``Decomposition``-instance.
+
+        Parameters
+        ----------
+        arr : (N, N) array_like
+            A complex or real matrix whose eigenvalues and eigenvectors will be computed.
+        h : bool, optional
+            Flag if matrix is hermitian. If ``None`` the matrix is checked. This determines the
+            scipy method used for computing the eigenvalue problem.
+
+        Returns
+        -------
+        decomposition : Decomposition
+        """
+        rv, xi, rv_inv = decompose(arr, h)
         return cls(rv, xi, rv_inv)
 
     def reconstrunct(self, xi=None, method='full'):
-        method = method.lower()
+        """Computes a matrix from the eigen-decomposition.
+
+        Parameters
+        ----------
+        xi : (N, ) array_like, optional
+            Optional eigenvalues to compute the matrix. If ``None`` the eigenvalues of the
+            decomposition are used. The default is ``None``.
+        method : str, optional
+        The mode for reconstructing the matrix. If mode is 'full' the original matrix
+        is reconstructed, if mode is 'diag' only the diagonal elements are computed.
+        The default is 'full'.
+
+        Returns
+        -------
+        arr : (N, N) np.ndarray
+            The reconstructed matrix.
+        """
         xi = self.xi if xi is None else xi
-        if 'diag'.startswith(method):
-            a = ((transpose(self.rv_inv) * self.rv) @ xi[..., np.newaxis])[..., 0]
-        elif 'full'.startswith(method):
-            a = (self.rv * xi[..., np.newaxis, :]) @ self.rv_inv
-        else:
-            a = np.einsum(method, self.rv, xi, self.rv_inv)
-        return a
+        return reconstruct(self.rv, xi, self.rv_inv, method)
 
     def normalize(self):
+        """Normalizes the eigenstates and creates a new ``Decomposition``-instance."""
         rv = self.rv / np.linalg.norm(self.rv)
         rv_inv = self.rv_inv / np.linalg.norm(self.rv_inv)
         return self.__class__(rv, self.xi, rv_inv)
+
+    def transform_basis(self, transformation):
+        """Transforms the eigen-basis into another basis.
+
+        Parameters
+        ----------
+        transformation : (N, N) array_like
+            The transformation-matrix to transform the basis.
+        """
+        rv = self.rv @ np.asarray(transformation)
+        self.rv = rv
+        self.rv_inv = np.linalg.inv(rv)
 
     def __str__(self):
         return f"{self.__class__.__name__}[{self.rv.shape}x{self.xi.shape}x{self.rv_inv.shape}]"
 
 
 # =============================================================================
-# MATRIX-OBJECT
+# Matrix object
 # =============================================================================
 
 
 class Matrix(np.ndarray):
+    """Matrix-object based on ``np.ndarray``."""
 
     def __new__(cls, inputarr, dtype=None) -> 'Matrix':
         """ Initialize Matrix

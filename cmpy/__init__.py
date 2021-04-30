@@ -2,7 +2,7 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2020, Dylan Jones
+# Copyright (c) 2021, Dylan Jones
 #
 # This code is licensed under the MIT License. The copyright notice in the
 # LICENSE file in the root directory and this permission notice shall
@@ -37,8 +37,6 @@ from .matrix import (
     Matrix
 )
 
-from .dos import density_of_states
-
 from .operators import (
     project_up,
     project_dn,
@@ -46,8 +44,11 @@ from .operators import (
     project_elements_dn,
     LinearOperator,
     SparseOperator,
+    TimeEvolutionOperator,
     CreationOperator,
 )
+
+from .dos import density_of_states
 
 from .hamiltonian import (
     project_onsite_energy,

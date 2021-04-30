@@ -2,21 +2,101 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2020, Dylan Jones
+# Copyright (c) 2021, Dylan Jones
 #
 # This code is licensed under the MIT License. The copyright notice in the
 # LICENSE file in the root directory and this permission notice shall
 # be included in all copies or substantial portions of the Software.
 
+"""This module contains tools for working with linear operators in sparse format."""
+
 import abc
 import numpy as np
 import scipy.linalg as la
+from typing import Union
+from bisect import bisect_left
 from scipy.sparse import linalg as sla
 from scipy.sparse import csr_matrix
-from bisect import bisect_left
-from typing import Union
-from .matrix import Matrix, is_hermitian
 from .basis import UP, SPIN_CHARS
+from .matrix import Matrix, is_hermitian, Decomposition
+
+
+__all__ = ["LinearOperator", "SparseOperator", "TimeEvolutionOperator", "CreationOperator",
+           "project_up", "project_dn", "project_elements_up", "project_elements_dn",
+           "apply_projected_up", "apply_projected_dn"]
+
+
+def project_up(up_idx: Union[int, np.ndarray], num_dn_states: int,
+               dn_indices: np.ndarray) -> np.ndarray:
+    """Projects spin-up states onto the full basis.
+
+    Parameters
+    ----------
+    up_idx: int or ndarray
+        The index/indices for the projection.
+    num_dn_states: int
+        The total number of spin-down states of the basis(-sector).
+    dn_indices: ndarray
+        An array of the indices of all spin-down states in the basis(-sector).
+    """
+    return up_idx * num_dn_states + dn_indices
+
+
+def project_dn(dn_idx: Union[int, np.ndarray], num_dn_states: int,
+               up_indices: np.ndarray) -> np.ndarray:
+    """Projects spin-down states onto the full basis.
+
+    Parameters
+    ----------
+    dn_idx: int or ndarray
+        The index/indices for the projection.
+    num_dn_states: int
+        The total number of spin-down states of the basis(-sector).
+    up_indices: ndarray
+        An array of the indices of all spin-up states in the basis(-sector).
+    """
+    return up_indices * num_dn_states + dn_idx
+
+
+def project_elements_up(num_dn_states, up_idx, dn_indices, value, target=None):
+    if value:
+        origins = project_up(up_idx, num_dn_states, dn_indices)
+        targets = origins if target is None else project_up(target, num_dn_states, dn_indices)
+        if isinstance(origins, int):
+            yield origins, targets, value
+        else:
+            for row, col in zip(origins, targets):
+                yield row, col, value
+
+
+def project_elements_dn(num_dn_states, dn_idx, up_indices, value, target=None):
+    if value:
+        origins = project_dn(dn_idx, num_dn_states, up_indices)
+        targets = origins if target is None else project_dn(target, num_dn_states, up_indices)
+        if isinstance(origins, int):
+            yield origins, targets, value
+        else:
+            for row, col in zip(origins, targets):
+                yield row, col, value
+
+
+def apply_projected_up(matvec, x, num_dn_states, up_idx, dn_indices, value, target=None):
+    if value:
+        origins = project_up(up_idx, num_dn_states, dn_indices)
+        targets = origins if target is None else project_up(target, num_dn_states, dn_indices)
+        matvec[targets] += value * x[origins]
+
+
+def apply_projected_dn(matvec, x, num_dn_states, dn_idx, up_indices, value, target=None):
+    if value:
+        origins = project_dn(dn_idx, num_dn_states, up_indices)
+        targets = origins if target is None else project_dn(target, num_dn_states, up_indices)
+        matvec[targets] += value * x[origins]
+
+
+# =========================================================================
+# Linear Operators
+# =========================================================================
 
 
 class LinearOperator(sla.LinearOperator, abc.ABC):
@@ -191,78 +271,46 @@ class SparseOperator(LinearOperator):
 
 
 # =========================================================================
+# Time evolution operator
+# =========================================================================
 
 
-def sum_weighted(weights, arr):
-    return np.sum(arr[:weights.size] * weights)
+class TimeEvolutionOperator(LinearOperator):
 
+    def __init__(self, operator, t=0., t0=0., dtype=None):
+        super().__init__(operator.shape, dtype=dtype)
+        self.decomposition = Decomposition.decompose(operator)
+        self.t = t - t0
 
-def project_up(up_idx: Union[int, np.ndarray], num_dn_states: int,
-               dn_indices: np.ndarray) -> np.ndarray:
-    """Projects spin-up states onto the full basis.
+    def reconstruct(self, xi=None, method='full'):
+        return self.decomposition.reconstrunct(xi, method)
 
-    Parameters
-    ----------
-    up_idx: int or ndarray
-        The index/indices for the projection.
-    num_dn_states: int
-        The total number of spin-down states of the basis(-sector).
-    dn_indices: ndarray
-        An array of the indices of all spin-down states in the basis(-sector).
-    """
-    return up_idx * num_dn_states + dn_indices
+    def set_eigenbasis(self, operator):
+        self.decomposition = Decomposition.decompose(operator)
 
+    def set_time(self, t, t0=0.):
+        self.t = t - t0
 
-def project_dn(dn_idx: Union[int, np.ndarray], num_dn_states: int,
-               up_indices: np.ndarray) -> np.ndarray:
-    """Projects spin-down states onto the full basis.
+    def _matvec(self, x):
+        rv = self.decomposition.rv
+        xi = self.decomposition.xi
+        # Project state into eigenbasis
+        proj = np.inner(rv.T, x)
+        # Evolve projected state
+        proj_t = proj * np.exp(-1j * xi * self.t)
+        # Reconstruct the new state in the site-basis
+        return np.dot(proj_t, rv.T)
 
-    Parameters
-    ----------
-    dn_idx: int or ndarray
-        The index/indices for the projection.
-    num_dn_states: int
-        The total number of spin-down states of the basis(-sector).
-    up_indices: ndarray
-        An array of the indices of all spin-up states in the basis(-sector).
-    """
-    return up_indices * num_dn_states + dn_idx
+    def array(self) -> np.ndarray:
+        return self.reconstruct()
 
+    def __call__(self, t):
+        self.set_time(t)
+        return self
 
-def project_elements_up(num_dn_states, up_idx, dn_indices, value, target=None):
-    if value:
-        origins = project_up(up_idx, num_dn_states, dn_indices)
-        targets = origins if target is None else project_up(target, num_dn_states, dn_indices)
-        if isinstance(origins, int):
-            yield origins, targets, value
-        else:
-            for row, col in zip(origins, targets):
-                yield row, col, value
-
-
-def project_elements_dn(num_dn_states, dn_idx, up_indices, value, target=None):
-    if value:
-        origins = project_dn(dn_idx, num_dn_states, up_indices)
-        targets = origins if target is None else project_dn(target, num_dn_states, up_indices)
-        if isinstance(origins, int):
-            yield origins, targets, value
-        else:
-            for row, col in zip(origins, targets):
-                yield row, col, value
-
-
-def apply_projected_up(matvec, x, num_dn_states, up_idx, dn_indices, value, target=None):
-    if value:
-        origins = project_up(up_idx, num_dn_states, dn_indices)
-        targets = origins if target is None else project_up(target, num_dn_states, dn_indices)
-        matvec[targets] += value * x[origins]
-
-
-def apply_projected_dn(matvec, x, num_dn_states, dn_idx, up_indices, value, target=None):
-    if value:
-        origins = project_dn(dn_idx, num_dn_states, up_indices)
-        targets = origins if target is None else project_dn(target, num_dn_states, up_indices)
-        matvec[targets] += value * x[origins]
+    def evolve(self, state, t):
+        self.set_time(t)
+        return self.matvec(state)
 
 
 # =========================================================================
@@ -279,7 +327,7 @@ class CreationOperator(SparseOperator):
         else:
             dim_target = sector_p1.num_dn * sector.num_up
 
-        super().__init__(shape=(dim_target, dim_origin), dtype=np.complex)
+        super().__init__(shape=(dim_target, dim_origin), dtype=np.complex64)
         self.pos = pos
         self.sigma = sigma
         self.sector = sector
