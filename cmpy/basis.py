@@ -20,6 +20,7 @@ __all__ = ["UP", "DN", "SPIN_CHARS", "state_label", "binstr", "binarr",
            "binidx", "overlap", "occupations", "create", "annihilate",
            "Binary", "SpinState", "State", "Sector", "Basis"]
 
+_BITORDER = -1
 _ARRORDER = -1
 
 UP, DN = 1, 2
@@ -55,7 +56,7 @@ def state_label(up_num: int, dn_num: int, digits: Optional[int] = None) -> str:
         u = up_num >> i & 1
         d = dn_num >> i & 1
         chars.append(SPIN_CHARS[u + (d << 1)])
-    label = "".join(chars)[::-1]
+    label = "".join(chars[::-_BITORDER])
     return label
 
 
@@ -79,7 +80,7 @@ def binstr(num: int, width: Optional[int] = 0) -> str:
     binstr : str
     """
     width = width if width is not None else 0
-    return f"{num:0{width}b}"
+    return f"{num:0{width}b}"[::_BITORDER]
 
 
 def binarr(num: int, width: Optional[int] = None,
@@ -100,7 +101,7 @@ def binarr(num: int, width: Optional[int] = None,
     binarr : np.ndarray
     """
     width = width if width is not None else 0
-    dtype = dtype or np.int
+    dtype = dtype or np.int64
     return np.fromiter(f"{num:0{width}b}"[::_ARRORDER], dtype=dtype)
 
 
@@ -451,11 +452,6 @@ class Basis:
         bitvals += ["1" for _ in range(n)]
         states = set(int("".join(bits), 2) for bits in permutations(bitvals))
         return np.asarray(sorted(states))
-
-    def generate_sector(self, n_up=None, n_dn=None):
-        up_states = self.generate_states(n_up)
-        dn_states = self.generate_states(n_dn)
-        return Sector(up_states, dn_states, n_up, n_dn, self.num_sites)
 
     def get_states(self, n=None):
         if n in self.sectors:

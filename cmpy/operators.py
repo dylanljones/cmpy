@@ -327,7 +327,7 @@ class CreationOperator(SparseOperator):
         else:
             dim_target = sector_p1.num_dn * sector.num_up
 
-        super().__init__(shape=(dim_target, dim_origin), dtype=np.complex)
+        super().__init__(shape=(dim_target, dim_origin), dtype=np.complex64)
         self.pos = pos
         self.sigma = sigma
         self.sector = sector

@@ -8,7 +8,73 @@
 
 """Matplotlib-wrapper and plotting tools."""
 
+import os
+import matplotlib
 import matplotlib.pyplot as plt
+import colorcet as cc
+
+
+def set_text_params(size=None, family=None):
+    if size is not None:
+        matplotlib.rcParams['font.size'] = size
+    if family is not None:
+        matplotlib.rcParams['font.family'] = family
+
+
+def set_prop_cycle(**kwargs):
+    cycler = matplotlib.cycler(**kwargs)
+    matplotlib.rcParams['axes.prop_cycle'] = cycler
+
+
+def use_latex(*packages, font_size=None):
+    # LaTeX setup
+    matplotlib.rc('text', usetex=True)
+
+    # Set LaTeX-preamble
+    if packages:
+        key = 'text.latex.preamble'
+        preamble = matplotlib.rcParams.get(key, "")
+        new = "\n".join([r"\usepackage{" + p + "}" for p in packages])
+        matplotlib.rcParams[key] = preamble + new
+
+    if font_size is not None:
+        matplotlib.rcParams['font.size'] = font_size
+
+
+def use_colorcet(cmap=cc.glasbey_category10, n=10):
+    set_prop_cycle(color=cmap[:n])
+
+
+def get_figure_width(columns=1.0, column_width=3.50394):
+    """Figure widths defined by Nature journal."""
+    if columns == 1.0:
+        return column_width
+    elif columns == 2.0:
+        return 7.204724
+    else:
+        return columns * column_width
+
+
+def set_column_figsize(fig, columns=1.0, ratio=3/4, dpi=300):
+    width = get_figure_width(columns)
+    height = width * ratio
+    fig.set_size_inches(width, height)
+    if dpi is not None:
+        fig.set_dpi(dpi)
+
+
+def save_figure(fig, *relpaths, dpi=600, frmt=None, rasterized=True):
+    print(f"Saving...", end="", flush=True)
+    if rasterized:
+        for ax in fig.get_axes():
+            ax.set_rasterized(True)
+    file = os.path.join(*relpaths)
+    if (frmt is not None) and (not file.endswith(frmt)):
+        filename, _ = os.path.splitext(file)
+        file = filename + "." + frmt
+    fig.savefig(file, dpi=dpi, format=frmt)
+    print(f"\rFigure saved: {os.path.split(file)[1]}")
+    return file
 
 
 class Plot:
@@ -39,6 +105,11 @@ class Plot:
 
     # =========================================================================
 
+    def set_column_figsize(self, columns=1.0, ratio=3/4, dpi=300):
+        width = get_figure_width(columns)
+        height = width * ratio
+        self.set_figsize(width, height, dpi)
+
     def set_figsize(self, width, height, dpi=None):
         self.fig.set_size_inches(width, height)
         if dpi is not None:
@@ -46,6 +117,9 @@ class Plot:
 
     def tight_layout(self):
         self.fig.tight_layout()
+
+    def save(self, *relpaths, dpi=600, frmt=None, rasterized=True):
+        return save_figure(self.fig, *relpaths, dpi=dpi, frmt=frmt, rasterized=rasterized)
 
     def show(self, tight=True, block=True):
         if tight:
