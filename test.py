@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from lattpy import Lattice
+#from lattpy import Lattice
 
 def visualize_states():
     from cmpy import Basis
