@@ -2,11 +2,13 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2020, Dylan Jones
+# Copyright (c) 2021, Dylan Jones
 #
 # This code is licensed under the MIT License. The copyright notice in the
 # LICENSE file in the root directory and this permission notice shall
 # be included in all copies or substantial portions of the Software.
+
+"""Tools for handling and representing (fermionic) Fock basis-states."""
 
 import numpy as np
 from itertools import product, permutations
@@ -18,6 +20,7 @@ __all__ = ["UP", "DN", "SPIN_CHARS", "state_label", "binstr", "binarr",
            "binidx", "overlap", "occupations", "create", "annihilate",
            "Binary", "SpinState", "State", "Sector", "Basis"]
 
+_BITORDER = -1
 _ARRORDER = -1
 
 UP, DN = 1, 2
@@ -53,7 +56,7 @@ def state_label(up_num: int, dn_num: int, digits: Optional[int] = None) -> str:
         u = up_num >> i & 1
         d = dn_num >> i & 1
         chars.append(SPIN_CHARS[u + (d << 1)])
-    label = "".join(chars)[::-1]
+    label = "".join(chars[::-_BITORDER])
     return label
 
 
@@ -77,7 +80,7 @@ def binstr(num: int, width: Optional[int] = 0) -> str:
     binstr : str
     """
     width = width if width is not None else 0
-    return f"{num:0{width}b}"
+    return f"{num:0{width}b}"[::_BITORDER]
 
 
 def binarr(num: int, width: Optional[int] = None,
@@ -98,7 +101,7 @@ def binarr(num: int, width: Optional[int] = None,
     binarr : np.ndarray
     """
     width = width if width is not None else 0
-    dtype = dtype or np.int
+    dtype = dtype or np.int64
     return np.fromiter(f"{num:0{width}b}"[::_ARRORDER], dtype=dtype)
 
 
@@ -329,13 +332,19 @@ class SpinState(Binary):
         """Computes the overlap with another state and returns the results as a binary array."""
         return overlap(self, other, dtype=dtype)
 
-    def create(self, pos: int) -> 'SpinState':
+    def create(self, pos: int) -> Union['SpinState', None]:
         """Creates a particle at `pos` if possible and returns the new state."""
-        return self.__class__(create(self, pos), width=self.width)
+        num = create(self, pos)
+        if num is None:
+            return None
+        return self.__class__(num, width=self.width)
 
-    def annihilate(self, pos: int) -> 'SpinState':
+    def annihilate(self, pos: int) -> Union['SpinState', None]:
         """Annihilates a particle at `pos` if possible and returns the new state."""
-        return self.__class__(annihilate(self, pos), width=self.width)
+        num = annihilate(self, pos)
+        if num is None:
+            return None
+        return self.__class__(num, width=self.width)
 
 
 @dataclass

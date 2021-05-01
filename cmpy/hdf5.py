@@ -1,10 +1,14 @@
 # coding: utf-8
 #
-# This code is part of numdb.
-# 
+# This code is part of cmpy.
+#
 # Copyright (c) 2021, Dylan Jones
+#
+# This code is licensed under the MIT License. The copyright notice in the
+# LICENSE file in the root directory and this permission notice shall
+# be included in all copies or substantial portions of the Software.
 
-"""Tools for hdf5-files."""
+"""Tools for handling hdf5-files."""
 
 import os
 import h5py
@@ -69,7 +73,7 @@ def check_attrs(item: Union[h5py.File, h5py.Group, h5py.Dataset],
 
 
 def find_by_attrs(parent: Union[h5py.File, h5py.Group], attrs: dict,
-                  mode: Optional[str] = "equals") -> Union[h5py.Group, h5py.Dataset, None]:
+                  mode: Optional[str] = "contains") -> Union[h5py.Group, h5py.Dataset, None]:
     """Returns the first child of the parent with matching attributes.
 
     Parameters

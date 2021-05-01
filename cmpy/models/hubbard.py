@@ -2,14 +2,13 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2020, Dylan Jones
+# Copyright (c) 2021, Dylan Jones
 #
 # This code is licensed under the MIT License. The copyright notice in the
 # LICENSE file in the root directory and this permission notice shall
 # be included in all copies or substantial portions of the Software.
 
 import numpy as np
-from lattpy import Lattice, Atom
 from typing import Optional, Union, Any, Sequence, Dict
 from .abc import AbstractModel
 

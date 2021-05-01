@@ -2,7 +2,7 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2020, Dylan Jones
+# Copyright (c) 2021, Dylan Jones
 #
 # This code is licensed under the MIT License. The copyright notice in the
 # LICENSE file in the root directory and this permission notice shall
@@ -15,8 +15,8 @@ from .abc import (
 )
 
 from .tightbinding import (
-    BaseTightBindingModel,
-    TightBinding
+    AbstractTightBinding,
+    BaseTightBindingModel
 )
 
 from .hubbard import (

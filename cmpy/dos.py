@@ -2,11 +2,13 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2020, Dylan Jones
+# Copyright (c) 2021, Dylan Jones
 #
 # This code is licensed under the MIT License. The copyright notice in the
 # LICENSE file in the root directory and this permission notice shall
 # be included in all copies or substantial portions of the Software.
+
+"""Methods for computing the (non-interacting) density of states from the energy dispersion."""
 
 import numpy as np
 from typing import Union

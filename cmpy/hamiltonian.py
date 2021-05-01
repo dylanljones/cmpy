@@ -2,7 +2,7 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2020, Dylan Jones
+# Copyright (c) 2021, Dylan Jones
 #
 # This code is licensed under the MIT License. The copyright notice in the
 # LICENSE file in the root directory and this permission notice shall
@@ -10,23 +10,15 @@
 
 import numpy as np
 from bisect import bisect_left
-from typing import Callable, Iterable, Union
+from typing import Callable, Iterable
 from .basis import binstr, occupations, overlap
-from .operators import LinearOperator, project_up, project_dn, SparseOperator
-
-
-def apply_projected_up(matvec, x, num_dn_states, up_idx, dn_indices, value, target=None):
-    if value:
-        origins = project_up(up_idx, num_dn_states, dn_indices)
-        targets = origins if target is None else project_up(target, num_dn_states, dn_indices)
-        matvec[targets] += value * x[origins]
-
-
-def apply_projected_dn(matvec, x, num_dn_states, dn_idx, up_indices, value, target=None):
-    if value:
-        origins = project_dn(dn_idx, num_dn_states, up_indices)
-        targets = origins if target is None else project_dn(target, num_dn_states, up_indices)
-        matvec[targets] += value * x[origins]
+from .operators import (
+    SparseOperator,
+    project_up,
+    project_dn,
+    apply_projected_up,
+    apply_projected_dn
+)
 
 
 # =========================================================================
