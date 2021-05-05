@@ -51,8 +51,8 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
         """
         eps_bath = u / 2 if eps_bath is None else eps_bath
         mu = u / 2 if mu is None else mu
-        eps_bath = np.atleast_1d(eps_bath).astype(np.float)
-        v = np.atleast_1d(v).astype(np.float)
+        eps_bath = np.atleast_1d(eps_bath).astype(np.float64)
+        v = np.atleast_1d(v).astype(np.float64)
         num_sites = len(eps_bath) + 1
         super().__init__(num_sites, u=u, eps_imp=eps_imp, eps_bath=eps_bath, v=v, mu=mu, temp=temp)
 
@@ -80,7 +80,7 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
             The energy values of the bath sites. If only one bath site
             is used a float value can be passed.
         """
-        eps_bath = np.atleast_1d(eps_bath).astype(np.float)
+        eps_bath = np.atleast_1d(eps_bath).astype(np.float64)
         assert eps_bath.shape[0] == self.num_bath
         self.eps_bath = eps_bath  # noqa
 
@@ -93,7 +93,7 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
             The hopping parameters between the impurity and bath sites.
             If only one bath site is used a float value can be passed.
         """
-        v = np.atleast_1d(v).astype(np.float)
+        v = np.atleast_1d(v).astype(np.float64)
         assert v.shape[0] == self.num_bath
         self.v = v  # noqa
 
