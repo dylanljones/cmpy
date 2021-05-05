@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-#from lattpy import Lattice
+from lattpy import Lattice
 
 def visualize_states():
     from cmpy import Basis
@@ -18,7 +18,7 @@ def visualize_states():
     for i in states:
         print(i)
 
-    latt = Lattice()
+    latt = Lattice([[1,0],[0,1]])
 
     state = states[0]
     # print(state)
@@ -30,4 +30,5 @@ def visualize_states():
 
 
 if __name__ == "__main__":
+    # A=1
     visualize_states()
