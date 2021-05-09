@@ -114,42 +114,11 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
         -------
         delta: (N) complex np.ndarray
         """
-        return np.sum(np.abs(self.v) ** 2 / (z[..., np.newaxis] - self.eps_bath), axis=-1)
+        return np.sum(np.square(np.abs(self.v)) / (z[..., np.newaxis] - self.eps_bath), axis=-1)
 
     def pformat(self):
         return f"U={self.u}, ε_i={self.eps_imp}, ε_b={self.eps_bath}, v={self.v}, " \
                f"μ={self.mu}, T={self.temp}"
-
-
-def polar(r, phi):
-    return r * np.cos(phi), r * np.sin(phi)
-
-
-def draw_star(ax, siam, r=1.0, size=8, imp_size=11, labels=True):
-    eps_bath = siam.eps_bath
-    v = siam.v
-    n = len(eps_bath)
-    phi0 = 0.0 if n <= 2 else np.pi / 2
-
-    imp_label = rf"U={siam.u[0]:.1f}, $\epsilon$={siam.eps_imp:.1f}"
-    ax.scatter([0], [0], color="k", s=imp_size**2, zorder=2, label=imp_label)
-    for i in range(n):
-        phi = i * 2 * np.pi / n
-        pos = polar(r, phi + phi0)
-        ax.plot([0, pos[0]], [0, pos[1]], color="k", zorder=1)
-        ax.scatter(*pos, s=size**2, color="C0", zorder=2)
-
-        if labels:
-            eps_label = rf"$\epsilon$={eps_bath[i]:.1f}"
-            x, y = polar(r*1.2, phi + phi0)
-            ax.text(x=x, y=y, s=eps_label, va="center", ha="center")
-
-            v_label = rf"V={v[i]:.1f}"
-            x, y = polar(r * 0.5, phi + 0.1 * np.pi + phi0)
-            ax.text(x=x, y=y, s=v_label, va="center", ha="center")
-
-    if labels:
-        ax.legend()
 
 
 # ========================== REFERENCES =======================================

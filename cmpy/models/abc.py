@@ -15,7 +15,7 @@ from abc import ABC, abstractmethod
 from collections import MutableMapping
 from typing import Any, Dict, Optional, List, Iterator
 from cmpy.basis import Basis
-from cmpy.hamiltonian import HamiltonOperator
+from cmpy.operators import LinearOperator
 
 
 class ModelParameters(MutableMapping):
@@ -146,7 +146,7 @@ class AbstractModel(ModelParameters, ABC):
     def __str__(self) -> str:
         return f"{self.__class__.__name__}({ModelParameters.__str__(self)})"
 
-    def hamiltonian(self, *args, **kwargs) -> HamiltonOperator:
+    def hamiltonian(self, *args, **kwargs) -> LinearOperator:
         pass
 
 
@@ -185,5 +185,5 @@ class AbstractManyBodyModel(AbstractModel):
     def build_matvec(self, matvec, x, sector):
         pass
 
-    def hamiltonian(self, n_up=None, n_dn=None, sector=None, dtype=None) -> HamiltonOperator:
+    def hamiltonian(self, n_up=None, n_dn=None, sector=None, dtype=None) -> LinearOperator:
         pass
