@@ -13,26 +13,26 @@
 import abc
 import numpy as np
 import scipy.linalg as la
-from typing import Union
 from bisect import bisect_left
 from scipy.sparse import linalg as sla
 from scipy.sparse import csr_matrix
+from typing import Iterator
 from .basis import UP, SPIN_CHARS
 from .matrix import Matrix, is_hermitian, Decomposition
 
 
 __all__ = ["LinearOperator", "SparseOperator", "TimeEvolutionOperator", "CreationOperator",
-           "project_up", "project_dn", "project_elements_up", "project_elements_dn",
-           "apply_projected_up", "apply_projected_dn"]
+           "project_up", "project_dn", "project_elements_up", "project_elements_dn",]
 
 
-def project_up(up_idx: Union[int, np.ndarray], num_dn_states: int,
-               dn_indices: np.ndarray) -> np.ndarray:
-    """Projects spin-up states onto the full basis.
+def project_up(up_idx: (int, np.ndarray),
+               num_dn_states: int,
+               dn_indices: (int, np.ndarray)) -> np.ndarray:
+    """Projects spin-up states onto the full basis(-sector).
 
     Parameters
     ----------
-    up_idx: int or ndarray
+    up_idx: int or np.ndarray
         The index/indices for the projection.
     num_dn_states: int
         The total number of spin-down states of the basis(-sector).
@@ -42,13 +42,14 @@ def project_up(up_idx: Union[int, np.ndarray], num_dn_states: int,
     return up_idx * num_dn_states + dn_indices
 
 
-def project_dn(dn_idx: Union[int, np.ndarray], num_dn_states: int,
-               up_indices: np.ndarray) -> np.ndarray:
-    """Projects spin-down states onto the full basis.
+def project_dn(dn_idx: (int, np.ndarray),
+               num_dn_states: int,
+               up_indices: (int, np.ndarray)) -> np.ndarray:
+    """Projects spin-down states onto the full basis(-sector).
 
     Parameters
     ----------
-    dn_idx: int or ndarray
+    dn_idx: int or np.ndarray
         The index/indices for the projection.
     num_dn_states: int
         The total number of spin-down states of the basis(-sector).
@@ -58,40 +59,96 @@ def project_dn(dn_idx: Union[int, np.ndarray], num_dn_states: int,
     return up_indices * num_dn_states + dn_idx
 
 
-def project_elements_up(num_dn_states, up_idx, dn_indices, value, target=None):
-    if value:
-        origins = project_up(up_idx, num_dn_states, dn_indices)
-        targets = origins if target is None else project_up(target, num_dn_states, dn_indices)
-        if isinstance(origins, int):
-            yield origins, targets, value
-        else:
-            for row, col in zip(origins, targets):
-                yield row, col, value
+def project_elements_up(up_idx: (int, np.ndarray),
+                        num_dn_states: int,
+                        dn_indices: (int, np.ndarray),
+                        value: (complex, float),
+                        target: (int, np.ndarray) = None):
+    """Projects a value for spin-up states onto the elements of the full basis(-sector).
+
+    Parameters
+    ----------
+    up_idx: int or np.ndarray
+        The index/indices for the projection.
+    num_dn_states: int
+        The total number of spin-down states of the basis(-sector).
+    dn_indices: int or np.ndarray
+        An array of the indices of all spin-down states in the basis(-sector).
+    value: float or complex
+        The value to project.
+    target: int or np.ndarray, optional
+        The target index/indices for the projection. This is only needed
+        for non-diagonal elements.
+
+    Yields
+    -------
+    row: int
+        The row-index of the element.
+    col: int
+        The column-index of the element.
+    value: float or complex
+        The value of the matrix-element.
+    """
+    if not value:
+        return
+
+    origins = project_up(up_idx, num_dn_states, dn_indices)
+    if target is None:
+        targets = origins
+    else:
+        targets = project_up(target, num_dn_states, dn_indices)
+
+    if isinstance(origins, int):
+        yield origins, targets, value
+    else:
+        for row, col in zip(origins, targets):
+            yield row, col, value
 
 
-def project_elements_dn(num_dn_states, dn_idx, up_indices, value, target=None):
-    if value:
-        origins = project_dn(dn_idx, num_dn_states, up_indices)
-        targets = origins if target is None else project_dn(target, num_dn_states, up_indices)
-        if isinstance(origins, int):
-            yield origins, targets, value
-        else:
-            for row, col in zip(origins, targets):
-                yield row, col, value
+def project_elements_dn(dn_idx: (int, np.ndarray),
+                        num_dn_states: int,
+                        up_indices: (int, np.ndarray),
+                        value: (complex, float),
+                        target: (int, np.ndarray) = None):
+    """Projects a value for spin-down states onto the elements of the full basis(-sector).
 
+    Parameters
+    ----------
+    dn_idx: int or ndarray
+        The index/indices for the projection.
+    num_dn_states: int
+        The total number of spin-down states of the basis(-sector).
+    up_indices: int or np.ndarray
+        An array of the indices of all spin-up states in the basis(-sector).
+    value: float or complex
+        The value to project.
+    target: int or np.ndarray, optional
+        The target index/indices for the projection. This is only needed
+        for non-diagonal elements.
 
-def apply_projected_up(matvec, x, num_dn_states, up_idx, dn_indices, value, target=None):
-    if value:
-        origins = project_up(up_idx, num_dn_states, dn_indices)
-        targets = origins if target is None else project_up(target, num_dn_states, dn_indices)
-        matvec[targets] += value * x[origins]
+    Yields
+    -------
+    row: int
+        The row-index of the element.
+    col: int
+        The column-index of the element.
+    value: float or complex
+        The value of the matrix-element.
+    """
+    if not value:
+        return
 
+    origins = project_dn(dn_idx, num_dn_states, up_indices)
+    if target is None:
+        targets = origins
+    else:
+        targets = project_dn(target, num_dn_states, up_indices)
 
-def apply_projected_dn(matvec, x, num_dn_states, dn_idx, up_indices, value, target=None):
-    if value:
-        origins = project_dn(dn_idx, num_dn_states, up_indices)
-        targets = origins if target is None else project_dn(target, num_dn_states, up_indices)
-        matvec[targets] += value * x[origins]
+    if isinstance(origins, int):
+        yield origins, targets, value
+    else:
+        for row, col in zip(origins, targets):
+            yield row, col, value
 
 
 # =========================================================================
