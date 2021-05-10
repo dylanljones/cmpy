@@ -287,13 +287,13 @@ class SIAM(ModelParameters):
         return siam_hamiltonian(up, dn, self.u, self.eps_imp, self.eps_bath, self.v)
 
     def iter_fillings(self):
-        for n_up in range(self.num_sites):
-            for n_dn in range(self.num_sites):
+        for n_dn in range(self.num_sites + 1):
+            for n_up in range(self.num_sites + 1):
                 yield n_up, n_dn
 
 
 def main():
-    num_bath = 5
+    num_bath = 1
     u = 2
     eps_imp = 0
     eps_bath = 0 * np.ones(num_bath)

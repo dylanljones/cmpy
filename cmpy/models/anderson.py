@@ -10,8 +10,52 @@
 
 import numpy as np
 from abc import ABC
-from typing import Optional, Union, Sequence
+from typing import Union, Sequence
+from scipy import sparse
+from cmpy.basis import UP
+from cmpy.operators import (
+    project_onsite_energy, project_interaction, project_site_hopping, CreationOperator
+)
+from cmpy.greens import GreensFunction
 from .abc import AbstractManyBodyModel
+
+
+# ========================== REFERENCES =======================================
+
+# Reference functions taken from E. Lange:
+# 'Renormalized vs. unrenormalized perturbation-theoretical
+# approaches to the Mott transition'
+
+
+def impurity_gf_ref(z: np.ndarray, u: float, v: float) -> np.ndarray:
+    r"""Impurity Greens function of the two-site SIAM at half filling and zero temperature.
+
+    Parameters
+    ----------
+    z : (N) np.ndarray
+        The broadened complex frequency .math:`\omega + i \eta`.
+    u : float
+        The on-site interaction strength.
+    v : float
+        The hopping energy between the impurity site and the bath site.
+
+    Returns
+    -------
+    gf_imp : (N) np.ndarray
+        The interacting impurity Greens function.
+    """
+    sqrt16 = np.sqrt(u**2 + 16 * v**2)
+    sqrt64 = np.sqrt(u**2 + 64 * v**2)
+    a1 = 1/4 * (1 - (u**2 - 32 * v**2) / np.sqrt((u**2 + 64 * v**2) * (u**2 + 16 * v**2)))
+    a2 = 1/2 - a1
+    e1 = 1/4 * (sqrt64 - sqrt16)
+    e2 = 1/4 * (sqrt64 + sqrt16)
+    return (a1 / (z - e1) + a1 / (z + e1)) + (a2 / (z - e2) + a2 / (z + e2))
+
+
+# =========================================================================
+# Single impurity anderson model
+# =========================================================================
 
 
 class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
@@ -20,17 +64,17 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
                  eps_imp: Union[float, Sequence[float]] = 0.0,
                  eps_bath: Union[float, Sequence[float]] = 0.0,
                  v: Union[float, Sequence[float]] = 1.0,
-                 mu: Optional[float] = 0.0,
-                 temp: Optional[float] = 0.0):
+                 mu: float = 0.0,
+                 temp: float = 0.0):
         r"""Initializes the single impurity Anderson model
 
         Parameters
         ----------
-        u: float
+        u : float
             The on-site interaction strength.
-        eps_imp: float, optional
+        eps_imp : float, optional
             The on-site energy of the impurity site. The default is `0`.
-        eps_bath: float or (N) float np.ndarray
+        eps_bath : float or (N) float np.ndarray
             The on-site energy of the bath site(s). If a float is given the model
             is set to one bath site, otherwise the number of bath sites is given
             by the number of energy values passed.
@@ -38,15 +82,15 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
             .math:`\epsilon_B \mu = u/2`. If `None`is given, one bath site at
             half filling will be set up.
             The default is `None` (half filling with one bath site).
-        v: float or (N) float np.ndarray
+        v : float or (N) float np.ndarray
             The hopping energy between the impurity site and the bath site(s).
             The number of hopping parameters must match the number of bath energies
             passed, i.e. the number of bath sites. The default is `1`.
-        mu: float, optional
+        mu : float, optional
             The chemical potential of the system. If `None` the system is set
             to half filling, meaning a chemical potential of .math:`\mu = u/2`.
             The default is `None` (half filling).
-        temp: float, optional
+        temp : float, optional
             Optional temperature in kelvin. The default is ``0``.
         """
         eps_bath = u / 2 if eps_bath is None else eps_bath
@@ -71,7 +115,7 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
         """The total number of sites."""
         return self.num_bath + 1
 
-    def update_bath_energy(self, eps_bath: Union[float, np.ndarray]) -> None:
+    def update_bath_energy(self, eps_bath: (float, np.ndarray)) -> None:
         """Updates the on-site energies `eps_bath` of the bath sites.
 
         Parameters
@@ -81,10 +125,12 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
             is used a float value can be passed.
         """
         eps_bath = np.atleast_1d(eps_bath).astype(np.float64)
-        assert eps_bath.shape[0] == self.num_bath
+        if eps_bath.shape[0] != self.num_bath:
+            raise ValueError(f"Dimension of the new bath energy {eps_bath.shape} "
+                             f"does not match number of baths {self.num_bath}")
         self.eps_bath = eps_bath  # noqa
 
-    def update_hybridization(self, v: Union[float, np.ndarray]) -> None:
+    def update_hybridization(self, v: (float, np.ndarray)) -> None:
         """Updates the hopping parameters `v` between the impurity and bath sites.
 
         Parameters
@@ -94,7 +140,9 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
             If only one bath site is used a float value can be passed.
         """
         v = np.atleast_1d(v).astype(np.float64)
-        assert v.shape[0] == self.num_bath
+        if v.shape[0] != self.num_bath:
+            raise ValueError(f"Dimension of the new hybridization {v.shape} "
+                             f"does not match number of baths {self.num_bath}")
         self.v = v  # noqa
 
     def hybridization_func(self, z: np.ndarray) -> np.ndarray:
@@ -114,23 +162,77 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
         -------
         delta: (N) complex np.ndarray
         """
-        return np.sum(np.square(np.abs(self.v)) / (z[..., np.newaxis] - self.eps_bath), axis=-1)
+        x = z[..., np.newaxis] + self.mu
+        return np.sum(np.square(np.abs(self.v)) / (x - self.eps_bath), axis=-1)
+
+    def _hamiltonian_data(self, up_states, dn_states):
+        num_sites = self.num_sites
+        u = np.append(self.u, np.zeros(self.num_bath))
+        eps = np.append(self.eps_imp, self.eps_bath) - self.mu
+        hopping = lambda i, j: self.v[j - 1] if i == 0 else 0  # noqa
+
+        yield from project_onsite_energy(up_states, dn_states, eps)
+        yield from project_interaction(up_states, dn_states, u)
+        yield from project_site_hopping(up_states, dn_states, num_sites, hopping, pos=0)
+
+    def hamiltonian(self, n_up=None, n_dn=None, sector=None, dtype=None, dense=True):
+        if sector is None:
+            sector = self.basis.get_sector(n_up, n_dn)
+        up_states, dn_states = sector.up_states, sector.dn_states
+        size = len(up_states) * len(dn_states)
+
+        rows, cols, data = list(), list(), list()
+        for row, col, value in self._hamiltonian_data(up_states, dn_states):
+            rows.append(row)
+            cols.append(col)
+            data.append(value)
+        ham = sparse.csr_matrix((data, (rows, cols)), shape=(size, size))
+        if dense:
+            ham = ham.toarray()
+        return ham
+
+    def impurity_gf0(self, z):
+        return 1 / (z + self.mu + self.eps_imp - self.hybridization_func(z))
+
+    def impurity_gf(self, z, beta, sigma=UP):
+        gf = GreensFunction(z, beta)
+        part = 0
+        eig_cache = dict()
+        for n_up, n_dn in self.iter_fillings():
+            # Solve particle sector
+            sector_key = (n_up, n_dn)
+            sector = self.get_sector(n_up, n_dn)
+            if sector_key in eig_cache:
+                eigvals, eigvecs = eig_cache[sector_key]
+            else:
+                ham = self.hamiltonian(sector=sector)
+                eigvals, eigvecs = np.linalg.eigh(ham)
+                eig_cache[sector_key] = [eigvals, eigvecs]
+
+            # Update partition function
+            part += np.sum(np.exp(-beta * eigvals))
+
+            # Check if upper particle sector exists
+            n_up_p1, n_dn_p1 = n_up, n_dn
+            if sigma == UP:
+                n_up_p1 += 1
+            else:
+                n_dn_p1 += 1
+
+            if n_up_p1 in self.basis.fillings and n_dn_p1 in self.basis.fillings:
+                # Solve upper particle sector
+                sector_p1 = self.basis.get_sector(n_up_p1, n_dn_p1)
+                ham_p1 = self.hamiltonian(sector=sector_p1)
+                eigvals_p1, eigvecs_p1 = np.linalg.eigh(ham_p1)
+                eig_cache[(n_up_p1, n_dn_p1)] = [eigvals_p1, eigvecs_p1]
+
+                # Update Greens-function
+                cdag = CreationOperator(sector, sector_p1, sigma=sigma)
+                gf.accumulate(cdag, eigvals, eigvecs, eigvals_p1, eigvecs_p1)
+            else:
+                eig_cache = dict()
+        return gf / part
 
     def pformat(self):
         return f"U={self.u}, ε_i={self.eps_imp}, ε_b={self.eps_bath}, v={self.v}, " \
                f"μ={self.mu}, T={self.temp}"
-
-
-# ========================== REFERENCES =======================================
-
-# Reference functions taken from E. Lange:
-# 'Renormalized vs. unrenormalized perturbation-theoretical
-# approaches to the Mott transition'
-def impurity_gf_ref(z, u, v):
-    sqrt16 = np.sqrt(u**2 + 16 * v**2)
-    sqrt64 = np.sqrt(u**2 + 64 * v**2)
-    a1 = 1/4 * (1 - (u**2 - 32 * v**2) / np.sqrt((u**2 + 64 * v**2) * (u**2 + 16 * v**2)))
-    a2 = 1/2 - a1
-    e1 = 1/4 * (sqrt64 - sqrt16)
-    e2 = 1/4 * (sqrt64 + sqrt16)
-    return (a1 / (z - e1) + a1 / (z + e1)) + (a2 / (z - e2) + a2 / (z + e2))

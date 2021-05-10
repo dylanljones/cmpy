@@ -185,5 +185,5 @@ class AbstractManyBodyModel(AbstractModel):
     def build_matvec(self, matvec, x, sector):
         pass
 
-    def hamiltonian(self, n_up=None, n_dn=None, sector=None, dtype=None) -> LinearOperator:
+    def hamiltonian(self, n_up=None, n_dn=None, sector=None, dtype=None):
         pass
