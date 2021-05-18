@@ -93,14 +93,14 @@ def project_onsite_energy(up_states, dn_states, eps):
 
     for up_idx, up in enumerate(up_states):
         print("up_idx:", up_idx, "up", up)
-        weights = occupations(up, width=num_sites)
+        weights = occupations(up)#, width=num_sites)
         print(weights)
         energy = np.sum(eps[:weights.size] * weights)
         yield from project_elements_up(num_dn, up_idx, all_dn, energy)
 
     for dn_idx, dn in enumerate(dn_states):
         print("dn_idx:", dn_idx, "dn", dn)
-        weights = occupations(dn, width=num_sites)
+        weights = occupations(dn)#, width=num_sites)
         print(weights)
         energy = np.sum(eps[:weights.size] * weights)
         yield from project_elements_dn(num_dn, dn_idx, all_up, energy)
@@ -373,4 +373,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    main1()

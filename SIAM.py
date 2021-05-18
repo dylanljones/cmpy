@@ -50,7 +50,7 @@ def get_state_num(fullstate_num):
 
 
 def get_fullstate_num(up_state_num, dn_state_num):
-    return up_state_num * site_num + dn_state_num
+    return up_state_num * len(dn_states) + dn_state_num
 
 
 def compute_onsite(state):
@@ -91,6 +91,7 @@ def get_hopping_out_el(up, dn, full, up_idx, dn_idx):
             hopp_dn_elements.append([full_hopp_dn, full, hopp_dn_e])
 
     return hopp_dn_elements + hopp_up_elements
+
 
 def compute_hopping_in(V, num_spin, target_site):
     if num_spin & IMPURITY or not num_spin & (1 << target_site):  # no electron that can hop
@@ -149,6 +150,7 @@ def get_matrix_elements(up_states, dn_states):
             hopping_elements += get_hopping_in_el(up, dn, full, up_idx, dn_idx)
     return onsite_elements + interaction_elements + hopping_elements
 
+
 def set_hamiltonian(matrix_elements, up_states, dn_states):
     dim = len(up_states) * len(dn_states)
     from scipy.sparse import csr_matrix
@@ -161,44 +163,45 @@ def set_hamiltonian(matrix_elements, up_states, dn_states):
 
 
 IMPURITY = 0b1
-site_num = 3
-eps_onsite = [1, 2, 3, 4]
-U = 4
-V = [1, 2, 3, 4]
-
-
-# ========================================================================
-n_up = 3
-n_dn = 3
-up_states = get_all_states(n_up)
-dn_states = get_all_states(n_dn)
-matel = np.array(get_matrix_elements(up_states, dn_states))
-hamiltonian = set_hamiltonian(matel, up_states, dn_states)
-print(hamiltonian)
+site_num = 4
+eps_onsite = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) -5
+U = 0
+V = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 # ========================================================================
 
+# n_up = 0
+# n_dn = 1
+# up_states = get_all_states(n_up)
+# dn_states = get_all_states(n_dn)
+# matel = np.array(get_matrix_elements(up_states, dn_states))
+# # print(matel.T)
+# hamiltonian = set_hamiltonian(matel, up_states, dn_states)
+# print(hamiltonian)
 
-# gs = None
-# e_gs = np.infty
-# gs_sec = None
-#
-# for n_up in range(0, site_num+1):
-#     for n_dn in range(0, site_num+1):
-#         print(f"------- n_up {n_up}, n_dn {n_dn}")
-#         up_states = get_all_states(n_up)
-#         dn_states = get_all_states(n_dn)
-#         matel = np.array(get_matrix_elements(up_states, dn_states))
-#         # print(matel)
-#         hamiltonian = set_hamiltonian(matel, up_states, dn_states)
-#         print(hamiltonian)
-#         eigvals, eigvecs = np.linalg.eigh(hamiltonian)
-#         i0 = np.argmin(eigvals)
-#         e0 = eigvals[i0]
-#         if e0 < e_gs:
-#             e_gs = e0
-#             gs = eigvecs[:, i0]
-#             gs_sec = [n_up, n_dn]
-# print(f"Ground state (E={e_gs:.2f}, sector {gs_sec}):")
-# print(gs)
+# ========================================================================
 
+
+gs = None
+e_gs = np.infty
+gs_sec = None
+
+for n_up in range(0, site_num + 1):
+    for n_dn in range(0, site_num + 1):
+        print(f"------- n_up {n_up}, n_dn {n_dn}")
+        up_states = get_all_states(n_up)
+        dn_states = get_all_states(n_dn)
+        matel = np.array(get_matrix_elements(up_states, dn_states))
+        # print(matel)
+        hamiltonian = set_hamiltonian(matel, up_states, dn_states)
+        print(hamiltonian)
+        eigvals, eigvecs = np.linalg.eigh(hamiltonian)
+        i0 = np.argmin(eigvals)
+        e0 = eigvals[i0]
+        print(eigvals)
+        if e0 < e_gs:
+            e_gs = e0
+            gs = eigvecs[:, i0]
+            gs_sec = [n_up, n_dn]
+print(f"Ground state (E={e_gs:.2f}, sector {gs_sec}):")
+print(gs)
