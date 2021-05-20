@@ -20,39 +20,6 @@ from cmpy.greens import GreensFunction
 from .abc import AbstractManyBodyModel
 
 
-# ========================== REFERENCES =======================================
-
-# Reference functions taken from E. Lange:
-# 'Renormalized vs. unrenormalized perturbation-theoretical
-# approaches to the Mott transition'
-
-
-def impurity_gf_ref(z: np.ndarray, u: float, v: float) -> np.ndarray:
-    r"""Impurity Greens function of the two-site SIAM at half filling and zero temperature.
-
-    Parameters
-    ----------
-    z : (N) np.ndarray
-        The broadened complex frequency .math:`\omega + i \eta`.
-    u : float
-        The on-site interaction strength.
-    v : float
-        The hopping energy between the impurity site and the bath site.
-
-    Returns
-    -------
-    gf_imp : (N) np.ndarray
-        The interacting impurity Greens function.
-    """
-    sqrt16 = np.sqrt(u**2 + 16 * v**2)
-    sqrt64 = np.sqrt(u**2 + 64 * v**2)
-    a1 = 1/4 * (1 - (u**2 - 32 * v**2) / np.sqrt((u**2 + 64 * v**2) * (u**2 + 16 * v**2)))
-    a2 = 1/2 - a1
-    e1 = 1/4 * (sqrt64 - sqrt16)
-    e2 = 1/4 * (sqrt64 + sqrt16)
-    return (a1 / (z - e1) + a1 / (z + e1)) + (a2 / (z - e2) + a2 / (z + e2))
-
-
 # =========================================================================
 # Single impurity anderson model
 # =========================================================================
@@ -74,12 +41,14 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
             The on-site interaction strength.
         eps_imp : float, optional
             The on-site energy of the impurity site. The default is `0`.
+            Note that the impurity energy does not contain the chemical potential
         eps_bath : float or (N) float np.ndarray
             The on-site energy of the bath site(s). If a float is given the model
             is set to one bath site, otherwise the number of bath sites is given
-            by the number of energy values passed.
+            by the number of energy values passed. Note that the bath energy contains
+            the chemical potential.
             If the SIAM is set to half filling, the bath energy can be fixed at
-            .math:`\epsilon_B \mu = u/2`. If `None`is given, one bath site at
+            .math:`\epsilon_B \mu = 0`. If `None`is given, one bath site at
             half filling will be set up.
             The default is `None` (half filling with one bath site).
         v : float or (N) float np.ndarray
@@ -99,11 +68,6 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
         v = np.atleast_1d(v).astype(np.float64)
         num_sites = len(eps_bath) + 1
         super().__init__(num_sites, u=u, eps_imp=eps_imp, eps_bath=eps_bath, v=v, mu=mu, temp=temp)
-
-    @classmethod
-    def half_filled(cls, u, eps_imp, v, temp=0.0):
-        """Initializes a single impurity Anderson model at half filling."""
-        return cls(u=u, eps_imp=eps_imp, eps_bath=u/2, v=v, mu=u/2, temp=temp)
 
     @property
     def num_bath(self) -> int:
@@ -162,7 +126,7 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
         -------
         delta: (N) complex np.ndarray
         """
-        x = z[..., np.newaxis] + self.mu
+        x = z[..., np.newaxis]
         return np.sum(np.square(np.abs(self.v)) / (x - self.eps_bath), axis=-1)
 
     def _hamiltonian_data(self, up_states, dn_states):

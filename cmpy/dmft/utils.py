@@ -4,18 +4,11 @@
 # 
 # Copyright (c) 2021, Dylan Jones
 
-
-import matplotlib.pyplot as plt
 import numpy as np
-from scipy import special, sparse
-from typing import Sequence
-from cmpy import Basis, ModelParameters, Matrix, CreationOperator, UP
-from cmpy import project_onsite_energy, project_interaction, project_site_hopping
-from cmpy.models.anderson import impurity_gf_ref, SingleImpurityAndersonModel
-from cmpy.greens import GreensFunction
-import colorcet as cm
+import matplotlib.pyplot as plt
 from collections import Sequence
 from typing import List
+import colorcet as cm
 from colorama import Fore
 
 
@@ -43,7 +36,7 @@ def plot_dos(z, dos, u, title="", fig=None, ax=None):
     ax.plot(x, dos)
     ax.fill_between(x, 0, dos, color="C0", alpha=0.5)
     ax.set_xlabel(r"$\omega$")
-    ax.set_ylabel(r"$-iG(\omega)$")
+    ax.set_ylabel(r"$\rho(\omega)$")
     ax.set_xlim(np.min(x), np.max(x))
     ax.set_ylim(0, ax.get_ylim()[1])
     if title:
@@ -59,7 +52,7 @@ def plot_quasiparticle_weight(u, qp_weight, title="", fig=None, ax=None):
         fig, ax = plt.subplots()
     ax.plot(u, qp_weight)
     ax.set_xlabel(r"$U$")
-    ax.set_ylabel(r"Quasiparticle-weight")
+    ax.set_ylabel(r"$Z$")
     ax.set_xlim(np.min(u), np.max(u))
     ax.set_ylim(0, ax.get_ylim()[1])
     if title:
@@ -226,3 +219,46 @@ def bethe_gf_omega(z: (complex, np.ndarray), t: float) -> (complex, np.ndarray):
     """
     z_rel = z / (2 * t)
     return z_rel * (1 - np.sqrt(1 - 1 / (z_rel * z_rel))) / t
+
+
+def quasiparticle_weight(omegas: np.ndarray, sigma: np.ndarray,
+                         thresh: float = 1e-5) -> np.ndarray:
+    r"""Computes the quasiparticle .math:`z_{qp}` weight.
+
+    The quasiparticle weight is defined via the derivative of the self energy
+    at .math:`\omega = 0`:
+    ..math::
+        z_{qp} = \left[ 1 - \frac{d\Sigma(0)}{\omega} \right]^{-1}
+
+    References
+    ----------
+    'Two-site dynamical mean-field theory' by M. Potthof:
+    https://arxiv.org/abs/cond-mat/0107502
+
+    Parameters
+    ----------
+    omegas: (N) np.ndarray
+        The real frequency .math:`\omega`.
+    sigma: (N) np.ndarray
+        The self energiy .math:`\Sigma(\omega)`.
+    thresh: float, optional
+        The quasiparticle weight is set to zero if the value falls
+        below the threshold.
+
+    Returns
+    -------
+    z_qp: (N) np.ndarray
+        Array of the quasiparticle weights.
+    """
+    dw = omegas[1] - omegas[0]
+    win = (-dw <= omegas) * (omegas <= +dw)
+    try:
+        dsigma = np.polyfit(omegas[win], sigma.real[win], 1)[0]
+        z_qp = 1 / (1 - dsigma)
+        if z_qp < thresh:
+            z_qp = 0
+    except np.linalg.LinAlgError:
+        # weird linalg/OPENBLAS error: https://github.com/numpy/numpy/issues/16744
+        # only occurs for low temps / high betas
+        z_qp = 0
+    return z_qp
