@@ -8,6 +8,7 @@ from collections import defaultdict
 from itertools import product, chain
 from bisect import bisect_left
 from scipy.sparse.linalg import LinearOperator
+import gftool as gt
 
 
 
@@ -133,10 +134,11 @@ def calc_center_interaction(U: float, num_up: int, num_dn: int) -> float:
 
 
 def _calc_hopp_from_center(V: PRM_ARRAY, num_spin: int) -> List[Tuple[float, int]]:
-    """How you would implement it in python instead.
+    """
     e.g. [0 1 0 1]
          [0 1 0 0]   num_new
-
+    e.g.   c1+ c0 c0+ c1+ |0>  = c1+ c1+ |0> = 0
+    e.g.   c2+ c0 c0+ c1+ |0>  = c2+ c1+ |0>  =  - c1+ c2+ |0>
     """
     if not num_spin & IMPURITY:  # no electron that can hop
         return
@@ -151,9 +153,11 @@ def _calc_hopp_from_center(V: PRM_ARRAY, num_spin: int) -> List[Tuple[float, int
 
 
 def _calc_hopp_to_center(V: PRM_ARRAY, num_spin: int) -> List[Tuple[float, int]]:
-    """How you would implement it in python instead.
-    e.g.[0 1 1 0]
-        [0 1 1 1]    num_new
+    """
+    e.g.[0 1 1 0]               c1+ c2+ |0>
+        [0 1 1 1]    num_new    c0+ c1+ c2+ |0>
+    e.g.   c0+ c1 c1+ c2+ |0>  =  c0+ c2+ |0>
+    e.g.   c0+ c2 c1+ c2+ |0>  =  - c0+ c1+ c2 c2+ |0>  = - c0+ c1+ |0>
     """
     if num_spin & IMPURITY:  # impurity already occupied
         return
@@ -163,7 +167,6 @@ def _calc_hopp_to_center(V: PRM_ARRAY, num_spin: int) -> List[Tuple[float, int]]
     for nn, vn in enumerate(V, start=1):
         if num_spin & (1 << nn):  # state filled, hopping possible
             yield sign * vn, num_new ^ (1 << nn)
-        else:
             sign *= -1
 
 
@@ -293,10 +296,10 @@ def apply_dn_hopping(matvec: VECTOR, x: VECTOR, hybrid: PRM_ARRAY,
     """
     up_states = np.arange(num_up_states)
     for num_dn, state_dn in enumerate(dn_states):
-        dn_hoping = chain(_calc_hopp_to_center(hybrid, num_spin=state_dn),
+        dn_hopping = chain(_calc_hopp_to_center(hybrid, num_spin=state_dn),
                      _calc_hopp_from_center(hybrid, num_spin=state_dn))
         origin = up_states * len(dn_states) + num_dn
-        for amplitude, new_state in dn_hoping:
+        for amplitude, new_state in dn_hopping:
             dn_idx = bisect_left(dn_states, new_state)
             new_full_indices = up_states*len(dn_states) + dn_idx
             matvec[new_full_indices] += amplitude * x[origin]
@@ -392,19 +395,221 @@ class SiamHamilton(LinearOperator):
         return siam_matvec(x.copy(), self.e_onsite, self.U, self.hybrid,
                            self.up_states, self.dn_states)
 
+
+def creation_0up_matvec(matvec: VECTOR, x: VECTOR, up_states: STATE_ARRAY,
+                        up_p1_states: STATE_ARRAY, num_dn_states: int):
+    """Apply the creation operator :math:`c^†_{0↑}`  on state `x`.
+
+    Parameters
+    ----------
+    matvec : (N) float or complex np.ndarray
+        Output containing the matrix vector product.
+    x : (N) float or complex np.ndarray
+        State to which the interaction term is applied.
+    up_states, up_p1_states : (M) int np.ndarray
+        Array of integer representation of up-states for the particle sector,
+        and the particle sector with one electron more.
+    num_dn_states : int
+        Size of the dn-states particle sector.
+
+    """
+    dn_states = np.arange(num_dn_states)
+    for num_up, state_up in enumerate(up_states):
+        if state_up & IMPURITY:  # already particle, no creation possible
+            continue
+        new_up = state_up ^ IMPURITY  # add electron
+        new_num = bisect_left(up_p1_states, new_up)
+        origins = num_up*num_dn_states + dn_states
+        matvec[new_num*num_dn_states + dn_states] += x[origins]
+
+
+class MeasureUp:
+    """Class facilitating the measurement of the up-spin impurity Green's function."""
+
+    def __init__(self, beta: float, z: CVECTOR, states: Dict[int, STATE_ARRAY]):
+        """Measurement object for the up-spin impurity Green's function.
+
+        Parameters
+        ----------
+        beta : float
+            Inverse temperature.
+        z : CVECTOR
+            Complex frequencies for which the Lehmann sum is evaluated.
+        states : Dict[int, STATE_ARRAY]
+            Dictionary of the states as created by `create_spinstates`.
+
+        """
+        self.beta = beta
+        self.z = z
+        self.states = states
+        self.partition_ = 0
+        self.gf_up_ = np.zeros_like(z)
+        self.occ_0up_ = 0
+        self.occ_0dbl_ = 0
+        self.gs_energy: float = np.infty
+
+    @property
+    def partition_fct(self):
+        r"""Partition function :math:`Tr\exp(-βH)`."""
+        return self.partition_ * np.exp(-self.beta*self.gs_energy)
+
+    @property
+    def gf_up_z(self):
+        r"""Up-spin impurity Green's function :math:`⟨⟨c_{0↑}|c†_{0↓}⟩⟩(z)`."""
+        return self.gf_up_ / self.partition_
+
+    @property
+    def occ_0up(self):
+        """Occupation of the up-spin impurity site :math:`⟨n_{0↑}⟩`."""
+        return self.occ_0up_ / self.partition_
+
+    @property
+    def occ_0dbl(self):
+        """Double occupation of the impurity site :math:`⟨n_{0↑}n_{0↓}⟩`."""
+        return self.occ_0dbl_ / self.partition_
+
+    def accumulate(self, eig, vec, eig_up_p1, vec_up_p1, n_up, n_dn):
+        """Perform measurements to accumulate observables."""
+        states = self.states
+        min_energy = min(eig)
+        if min_energy < self.gs_energy:
+            factor = np.exp(-self.beta*(self.gs_energy - min_energy))
+            self.gs_energy = min_energy
+        else:
+            factor = 1  # do nothing
+
+        self.acc_partition(eig=eig, factor=factor)
+        ocd_0up = CreationCenterUp(states[n_up], states[n_up+1], num_dn_states=len(states[n_dn]))
+        ocd_0up_vec = ocd_0up.matmat(vec)
+        self.acc_gf_up(eig, ocd_0up_vec, eig_p1up=eig_up_p1, vec_p1up=vec_up_p1, factor=factor)
+        self.acc_occ_0up(eig, vec, up_states=states[n_up],
+                         num_dn_states=len(states[n_dn]), factor=factor)
+        self.acc_occ_0dbl(eig, vec, up_states=states[n_up],
+                          dn_states=states[n_dn], factor=factor)
+
+    def acc_partition(self, eig, factor=1):
+        """Perform measurement to accumulate the partition function."""
+        self.partition_ *= factor
+        self.partition_ += np.sum(np.exp(-self.beta*(eig-self.gs_energy)))
+
+    def acc_occ_0up(self, eig, vec, up_states: STATE_ARRAY, num_dn_states: int, factor=1):
+        """Perform measurement to accumulate the up-spin impurity occupation."""
+        dn_states = np.arange(num_dn_states)
+        self.occ_0up_ *= factor
+        for num_up, state_up in enumerate(up_states):
+            if not state_up & IMPURITY:  # not occupied, nothing to count
+                continue
+            indices = num_up*num_dn_states + dn_states
+            overlap = np.sum(abs(vec[indices, :])**2, axis=0)
+            self.occ_0up_ += np.sum(np.exp(-self.beta*(eig - self.gs_energy)) * overlap)
+
+    def acc_occ_0dbl(self, eig, vec, up_states: STATE_ARRAY, dn_states: STATE_ARRAY, factor=1):
+        """Perform measurement to accumulate the impurity double occupation."""
+        self.occ_0dbl_ *= factor
+        for element, (state_up, state_dn) in enumerate(product(up_states, dn_states)):
+            if not IMPURITY & state_up & state_dn:
+                continue
+            overlap = abs(vec[element, :])**2
+            self.occ_0dbl_ += np.sum(np.exp(-self.beta*(eig - self.gs_energy)) * overlap)
+
+    def acc_gf_up(self, eig, ocd_0up_vec, eig_p1up, vec_p1up, factor=1):
+        """Accumulate up-spin 1-particle Green's function ⟨⟨c_{0↑}|c†_{0↓}⟩⟩(z)."""
+        self.gf_up_ *= factor
+        gf_up0_accumulate(self.gf_up_, self.z, self.beta,
+                          eig, ocd_0up_vec, eig_p1up, vec_p1up, self.gs_energy)
+
+
+class CreationCenterUp(LinearOperator):
+    """Creation operator :math:`c^†_{0↑}` at site 0 for up electrons."""
+
+    def __init__(self, up_states: STATE_ARRAY, up_p1_states: STATE_ARRAY, num_dn_states: int):
+        """Linear operator operator for the creation operator :math:`c^†_{0↑}`.
+
+        Parameters
+        ----------
+        up_states, up_p1_states : (M) int np.ndarray
+            Array of integer representation of up-states for the particle sector,
+            and the particle sector with one electron more.
+        num_dn_states : int
+            Size of the dn-states particle sector.
+
+        """
+        self.up_states = up_states
+        self.up_p1_states = up_p1_states
+        self.num_dn_states = num_dn_states
+        dim_origin = len(up_states) * num_dn_states
+        dim_target = len(up_p1_states) * num_dn_states
+        super().__init__(dtype=np.complex, shape=(dim_target, dim_origin))
+
+    def _matvec(self, x):
+        newsize = len(self.up_p1_states)*self.num_dn_states
+        matvec = np.zeros((newsize, *x.shape[1:]), dtype=x.dtype)
+        # line handles vector shape. Whether matvec is of shape [N,] or [N,1]
+        # v = np.zeros((4,)); v2 = np.zeros((4,1))
+        # [*v.shape[1:]]  --> []
+        # [*v2.shape[1:]]  --> [1]
+        creation_0up_matvec(matvec, x.copy(), self.up_states, self.up_p1_states, self.num_dn_states)
+        return matvec
+
+
+def gf_up0_accumulate(values: CVECTOR, z: CVECTOR, beta: float,
+                      eig: VECTOR1D, ocd_0up_vec: VECTOR2D,
+                      eig_p1up: VECTOR1D, vec_p1up: VECTOR2D,
+                      gs_energy: float):
+    """Accumulate up-spin impurity Green's function using Lehmann sum.
+
+    Parameters
+    ----------
+    values : CVECTOR
+        Output array for the accumulated Green's function.
+    z : CVECTOR
+        z
+    z : CVECTOR
+        Complex frequencies for which the Lehmann sum is evaluated.
+    beta : float
+        Inverse temperature.
+    eig, eig_p1up : VECTOR1D
+        Eigenvalues for and eigenvalues for an additional up-spin electron.
+    ocd_0up_vec, vec_p1up : VECTOR2D
+        Creation operator applied to eigenvectors, and eigenvectors for an
+        additional up-spin electron.
+    gs_energy : float
+        Ground state energy, that is the smallest eigenvalue.
+
+    """
+    overlap = vec_p1up.T.conj() @ ocd_0up_vec
+    overlap = vec_p1up.conj() @ ocd_0up_vec.T
+    overlap = abs(overlap)**2
+    exp_en_vec = np.exp(-beta*(eig - gs_energy))
+    for mm, eig_m in enumerate(eig_p1up):
+        exp_em = np.exp(-beta*(eig_m - gs_energy))
+        for nn, eig_n in enumerate(eig):
+            denom = (z + eig_n - eig_m)
+            values += overlap[mm, nn] * (exp_en_vec[nn] + exp_em) / denom
+
+
+
 from numpy.random import default_rng
 RNG = default_rng(0)
 
 BETA = 17.3
 N_SITES = 3
 U = 2.
-eps = 2*RNG.random(N_SITES) - 1
-V = RNG.random(N_SITES - 1)
+eps = np.ones(N_SITES) - 0.5  # 2 * RNG.random(N_SITES) - 1
+V = -2 * np.ones(N_SITES - 1)  # RNG.random(N_SITES - 1)
 print('ϵ:', eps)
 print('V:', V)
 
 n_up = 1
 n_dn = 1
+
+# Pade frequencies
+izp, rp = gt.pade_frequencies(200, beta=BETA)
+# Matsubara frequencies
+iw = gt.matsubara_frequencies(range(200), beta=BETA)
+# Real axis
+ww = np.linspace(-2, 2, num=200) + 1e-2j
+
 
 
 states = create_spinstates(N_SITES)
@@ -413,9 +618,17 @@ ham = SiamHamilton(eps, U, hybrid=V,
 # small system, no Lanczos method necessary use full digitalization
 ham_mat = ham @ np.eye(*ham.shape)
 print(ham_mat.round(decimals=1))
-# assert np.allclose(ham_mat, ham_mat.T.conj()), "Hamiltonian must be Hermitian."
+assert np.allclose(ham_mat, ham_mat.T.conj()), "Hamiltonian must be Hermitian."
 eig, vec = np.linalg.eigh(ham_mat)
 
 
+partition = 0  # accumulate Z = ∑_n ⟨n|exp(-βH)|n⟩ directly
+ln_partition = -np.infty  # accumulate logarithm of partition
+measure_up = MeasureUp(beta=BETA, z=ww, states=states)
+
+
+states = create_spinstates(3, return_state=True)
+for i in states:
+    print(states[i])
 
 
