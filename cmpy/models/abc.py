@@ -11,11 +11,12 @@
 """Base objects for condensed matter models."""
 
 import json
-from abc import ABC, abstractmethod
-from collections import MutableMapping
+from abc import ABC
+from collections import OrderedDict
+from collections.abc import MutableMapping
 from typing import Any, Dict, Optional, List, Iterator
 from cmpy.basis import Basis
-from cmpy.hamiltonian import HamiltonOperator
+from cmpy.operators import LinearOperator
 
 
 class ModelParameters(MutableMapping):
@@ -34,7 +35,7 @@ class ModelParameters(MutableMapping):
         """
         MutableMapping.__init__(self)
         # super(object, self).__init__()
-        self.__params__ = dict(params)
+        self.__params__ = OrderedDict(params)
 
     @property
     def params(self) -> Dict[str, Any]:
@@ -91,7 +92,7 @@ class ModelParameters(MutableMapping):
     def __delitem__(self, key: str) -> None:
         del self.__params__[key]
 
-    def __iter__(self) -> Iterator[Any]:
+    def __iter__(self) -> Iterator[str]:
         return iter(self.__params__)
 
     def __getattr__(self, key: str) -> Any:
@@ -112,6 +113,14 @@ class ModelParameters(MutableMapping):
 
     def __dict__(self):
         return self.__params__
+
+    def key(self, decimals=None, delim="; "):
+        strings = list()
+        for k, v in self.__params__.items():
+            if decimals is not None and isinstance(v, (int, float)):
+                v = f"{v:.{decimals}f}"
+            strings.append(f"{k}={v}")
+        return delim.join(strings)
 
     def json(self):
         return json.dumps(self.__params__)
@@ -146,7 +155,7 @@ class AbstractModel(ModelParameters, ABC):
     def __str__(self) -> str:
         return f"{self.__class__.__name__}({ModelParameters.__str__(self)})"
 
-    def hamiltonian(self, *args, **kwargs) -> HamiltonOperator:
+    def hamiltonian(self, *args, **kwargs) -> LinearOperator:
         pass
 
 
@@ -185,5 +194,5 @@ class AbstractManyBodyModel(AbstractModel):
     def build_matvec(self, matvec, x, sector):
         pass
 
-    def hamiltonian(self, n_up=None, n_dn=None, sector=None, dtype=None) -> HamiltonOperator:
+    def hamiltonian(self, n_up=None, n_dn=None, sector=None, dtype=None):
         pass

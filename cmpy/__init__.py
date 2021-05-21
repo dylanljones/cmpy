@@ -42,6 +42,10 @@ from .operators import (
     project_dn,
     project_elements_up,
     project_elements_dn,
+    project_onsite_energy,
+    project_interaction,
+    project_site_hopping,
+    project_hopping,
     LinearOperator,
     SparseOperator,
     TimeEvolutionOperator,
@@ -49,14 +53,6 @@ from .operators import (
 )
 
 from .dos import density_of_states
-
-from .hamiltonian import (
-    project_onsite_energy,
-    project_interaction,
-    project_site_hopping,
-    project_hopping,
-    HamiltonOperator
-)
 
 from .models.abc import (
     ModelParameters,

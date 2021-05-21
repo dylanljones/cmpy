@@ -27,7 +27,6 @@ def project_up(up_idx: (int, np.ndarray), num_dn_states: int,
     dn_indices: ndarray
         An array of the indices of all spin-down states in the basis(-sector).
     """
-    print("-------------------- project_up", up_idx * num_dn_states + dn_indices)
     return up_idx * num_dn_states + dn_indices
 
 
@@ -44,17 +43,14 @@ def project_dn(dn_idx: (int, np.ndarray), num_dn_states: int,
     up_indices: ndarray
         An array of the indices of all spin-up states in the basis(-sector).
     """
-    print("-------------------- project_dn")
     return up_indices * num_dn_states + dn_idx
 
 
 def project_elements_up(num_dn_states, up_idx, dn_indices, value, target=None):
-    print("------------------------------ project_elements_up")
     if not value:
         return
-    print(up_idx, type(up_idx), num_dn_states, type(num_dn_states), dn_indices, type(dn_indices))
+
     origins = project_up(up_idx, num_dn_states, dn_indices)
-    # print(origins, type(origins))
     if target is None:
         targets = origins
     else:
@@ -68,11 +64,9 @@ def project_elements_up(num_dn_states, up_idx, dn_indices, value, target=None):
 
 
 def project_elements_dn(num_dn_states, dn_idx, up_indices, value, target=None):
-    print("------------------------------ project_elements_dn")
     if not value:
         return
 
-    print(dn_idx, type(dn_idx), num_dn_states, type(num_dn_states), up_indices, type(up_indices))
     origins = project_dn(dn_idx, num_dn_states, up_indices)
     if target is None:
         targets = origins
@@ -89,19 +83,14 @@ def project_elements_dn(num_dn_states, dn_idx, up_indices, value, target=None):
 def project_onsite_energy(up_states, dn_states, eps):
     num_dn = len(dn_states)
     all_up, all_dn = np.arange(len(up_states)), np.arange(num_dn)
-    num_sites = 2
 
     for up_idx, up in enumerate(up_states):
-        print("up_idx:", up_idx, "up", up)
-        weights = occupations(up)#, width=num_sites)
-        print(weights)
+        weights = occupations(up)
         energy = np.sum(eps[:weights.size] * weights)
         yield from project_elements_up(num_dn, up_idx, all_dn, energy)
 
     for dn_idx, dn in enumerate(dn_states):
-        print("dn_idx:", dn_idx, "dn", dn)
-        weights = occupations(dn)#, width=num_sites)
-        print(weights)
+        weights = occupations(dn)
         energy = np.sum(eps[:weights.size] * weights)
         yield from project_elements_dn(num_dn, dn_idx, all_up, energy)
 
@@ -303,8 +292,8 @@ class SIAM(ModelParameters):
                 yield n_up, n_dn
 
 
-def main1():
-    num_bath = 3
+def main():
+    num_bath = 5
     u = 2
     eps_imp = 0
     eps_bath = 0 * np.ones(num_bath)
@@ -335,9 +324,8 @@ def main1():
     e_gs = np.infty
     gs_sec = None
     for n_up, n_dn in siam.iter_fillings():
-        # print(f"Sector [{n_up}, {n_dn}]")
+        print(f"Sector [{n_up}, {n_dn}]")
         ham = siam.hamiltonian(n_up, n_dn)
-        print(np.shape(ham))
         eigvals, eigvecs = np.linalg.eigh(ham.toarray())
         i0 = np.argmin(eigvals)
         e0 = eigvals[i0]
@@ -345,33 +333,9 @@ def main1():
             e_gs = e0
             gs = eigvecs[:, i0]
             gs_sec = [n_up, n_dn]
-    # print(f"Ground state (E={e_gs:.2f}, sector {gs_sec}):")
-    # print(gs)
-
-def main():
-    bas = Basis(2)
-    sec = bas.get_sector(1, 1)
-    up, dn = sec.up_states, sec.dn_states
-
-    num_dn = len(dn)
-    num_up = len(up)
-    up_idx = 0
-    dn_idx = 1
-    all_dn = np.arange(num_dn)
-    all_up = np.arange(num_up)
-    energy = 5
-    a = project_elements_up(num_dn, up_idx, all_dn, energy)
-    b = project_elements_dn(num_dn, dn_idx, all_up, energy)
-    # for i in a:
-    #     print(i)
-    # for j in b:
-    #     print(j)
-
-    c = project_onsite_energy(up, dn, eps=[9,5])
-    for i in c:
-        print(i)
+    print(f"Ground state (E={e_gs:.2f}, sector {gs_sec}):")
+    print(gs)
 
 
 if __name__ == "__main__":
-    # main()
-    main1()
+    main()
