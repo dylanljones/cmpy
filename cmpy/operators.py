@@ -21,10 +21,10 @@ from .basis import binstr, occupations, overlap, UP, SPIN_CHARS
 from .matrix import Matrix, is_hermitian, Decomposition
 
 
-__all__ = ["LinearOperator", "SparseOperator", "TimeEvolutionOperator", "CreationOperator",
+__all__ = ["LinearOperator", "TimeEvolutionOperator", "CreationOperator", "AnnihilationOperator",
            "project_up", "project_dn", "project_elements_up", "project_elements_dn",
            "project_interaction", "project_onsite_energy",
-           "project_site_hopping", "project_hopping"]
+           "project_site_hopping", "project_hopping", "SparseOperator", ]
 
 
 def project_up(up_idx: (int, np.ndarray),

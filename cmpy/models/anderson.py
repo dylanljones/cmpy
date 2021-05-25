@@ -14,10 +14,36 @@ from typing import Union, Sequence
 from scipy import sparse
 from cmpy.basis import UP
 from cmpy.operators import (
-    project_onsite_energy, project_interaction, project_site_hopping, CreationOperator
+    project_onsite_energy, project_interaction, project_site_hopping, CreationOperator,
+    LinearOperator
 )
 from cmpy.greens import GreensFunction
 from .abc import AbstractManyBodyModel
+
+
+class HamiltonOperator(LinearOperator):
+
+    def __init__(self, size, data, dtype=None):
+        super().__init__((size, size), dtype=dtype)
+        self.data = list(data)
+
+    def _matvec(self, x):
+        matvec = np.zeros_like(x)
+        for row, col, val in self.data:
+            matvec[col] += val * x[row]
+        return matvec
+
+    def _adjoint(self):
+        return self
+
+    def trace(self):
+        return np.trace(self.array())
+
+    def __rmul__(self, x):
+        """Ensure trace-method in result."""
+        scaled = super().__rmul__(x)
+        scaled.trace = lambda: x*self.trace()
+        return scaled
 
 
 # =========================================================================
@@ -138,6 +164,15 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
         yield from project_onsite_energy(up_states, dn_states, eps)
         yield from project_interaction(up_states, dn_states, u)
         yield from project_site_hopping(up_states, dn_states, num_sites, hopping, pos=0)
+
+    def hamilton_operator(self, n_up=None, n_dn=None, sector=None, dtype=None):
+        if sector is None:
+            sector = self.basis.get_sector(n_up, n_dn)
+        up_states, dn_states = sector.up_states, sector.dn_states
+        size = len(up_states) * len(dn_states)
+
+        data = list(self.hamiltonian_data(up_states, dn_states))
+        return HamiltonOperator(size, list(data), dtype=dtype)
 
     def hamiltonian(self, n_up=None, n_dn=None, sector=None, dtype=None, dense=True):
         if sector is None:
