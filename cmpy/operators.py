@@ -525,3 +525,62 @@ class CreationOperator(LinearOperator):
         else:
             self._build_dn(matvec, x)
         return matvec
+
+
+class AnnihilationOperator(LinearOperator):
+
+    def __init__(self, sector, sector_m1, pos=0, sigma=UP):
+        dim_origin = sector.size
+        if sigma == UP:
+            dim_target = sector_m1.num_up * sector.num_dn
+        else:
+            dim_target = sector_m1.num_dn * sector.num_up
+
+        super().__init__(shape=(dim_target, dim_origin), dtype=np.complex64)
+        self.pos = pos
+        self.sigma = sigma
+        self.sector = sector
+        self.sector_m1 = sector_m1
+
+    def __repr__(self):
+        name = f"{self.__class__.__name__}_{self.pos}{SPIN_CHARS[self.sigma]}"
+        return f"{name}(shape: {self.shape}, dtype: {self.dtype})"
+
+    def _build_up(self, matvec, x):
+        op = 1 << self.pos
+        num_dn = len(self.sector.dn_states)
+        all_dn = np.arange(num_dn)
+        for up_idx, up in enumerate(self.sector.up_states):
+            if up & op:
+                new = up ^ op
+                idx_new = bisect_left(self.sector_m1.up_states, new)
+                origins = project_up(up_idx, num_dn, all_dn)
+                targets = project_up(idx_new, num_dn, all_dn)
+                if isinstance(origins, int):
+                    origins, targets = [origins], [targets]
+                for origin, target in zip(origins, targets):
+                    matvec[target] = x[origin]
+
+    def _build_dn(self, matvec, x):
+        op = 1 << self.pos
+        num_dn = self.sector.num_dn
+        all_up = np.arange(self.sector.num_up)
+        for dn_idx, dn in enumerate(self.sector.dn_states):
+            if dn & op:
+                new = dn ^ op
+                idx_new = bisect_left(self.sector_m1.dn_states, new)
+                origins = project_dn(dn_idx, num_dn, all_up)
+                targets = project_dn(idx_new, num_dn, all_up)
+                if isinstance(origins, int):
+                    origins, targets = [origins], [targets]
+                for origin, target in zip(origins, targets):
+                    matvec[target] = x[origin]
+
+    def _matvec(self, x):
+        newsize = self.shape[0]
+        matvec = np.zeros((newsize, *x.shape[1:]), dtype=x.dtype)
+        if self.sigma == UP:
+            self._build_up(matvec, x)
+        else:
+            self._build_dn(matvec, x)
+        return matvec

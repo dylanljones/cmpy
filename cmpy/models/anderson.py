@@ -129,7 +129,7 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
         x = z[..., np.newaxis]
         return np.sum(np.square(np.abs(self.v)) / (x - self.eps_bath), axis=-1)
 
-    def _hamiltonian_data(self, up_states, dn_states):
+    def hamiltonian_data(self, up_states, dn_states):
         num_sites = self.num_sites
         u = np.append(self.u, np.zeros(self.num_bath))
         eps = np.append(self.eps_imp, self.eps_bath) - self.mu
@@ -146,7 +146,7 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
         size = len(up_states) * len(dn_states)
 
         rows, cols, data = list(), list(), list()
-        for row, col, value in self._hamiltonian_data(up_states, dn_states):
+        for row, col, value in self.hamiltonian_data(up_states, dn_states):
             rows.append(row)
             cols.append(col)
             data.append(value)
