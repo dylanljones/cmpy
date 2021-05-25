@@ -284,7 +284,7 @@ class LinearOperator(sla.LinearOperator, abc.ABC):
 
     def array(self) -> np.ndarray:
         """Returns the `LinearOperator` in form of a dense array."""
-        x = np.eye(*self.shape)
+        x = np.eye(self.shape[1], dtype=self.dtype)
         return self.matmat(x)
 
     def matrix(self) -> Matrix:
@@ -468,7 +468,7 @@ class TimeEvolutionOperator(LinearOperator):
 # =========================================================================
 
 
-class CreationOperator(SparseOperator):
+class CreationOperator(LinearOperator):
 
     def __init__(self, sector, sector_p1, pos=0, sigma=UP):
         dim_origin = sector.size
@@ -482,13 +482,12 @@ class CreationOperator(SparseOperator):
         self.sigma = sigma
         self.sector = sector
         self.sector_p1 = sector_p1
-        self._build()
 
     def __repr__(self):
         name = f"{self.__class__.__name__}_{self.pos}{SPIN_CHARS[self.sigma]}"
         return f"{name}(shape: {self.shape}, dtype: {self.dtype})"
 
-    def _build_up(self):
+    def _build_up(self, matvec, x):
         op = 1 << self.pos
         num_dn = len(self.sector.dn_states)
         all_dn = np.arange(num_dn)
@@ -500,10 +499,10 @@ class CreationOperator(SparseOperator):
                 targets = project_up(idx_new, num_dn, all_dn)
                 if isinstance(origins, int):
                     origins, targets = [origins], [targets]
-                for row, col in zip(targets, origins):
-                    self.append(row, col, value=1)
+                for origin, target in zip(origins, targets):
+                    matvec[target] = x[origin]
 
-    def _build_dn(self):
+    def _build_dn(self, matvec, x):
         op = 1 << self.pos
         num_dn = self.sector.num_dn
         all_up = np.arange(self.sector.num_up)
@@ -515,11 +514,14 @@ class CreationOperator(SparseOperator):
                 targets = project_dn(idx_new, num_dn, all_up)
                 if isinstance(origins, int):
                     origins, targets = [origins], [targets]
-                for row, col in zip(targets, origins):
-                    self.append(row, col, value=1)
+                for origin, target in zip(origins, targets):
+                    matvec[target] = x[origin]
 
-    def _build(self):
+    def _matvec(self, x):
+        newsize = self.shape[0]
+        matvec = np.zeros((newsize, *x.shape[1:]), dtype=x.dtype)
         if self.sigma == UP:
-            self._build_up()
+            self._build_up(matvec, x)
         else:
-            self._build_dn()
+            self._build_dn(matvec, x)
+        return matvec
