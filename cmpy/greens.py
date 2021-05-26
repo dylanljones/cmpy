@@ -12,7 +12,6 @@
 
 import numpy as np
 import numpy.linalg as la
-from .basis import UP
 from .operators import CreationOperator
 
 
@@ -47,41 +46,53 @@ def gf0_lehmann(ham, omega, mu=0., only_diag=True):
     return greens
 
 
-def accumulate_gf(gf, z, beta, cdag_vec, eigvals, eigvals_p1, eigvecs_p1):
-    overlap = abs(eigvecs_p1.T.conj() @ cdag_vec) ** 2
-    exp_eigvals = np.exp(-beta * eigvals)
-    exp_eigvals_p1 = np.exp(-beta * eigvals_p1)
-    for m, eig_m in enumerate(eigvals_p1):
-        for n, eig_n in enumerate(eigvals):
-            weights = exp_eigvals[n] + exp_eigvals_p1[m]
-            gf += overlap[m, n] * weights / (z + eig_n - eig_m)
+class GreensFunction(np.ndarray):
+    """Container class for the single-particle interacting Greens function."""
 
+    def __new__(cls, z, beta, dtype=None):
+        r"""Create new `GreensFunction`` instance in the shape of `z`.
 
-def impurity_gf(siam, z, beta=1., sigma=UP):
-    partition = 0
-    gf_imp = np.zeros_like(z)
+        Parameters
+        ----------
+        z : (N) np.ndarray
+            The broadened complex frequency .math:`\omega + i \eta`.
+        beta : float
+            The inverse temperature .math:`\beta = 1 / T`.
+        dtype : str or int or np.dtype, optional
+            Optional datatype of the gf-array. The default is the same as `z`.
+        """
+        inputarr = np.zeros_like(z)
+        self = np.asarray(inputarr, dtype).view(cls)
+        self.z = z
+        self.beta = beta
+        return self
 
-    for n_up, n_dn in siam.iter_sector_keys(2):
+    def accumulate(self, cdag, eigvals, eigvecs, eigvals_p1, eigvecs_p1):
+        """Accumulate the `GreensFunction` iterative.
 
-        # Solve current particle sector
-        sector = siam.get_sector(n_up, n_dn)
-        hamop = siam.hamiltonian_op(sector=sector)
-        ham = hamop.matmat(np.eye(*hamop.shape))
-        eigvals, eigvecs = la.eigh(ham)
+        Parameters
+        ----------
+        cdag : CreationOperator
+            The creation operator used in the expectation .math:`<n|c^†|m>`.
+        eigvals : (N) np.ndarray
+            The eigenvalues of the right state .math:`|m>`.
+        eigvecs : (N, N) np.ndarray
+            The eigenvectors of the right state .math:`|m>`.
+        eigvals_p1 : (M) np.ndarray
+            The eigenvalues of the left state .math:`<n|`.
+        eigvecs_p1 : (M) np.ndarray
+            The eigenvectors of the left state .math:`<n|`.
+        """
+        cdag_vec = cdag.matmat(eigvecs)
+        overlap = abs(eigvecs_p1.T.conj() @ cdag_vec) ** 2
+        if self.beta == np.inf:
+            exp_eigvals = np.ones_like(eigvals)
+            exp_eigvals_p1 = np.zeros_like(eigvals_p1)
+        else:
+            exp_eigvals = np.exp(-self.beta * eigvals)
+            exp_eigvals_p1 = np.exp(-self.beta * eigvals_p1)
 
-        # Accumulate partition
-        partition += np.sum(np.exp(-beta * eigvals))
-
-        # Accumulate Green's function
-        if (n_up + 1) in siam.sector_keys:
-            sector_p1 = siam.get_sector(n_up + 1, n_dn)
-            hamop = siam.hamiltonian_op(sector=sector_p1)
-            ham = hamop.matmat(np.eye(*hamop.shape))
-            eigvals_p1, eigvecs_p1 = la.eigh(ham)
-
-            cdag = CreationOperator(sector, sector_p1, pos=0, sigma=sigma)
-            cdag_vec = cdag.matmat(eigvecs)
-
-            accumulate_gf(gf_imp, z, beta, cdag_vec, eigvals, eigvals_p1, eigvecs_p1)
-
-    return gf_imp / partition
+        for m, eig_m in enumerate(eigvals_p1):
+            for n, eig_n in enumerate(eigvals):
+                weights = exp_eigvals[n] + exp_eigvals_p1[m]
+                self[:] += overlap[m, n] * weights / (self.z + eig_n - eig_m)

@@ -13,26 +13,28 @@
 import abc
 import numpy as np
 import scipy.linalg as la
-from typing import Union
 from bisect import bisect_left
 from scipy.sparse import linalg as sla
 from scipy.sparse import csr_matrix
-from .basis import UP, SPIN_CHARS
+from typing import Callable, Iterable
+from .basis import binstr, occupations, overlap, UP, SPIN_CHARS
 from .matrix import Matrix, is_hermitian, Decomposition
 
 
-__all__ = ["LinearOperator", "SparseOperator", "TimeEvolutionOperator", "CreationOperator",
+__all__ = ["LinearOperator", "TimeEvolutionOperator", "CreationOperator", "AnnihilationOperator",
            "project_up", "project_dn", "project_elements_up", "project_elements_dn",
-           "apply_projected_up", "apply_projected_dn"]
+           "project_interaction", "project_onsite_energy",
+           "project_site_hopping", "project_hopping", "SparseOperator", ]
 
 
-def project_up(up_idx: Union[int, np.ndarray], num_dn_states: int,
-               dn_indices: np.ndarray) -> np.ndarray:
-    """Projects spin-up states onto the full basis.
+def project_up(up_idx: (int, np.ndarray),
+               num_dn_states: int,
+               dn_indices: (int, np.ndarray)) -> np.ndarray:
+    """Projects spin-up states onto the full basis(-sector).
 
     Parameters
     ----------
-    up_idx: int or ndarray
+    up_idx: int or np.ndarray
         The index/indices for the projection.
     num_dn_states: int
         The total number of spin-down states of the basis(-sector).
@@ -42,13 +44,14 @@ def project_up(up_idx: Union[int, np.ndarray], num_dn_states: int,
     return up_idx * num_dn_states + dn_indices
 
 
-def project_dn(dn_idx: Union[int, np.ndarray], num_dn_states: int,
-               up_indices: np.ndarray) -> np.ndarray:
-    """Projects spin-down states onto the full basis.
+def project_dn(dn_idx: (int, np.ndarray),
+               num_dn_states: int,
+               up_indices: (int, np.ndarray)) -> np.ndarray:
+    """Projects spin-down states onto the full basis(-sector).
 
     Parameters
     ----------
-    dn_idx: int or ndarray
+    dn_idx: int or np.ndarray
         The index/indices for the projection.
     num_dn_states: int
         The total number of spin-down states of the basis(-sector).
@@ -58,40 +61,187 @@ def project_dn(dn_idx: Union[int, np.ndarray], num_dn_states: int,
     return up_indices * num_dn_states + dn_idx
 
 
-def project_elements_up(num_dn_states, up_idx, dn_indices, value, target=None):
-    if value:
-        origins = project_up(up_idx, num_dn_states, dn_indices)
-        targets = origins if target is None else project_up(target, num_dn_states, dn_indices)
-        if isinstance(origins, int):
-            yield origins, targets, value
-        else:
-            for row, col in zip(origins, targets):
-                yield row, col, value
+def project_elements_up(up_idx: (int, np.ndarray),
+                        num_dn_states: int,
+                        dn_indices: (int, np.ndarray),
+                        value: (complex, float),
+                        target: (int, np.ndarray) = None):
+    """Projects a value for spin-up states onto the elements of the full basis(-sector).
+
+    Parameters
+    ----------
+    up_idx: int or np.ndarray
+        The index/indices for the projection.
+    num_dn_states: int
+        The total number of spin-down states of the basis(-sector).
+    dn_indices: int or np.ndarray
+        An array of the indices of all spin-down states in the basis(-sector).
+    value: float or complex
+        The value to project.
+    target: int or np.ndarray, optional
+        The target index/indices for the projection. This is only needed
+        for non-diagonal elements.
+
+    Yields
+    -------
+    row: int
+        The row-index of the element.
+    col: int
+        The column-index of the element.
+    value: float or complex
+        The value of the matrix-element.
+    """
+    if not value:
+        return
+
+    origins = project_up(up_idx, num_dn_states, dn_indices)
+    if target is None:
+        targets = origins
+    else:
+        targets = project_up(target, num_dn_states, dn_indices)
+
+    if isinstance(origins, int):
+        yield origins, targets, value
+    else:
+        for row, col in zip(origins, targets):
+            yield row, col, value
 
 
-def project_elements_dn(num_dn_states, dn_idx, up_indices, value, target=None):
-    if value:
-        origins = project_dn(dn_idx, num_dn_states, up_indices)
-        targets = origins if target is None else project_dn(target, num_dn_states, up_indices)
-        if isinstance(origins, int):
-            yield origins, targets, value
-        else:
-            for row, col in zip(origins, targets):
-                yield row, col, value
+def project_elements_dn(dn_idx: (int, np.ndarray),
+                        num_dn_states: int,
+                        up_indices: (int, np.ndarray),
+                        value: (complex, float),
+                        target: (int, np.ndarray) = None):
+    """Projects a value for spin-down states onto the elements of the full basis(-sector).
+
+    Parameters
+    ----------
+    dn_idx: int or ndarray
+        The index/indices for the projection.
+    num_dn_states: int
+        The total number of spin-down states of the basis(-sector).
+    up_indices: int or np.ndarray
+        An array of the indices of all spin-up states in the basis(-sector).
+    value: float or complex
+        The value to project.
+    target: int or np.ndarray, optional
+        The target index/indices for the projection. This is only needed
+        for non-diagonal elements.
+
+    Yields
+    -------
+    row: int
+        The row-index of the element.
+    col: int
+        The column-index of the element.
+    value: float or complex
+        The value of the matrix-element.
+    """
+    if not value:
+        return
+
+    origins = project_dn(dn_idx, num_dn_states, up_indices)
+    if target is None:
+        targets = origins
+    else:
+        targets = project_dn(target, num_dn_states, up_indices)
+
+    if isinstance(origins, int):
+        yield origins, targets, value
+    else:
+        for row, col in zip(origins, targets):
+            yield row, col, value
 
 
-def apply_projected_up(matvec, x, num_dn_states, up_idx, dn_indices, value, target=None):
-    if value:
-        origins = project_up(up_idx, num_dn_states, dn_indices)
-        targets = origins if target is None else project_up(target, num_dn_states, dn_indices)
-        matvec[targets] += value * x[origins]
+# =========================================================================
+# Interacting Hamiltonian projectors
+# =========================================================================
 
 
-def apply_projected_dn(matvec, x, num_dn_states, dn_idx, up_indices, value, target=None):
-    if value:
-        origins = project_dn(dn_idx, num_dn_states, up_indices)
-        targets = origins if target is None else project_dn(target, num_dn_states, up_indices)
-        matvec[targets] += value * x[origins]
+def project_onsite_energy(up_states, dn_states, eps):
+    num_dn = len(dn_states)
+    all_up, all_dn = np.arange(len(up_states)), np.arange(num_dn)
+
+    for up_idx, up in enumerate(up_states):
+        weights = occupations(up)
+        energy = np.sum(eps[:weights.size] * weights)
+        yield from project_elements_up(up_idx, num_dn, all_dn, energy)
+
+    for dn_idx, dn in enumerate(dn_states):
+        weights = occupations(dn)
+        energy = np.sum(eps[:weights.size] * weights)
+        yield from project_elements_dn(dn_idx, num_dn, all_up, energy)
+
+
+def project_interaction(up_states, dn_states, u):
+    num_dn = len(dn_states)
+    for up_idx, up in enumerate(up_states):
+        for dn_idx, dn in enumerate(dn_states):
+            weights = overlap(up, dn)
+            interaction = np.sum(u[:weights.size] * weights)
+            yield from project_elements_up(up_idx, num_dn, dn_idx, interaction)
+
+
+def _hopping_candidates(num_sites, state, pos):
+    results = []
+    op = 1 << pos
+    occ = state & op
+
+    tmp = state ^ op  # Annihilate or create electron at `pos`
+    for pos2 in range(num_sites):
+        if pos >= pos2:
+            continue
+        op2 = (1 << pos2)
+        occ2 = state & op2
+        # Hopping from `pos` to `pos2` possible
+        if occ and not occ2:
+            new = tmp ^ op2
+            results.append((pos2, new))
+        # Hopping from `pos2` to `pos` possible
+        elif not occ and occ2:
+            new = tmp ^ op2
+            results.append((pos2, new))
+
+    return results
+
+
+def _ordering_phase(state, pos1, pos2=0):
+    if pos1 == pos2:
+        return 0
+    i0, i1 = sorted([pos1, pos2])
+    particles = binstr(state)[i0 + 1:i1].count("1")
+    return +1 if particles % 2 == 0 else -1
+
+
+def _compute_hopping(num_sites, states, pos, hopping):
+    for i, state in enumerate(states):
+        for pos2, new in _hopping_candidates(num_sites, state, pos):
+            try:
+                t = hopping(pos, pos2)
+            except TypeError:
+                t = hopping
+            if t:
+                j = bisect_left(states, new)
+                sign = _ordering_phase(state, pos, pos2)
+                value = sign * t
+                yield i, j, value
+
+
+def project_site_hopping(up_states, dn_states, num_sites: int,
+                         hopping: (Callable, Iterable, float), pos: int):
+    num_dn = len(dn_states)
+    all_up, all_dn = np.arange(len(up_states)), np.arange(num_dn)
+
+    for up_idx, target, amp in _compute_hopping(num_sites, up_states, pos, hopping):
+        yield from project_elements_up(up_idx, num_dn, all_dn, amp, target=target)
+
+    for dn_idx, target, amp in _compute_hopping(num_sites, dn_states, pos, hopping):
+        yield from project_elements_dn(dn_idx, num_dn, all_up, amp, target=target)
+
+
+def project_hopping(up_states, dn_states, num_sites, hopping: (Callable, Iterable, float)):
+    for pos in range(num_sites):
+        yield from project_site_hopping(up_states, dn_states, num_sites, hopping, pos)
 
 
 # =========================================================================
@@ -134,7 +284,7 @@ class LinearOperator(sla.LinearOperator, abc.ABC):
 
     def array(self) -> np.ndarray:
         """Returns the `LinearOperator` in form of a dense array."""
-        x = np.eye(*self.shape)
+        x = np.eye(self.shape[1], dtype=self.dtype)
         return self.matmat(x)
 
     def matrix(self) -> Matrix:
@@ -318,7 +468,7 @@ class TimeEvolutionOperator(LinearOperator):
 # =========================================================================
 
 
-class CreationOperator(SparseOperator):
+class CreationOperator(LinearOperator):
 
     def __init__(self, sector, sector_p1, pos=0, sigma=UP):
         dim_origin = sector.size
@@ -332,13 +482,12 @@ class CreationOperator(SparseOperator):
         self.sigma = sigma
         self.sector = sector
         self.sector_p1 = sector_p1
-        self._build()
 
     def __repr__(self):
         name = f"{self.__class__.__name__}_{self.pos}{SPIN_CHARS[self.sigma]}"
         return f"{name}(shape: {self.shape}, dtype: {self.dtype})"
 
-    def _build_up(self):
+    def _build_up(self, matvec, x):
         op = 1 << self.pos
         num_dn = len(self.sector.dn_states)
         all_dn = np.arange(num_dn)
@@ -350,10 +499,10 @@ class CreationOperator(SparseOperator):
                 targets = project_up(idx_new, num_dn, all_dn)
                 if isinstance(origins, int):
                     origins, targets = [origins], [targets]
-                for row, col in zip(targets, origins):
-                    self.append(row, col, value=1)
+                for origin, target in zip(origins, targets):
+                    matvec[target] = x[origin]
 
-    def _build_dn(self):
+    def _build_dn(self, matvec, x):
         op = 1 << self.pos
         num_dn = self.sector.num_dn
         all_up = np.arange(self.sector.num_up)
@@ -365,11 +514,73 @@ class CreationOperator(SparseOperator):
                 targets = project_dn(idx_new, num_dn, all_up)
                 if isinstance(origins, int):
                     origins, targets = [origins], [targets]
-                for row, col in zip(targets, origins):
-                    self.append(row, col, value=1)
+                for origin, target in zip(origins, targets):
+                    matvec[target] = x[origin]
 
-    def _build(self):
+    def _matvec(self, x):
+        newsize = self.shape[0]
+        matvec = np.zeros((newsize, *x.shape[1:]), dtype=x.dtype)
         if self.sigma == UP:
-            self._build_up()
+            self._build_up(matvec, x)
         else:
-            self._build_dn()
+            self._build_dn(matvec, x)
+        return matvec
+
+
+class AnnihilationOperator(LinearOperator):
+
+    def __init__(self, sector, sector_m1, pos=0, sigma=UP):
+        dim_origin = sector.size
+        if sigma == UP:
+            dim_target = sector_m1.num_up * sector.num_dn
+        else:
+            dim_target = sector_m1.num_dn * sector.num_up
+
+        super().__init__(shape=(dim_target, dim_origin), dtype=np.complex64)
+        self.pos = pos
+        self.sigma = sigma
+        self.sector = sector
+        self.sector_m1 = sector_m1
+
+    def __repr__(self):
+        name = f"{self.__class__.__name__}_{self.pos}{SPIN_CHARS[self.sigma]}"
+        return f"{name}(shape: {self.shape}, dtype: {self.dtype})"
+
+    def _build_up(self, matvec, x):
+        op = 1 << self.pos
+        num_dn = len(self.sector.dn_states)
+        all_dn = np.arange(num_dn)
+        for up_idx, up in enumerate(self.sector.up_states):
+            if up & op:
+                new = up ^ op
+                idx_new = bisect_left(self.sector_m1.up_states, new)
+                origins = project_up(up_idx, num_dn, all_dn)
+                targets = project_up(idx_new, num_dn, all_dn)
+                if isinstance(origins, int):
+                    origins, targets = [origins], [targets]
+                for origin, target in zip(origins, targets):
+                    matvec[target] = x[origin]
+
+    def _build_dn(self, matvec, x):
+        op = 1 << self.pos
+        num_dn = self.sector.num_dn
+        all_up = np.arange(self.sector.num_up)
+        for dn_idx, dn in enumerate(self.sector.dn_states):
+            if dn & op:
+                new = dn ^ op
+                idx_new = bisect_left(self.sector_m1.dn_states, new)
+                origins = project_dn(dn_idx, num_dn, all_up)
+                targets = project_dn(idx_new, num_dn, all_up)
+                if isinstance(origins, int):
+                    origins, targets = [origins], [targets]
+                for origin, target in zip(origins, targets):
+                    matvec[target] = x[origin]
+
+    def _matvec(self, x):
+        newsize = self.shape[0]
+        matvec = np.zeros((newsize, *x.shape[1:]), dtype=x.dtype)
+        if self.sigma == UP:
+            self._build_up(matvec, x)
+        else:
+            self._build_dn(matvec, x)
+        return matvec

@@ -424,11 +424,12 @@ class Basis:
         self.num_sites = 0
         self.num_spinstates = 0
         self.sectors = defaultdict(list)
+
         self.init(num_sites, init_sectors)
 
     @property
     def fillings(self):
-        return list(range(self.num_sites))
+        return list(range(self.num_sites + 1))
 
     def init(self, num_sites: int, init_sectors: Optional[bool] = False):
         self.num_sites = num_sites
@@ -474,6 +475,9 @@ class Basis:
     def iter_sectors(self):
         for n_up, n_dn in product(self.fillings, repeat=2):
             yield self.get_sector(n_up, n_dn)
+
+    def keys(self):
+        return self.fillings
 
     def __getitem__(self, item):
         if hasattr(item, "__len__"):
