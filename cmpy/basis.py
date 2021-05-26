@@ -14,7 +14,7 @@ import numpy as np
 from itertools import product, permutations
 from dataclasses import dataclass
 from collections import defaultdict
-from typing import Optional, Union, Iterable
+from typing import Optional, Union, Iterable, NamedTuple
 
 __all__ = ["UP", "DN", "SPIN_CHARS", "state_label", "binstr", "binarr",
            "binidx", "overlap", "occupations", "create", "annihilate",
@@ -487,3 +487,24 @@ class Basis:
     def __repr__(self):
         return f"{self.__class__.__name__}(size: {self.size}, num_sites: {self.num_sites}, " \
                f"fillings: {self.fillings})"
+
+
+class EigenState(NamedTuple):
+    """Information of an eigenstate of the Hamiltonian.
+
+    Parameters
+    ----------
+    energy : float
+        Energy (eigenvalue) of the state.
+    vector : VECTOR1D
+        Eigenstate in the numerical basis.
+    nup, ndn : int
+        Particle sector in which the states lives.
+
+    """
+
+    energy: float
+    vector: np.ndarray
+    nup: int
+    ndn: int
+    ham: np.ndarray
