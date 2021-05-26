@@ -71,7 +71,6 @@ def impurity_gf_ref(z: np.ndarray, u: float, v: float) -> np.ndarray:
 
 
 def impurity_gf0(z, siam):
-    # return 1/(z + siam.mu + siam.eps_imp - siam.hybridization_func(z))
     return siam.impurity_gf0(z)
 
 

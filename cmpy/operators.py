@@ -21,10 +21,10 @@ from .basis import binstr, occupations, overlap, UP, SPIN_CHARS
 from .matrix import Matrix, is_hermitian, Decomposition
 
 
-__all__ = ["LinearOperator", "SparseOperator", "TimeEvolutionOperator", "CreationOperator",
+__all__ = ["LinearOperator", "TimeEvolutionOperator", "CreationOperator", "AnnihilationOperator",
            "project_up", "project_dn", "project_elements_up", "project_elements_dn",
            "project_interaction", "project_onsite_energy",
-           "project_site_hopping", "project_hopping"]
+           "project_site_hopping", "project_hopping", "SparseOperator", ]
 
 
 def project_up(up_idx: (int, np.ndarray),
@@ -284,7 +284,7 @@ class LinearOperator(sla.LinearOperator, abc.ABC):
 
     def array(self) -> np.ndarray:
         """Returns the `LinearOperator` in form of a dense array."""
-        x = np.eye(*self.shape)
+        x = np.eye(self.shape[1], dtype=self.dtype)
         return self.matmat(x)
 
     def matrix(self) -> Matrix:
@@ -468,7 +468,7 @@ class TimeEvolutionOperator(LinearOperator):
 # =========================================================================
 
 
-class CreationOperator(SparseOperator):
+class CreationOperator(LinearOperator):
 
     def __init__(self, sector, sector_p1, pos=0, sigma=UP):
         dim_origin = sector.size
@@ -482,13 +482,12 @@ class CreationOperator(SparseOperator):
         self.sigma = sigma
         self.sector = sector
         self.sector_p1 = sector_p1
-        self._build()
 
     def __repr__(self):
         name = f"{self.__class__.__name__}_{self.pos}{SPIN_CHARS[self.sigma]}"
         return f"{name}(shape: {self.shape}, dtype: {self.dtype})"
 
-    def _build_up(self):
+    def _build_up(self, matvec, x):
         op = 1 << self.pos
         num_dn = len(self.sector.dn_states)
         all_dn = np.arange(num_dn)
@@ -500,10 +499,10 @@ class CreationOperator(SparseOperator):
                 targets = project_up(idx_new, num_dn, all_dn)
                 if isinstance(origins, int):
                     origins, targets = [origins], [targets]
-                for row, col in zip(targets, origins):
-                    self.append(row, col, value=1)
+                for origin, target in zip(origins, targets):
+                    matvec[target] = x[origin]
 
-    def _build_dn(self):
+    def _build_dn(self, matvec, x):
         op = 1 << self.pos
         num_dn = self.sector.num_dn
         all_up = np.arange(self.sector.num_up)
@@ -515,11 +514,73 @@ class CreationOperator(SparseOperator):
                 targets = project_dn(idx_new, num_dn, all_up)
                 if isinstance(origins, int):
                     origins, targets = [origins], [targets]
-                for row, col in zip(targets, origins):
-                    self.append(row, col, value=1)
+                for origin, target in zip(origins, targets):
+                    matvec[target] = x[origin]
 
-    def _build(self):
+    def _matvec(self, x):
+        newsize = self.shape[0]
+        matvec = np.zeros((newsize, *x.shape[1:]), dtype=x.dtype)
         if self.sigma == UP:
-            self._build_up()
+            self._build_up(matvec, x)
         else:
-            self._build_dn()
+            self._build_dn(matvec, x)
+        return matvec
+
+
+class AnnihilationOperator(LinearOperator):
+
+    def __init__(self, sector, sector_m1, pos=0, sigma=UP):
+        dim_origin = sector.size
+        if sigma == UP:
+            dim_target = sector_m1.num_up * sector.num_dn
+        else:
+            dim_target = sector_m1.num_dn * sector.num_up
+
+        super().__init__(shape=(dim_target, dim_origin), dtype=np.complex64)
+        self.pos = pos
+        self.sigma = sigma
+        self.sector = sector
+        self.sector_m1 = sector_m1
+
+    def __repr__(self):
+        name = f"{self.__class__.__name__}_{self.pos}{SPIN_CHARS[self.sigma]}"
+        return f"{name}(shape: {self.shape}, dtype: {self.dtype})"
+
+    def _build_up(self, matvec, x):
+        op = 1 << self.pos
+        num_dn = len(self.sector.dn_states)
+        all_dn = np.arange(num_dn)
+        for up_idx, up in enumerate(self.sector.up_states):
+            if up & op:
+                new = up ^ op
+                idx_new = bisect_left(self.sector_m1.up_states, new)
+                origins = project_up(up_idx, num_dn, all_dn)
+                targets = project_up(idx_new, num_dn, all_dn)
+                if isinstance(origins, int):
+                    origins, targets = [origins], [targets]
+                for origin, target in zip(origins, targets):
+                    matvec[target] = x[origin]
+
+    def _build_dn(self, matvec, x):
+        op = 1 << self.pos
+        num_dn = self.sector.num_dn
+        all_up = np.arange(self.sector.num_up)
+        for dn_idx, dn in enumerate(self.sector.dn_states):
+            if dn & op:
+                new = dn ^ op
+                idx_new = bisect_left(self.sector_m1.dn_states, new)
+                origins = project_dn(dn_idx, num_dn, all_up)
+                targets = project_dn(idx_new, num_dn, all_up)
+                if isinstance(origins, int):
+                    origins, targets = [origins], [targets]
+                for origin, target in zip(origins, targets):
+                    matvec[target] = x[origin]
+
+    def _matvec(self, x):
+        newsize = self.shape[0]
+        matvec = np.zeros((newsize, *x.shape[1:]), dtype=x.dtype)
+        if self.sigma == UP:
+            self._build_up(matvec, x)
+        else:
+            self._build_dn(matvec, x)
+        return matvec
