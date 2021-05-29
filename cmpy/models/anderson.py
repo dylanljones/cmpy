@@ -57,7 +57,7 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
                  eps_imp: Union[float, Sequence[float]] = 0.0,
                  eps_bath: Union[float, Sequence[float]] = 0.0,
                  v: Union[float, Sequence[float]] = 1.0,
-                 mu: float = 0.0,
+                 mu: float = None,
                  temp: float = 0.0):
         r"""Initializes the single impurity Anderson model
 
@@ -74,9 +74,8 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
             by the number of energy values passed. Note that the bath energy contains
             the chemical potential.
             If the SIAM is set to half filling, the bath energy can be fixed at
-            .math:`\epsilon_B \mu = 0`. If `None`is given, one bath site at
-            half filling will be set up.
-            The default is `None` (half filling with one bath site).
+            .math:`\epsilon_B \mu = 0`.
+            The default is `0` (half filling with one bath site).
         v : float or (N) float np.ndarray
             The hopping energy between the impurity site and the bath site(s).
             The number of hopping parameters must match the number of bath energies
@@ -88,10 +87,9 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
         temp : float, optional
             Optional temperature in kelvin. The default is ``0``.
         """
-        eps_bath = u / 2 if eps_bath is None else eps_bath
         mu = u / 2 if mu is None else mu
-        eps_bath = np.atleast_1d(eps_bath).astype(np.float64)
-        v = np.atleast_1d(v).astype(np.float64)
+        eps_bath = np.atleast_1d(eps_bath)
+        v = np.atleast_1d(v)
         num_sites = len(eps_bath) + 1
         super().__init__(num_sites, u=u, eps_imp=eps_imp, eps_bath=eps_bath, v=v, mu=mu, temp=temp)
 
@@ -158,7 +156,7 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
     def hamiltonian_data(self, up_states, dn_states):
         num_sites = self.num_sites
         u = np.append(self.u, np.zeros(self.num_bath))
-        eps = np.append(self.eps_imp, self.eps_bath) - self.mu
+        eps = np.append(self.eps_imp - self.mu, self.eps_bath)
         hopping = lambda i, j: self.v[j - 1] if i == 0 else 0  # noqa
 
         yield from project_onsite_energy(up_states, dn_states, eps)
@@ -174,21 +172,9 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
         data = list(self.hamiltonian_data(up_states, dn_states))
         return HamiltonOperator(size, list(data), dtype=dtype)
 
-    def hamiltonian(self, n_up=None, n_dn=None, sector=None, dtype=None, dense=True):
-        if sector is None:
-            sector = self.basis.get_sector(n_up, n_dn)
-        up_states, dn_states = sector.up_states, sector.dn_states
-        size = len(up_states) * len(dn_states)
-
-        rows, cols, data = list(), list(), list()
-        for row, col, value in self.hamiltonian_data(up_states, dn_states):
-            rows.append(row)
-            cols.append(col)
-            data.append(value)
-        ham = sparse.csr_matrix((data, (rows, cols)), shape=(size, size))
-        if dense:
-            ham = ham.toarray()
-        return ham
+    def hamiltonian(self, n_up=None, n_dn=None, sector=None, dtype=None):
+        hamop = self.hamilton_operator(n_up, n_dn, sector, dtype)
+        return hamop.array()
 
     def impurity_gf0(self, z):
         return 1 / (z + self.mu + self.eps_imp - self.hybridization_func(z))
@@ -226,8 +212,8 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
                 eig_cache[(n_up_p1, n_dn_p1)] = [eigvals_p1, eigvecs_p1]
 
                 # Update Greens-function
-                cdag = CreationOperator(sector, sector_p1, sigma=sigma)
-                gf.accumulate(cdag, eigvals, eigvecs, eigvals_p1, eigvecs_p1)
+                cop_dag = CreationOperator(sector, sector_p1, sigma=sigma)
+                gf.accumulate(cop_dag, eigvals, eigvecs, eigvals_p1, eigvecs_p1)
             else:
                 eig_cache = dict()
         return gf / part
