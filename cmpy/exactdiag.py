@@ -8,6 +8,7 @@ import logging
 import numpy as np
 from itertools import product
 import scipy.sparse.linalg as sla
+import gftool as gt
 from .operators import CreationOperator, AnnihilationOperator, project_up, project_dn
 from .matrix import EigenState
 from .models import AbstractManyBodyModel
@@ -32,6 +33,7 @@ def solve_sector(model: AbstractManyBodyModel, sector: Sector, cache: dict = Non
 
 def compute_groundstate(model, thresh=50):
     gs = EigenState()
+    logger.debug("Computing ground-state:")
     for n_up, n_dn in model.basis.iter_fillings():
         hamop = model.hamilton_operator(n_up=n_up, n_dn=n_dn, dtype=np.float64)
         logger.debug(f"Sector (%d, %d), size: %d", n_up, n_dn, hamop.shape[0])
@@ -171,13 +173,14 @@ class GreensFunctionMeasurement:
         if min_energy < self._gs_energy:
             factor = np.exp(-self.beta * (self._gs_energy - min_energy))
             self._gs_energy = min_energy
-            logger.debug("Found new ground state energy:\nE_0=%.4f", min_energy)
+            logger.debug("Found new ground state energy: E_0=%.4f", min_energy)
 
         self._acc_part(eigvals, factor)
         self._accumulate(sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1, factor)
 
 
 def greens_function_lehmann(model, z, beta, pos=0, sigma=UP):
+    logger.debug(f"Accumulating lehmann GF")
     data = GreensFunctionMeasurement(z, beta, pos, sigma)
     eig_cache = dict()
     for n_up, n_dn in model.iter_fillings():
@@ -205,10 +208,12 @@ def expm_multiply(a, b, start, stop, num):
 def greens_greater(model, gs, start, stop, num=1000, pos=0, sigma=UP):
     n_up, n_dn = gs.n_up, gs.n_dn
     sector = model.basis.get_sector(n_up, n_dn)
+    logger.debug(f"Computing greater GF (Sector: %d, %d; num: %d)", n_up, n_dn, num)
 
     times, dt = np.linspace(start, stop, num, retstep=True)
     sector_p1 = model.basis.upper_sector(n_up, n_dn, sigma)
     if sector_p1 is None:
+        logger.warning("Upper sector not found!")
         return None
 
     cop_dag = CreationOperator(sector, sector_p1, pos=pos, sigma=sigma)
@@ -231,10 +236,12 @@ def greens_greater(model, gs, start, stop, num=1000, pos=0, sigma=UP):
 def greens_lesser(model, gs, start, stop, num=1000, pos=0, sigma=UP):
     n_up, n_dn = gs.n_up, gs.n_dn
     sector = model.basis.get_sector(n_up, n_dn)
+    logger.debug(f"Computing lesser GF (Sector: %d, %d; num: %d)", n_up, n_dn, num)
 
     times, dt = np.linspace(start, stop, num, retstep=True)
     sector_m1 = model.basis.lower_sector(n_up, n_dn, sigma)
     if sector_m1 is None:
+        logger.warning("Lower sector not found!")
         return None
 
     cop = AnnihilationOperator(sector, sector_m1, pos=pos, sigma=sigma)
@@ -254,7 +261,15 @@ def greens_lesser(model, gs, start, stop, num=1000, pos=0, sigma=UP):
     return times, overlaps
 
 
-def greens_function_tevo(model, gs, start, stop, num=1000, pos=0, sigma=UP):
+def greens_function_tevo(model, start, stop, num=1000, pos=0, sigma=UP):
+    gs = compute_groundstate(model)
     times, gf_greater = greens_greater(model, gs, start, stop, num, pos, sigma)
     times, gf_lesser = greens_lesser(model, gs, start, stop, num, pos, sigma)
     return times, gf_greater - gf_lesser
+
+
+def fourier_t2z(times, gf_t, omegas, delta=1e-2):
+    eta = -np.log(delta) / times[-1]
+    z = omegas + 1j * eta
+    gf_w = gt.fourier.tt2z(times, gf_t, z)
+    return z, gf_w
