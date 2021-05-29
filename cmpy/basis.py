@@ -293,11 +293,16 @@ def annihilate(num: int, pos: int) -> Union[int, None]:
 
 
 # =========================================================================
-# State objects
+# State wrapper and container
 # =========================================================================
 
 
 class SpinState(int):
+
+    @property
+    def n(self) -> int:
+        """Total occupation of the state"""
+        return bin(self).count("1")
 
     def binstr(self, width: Optional[int] = None) -> str:
         """Returns the binary representation of the state"""
@@ -307,17 +312,6 @@ class SpinState(int):
                dtype: Optional[Union[int, str]] = None) -> np.ndarray:
         """Returns the bits of the integer as a binary array."""
         return binarr(self, width, dtype)
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.binstr()})"
-
-    def __str__(self) -> str:
-        return self.binstr()
-
-    @property
-    def n(self) -> int:
-        """Total occupation of the state"""
-        return bin(self).count("1")
 
     def occ(self, pos: int) -> int:
         """Returns the occupation at index `pos`."""
@@ -346,6 +340,12 @@ class SpinState(int):
             return None
         return self.__class__(num)
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.binstr()})"
+
+    def __str__(self) -> str:
+        return self.binstr()
+
 
 @dataclass
 class State:
@@ -367,6 +367,11 @@ class State:
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}: {self.label()}"
+
+
+# =========================================================================
+# Main basis objects
+# =========================================================================
 
 
 class Sector:
@@ -417,20 +422,6 @@ class Sector:
         return iter(self.states)
 
 
-def upper_fillings(n_up, n_dn, sigma):
-    n_p1 = [n_up, n_dn]
-    idx = 0 if sigma == UP else 1
-    n_p1[idx] += 1
-    return n_p1
-
-
-def lower_fillings(n_up, n_dn, sigma):
-    n_m1 = [n_up, n_dn]
-    idx = 0 if sigma == UP else 1
-    n_m1[idx] -= 1
-    return n_m1
-
-
 class Basis:
     """Container class all basis states the full Hilbert space of a model."""
 
@@ -455,7 +446,7 @@ class Basis:
                 n = f"{state:b}".count("1")
                 self.sectors[n].append(state)
 
-    def generate_states(self, n: int = None):
+    def generate_states(self, n: int = None) -> Union[list, np.ndarray]:
         total = self.num_sites
         if n is None:
             return list(range(2 ** total))
@@ -468,7 +459,7 @@ class Basis:
         states = set(int("".join(bits), 2) for bits in permutations(bitvals))
         return np.asarray(sorted(states))
 
-    def get_states(self, n=None):
+    def get_states(self, n: int = None) -> list[int]:
         if n in self.sectors:
             # Get cached spin-sector states
             states = self.sectors.get(n, list(range(self.num_spinstates)))
@@ -478,7 +469,7 @@ class Basis:
             self.sectors[n] = states
         return states
 
-    def get_sector(self, n_up=None, n_dn=None):
+    def get_sector(self, n_up: int = None, n_dn: int = None) -> Sector:
         up_states = self.get_states(n_up)
         dn_states = self.get_states(n_dn)
         return Sector(up_states, dn_states, n_up, n_dn, self.num_sites)
@@ -498,13 +489,19 @@ class Basis:
         return n_up in fillings and n_dn in fillings
 
     def upper_sector(self, n_up, n_dn, sigma):
-        n_up_p1, n_dn_p1 = upper_fillings(n_up, n_dn, sigma)
+        n_p1 = [n_up, n_dn]
+        idx = 0 if sigma == UP else 1
+        n_p1[idx] += 1
+        n_up_p1, n_dn_p1 = n_p1
         if self.check(n_up_p1, n_dn_p1):
             return self.get_sector(n_up_p1, n_dn_p1)
         return None
 
     def lower_sector(self, n_up, n_dn, sigma):
-        n_up_p1, n_dn_p1 = lower_fillings(n_up, n_dn, sigma)
+        n_m1 = [n_up, n_dn]
+        idx = 0 if sigma == UP else 1
+        n_m1[idx] -= 1
+        n_up_p1, n_dn_p1 = n_m1
         if self.check(n_up_p1, n_dn_p1):
             return self.get_sector(n_up_p1, n_dn_p1)
         return None
