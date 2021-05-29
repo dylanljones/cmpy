@@ -12,11 +12,11 @@
 
 import abc
 import numpy as np
-import scipy.linalg as la
 from bisect import bisect_left
-from scipy.sparse import linalg as sla
+import scipy.linalg as la
+import scipy.sparse.linalg as sla
 from scipy.sparse import csr_matrix
-from typing import Callable, Iterable
+from typing import Union, Callable, Iterable
 from .basis import binstr, occupations, overlap, UP, SPIN_CHARS
 from .matrix import Matrix, is_hermitian, Decomposition
 
@@ -27,16 +27,16 @@ __all__ = ["LinearOperator", "TimeEvolutionOperator", "CreationOperator", "Annih
            "project_site_hopping", "project_hopping", "SparseOperator", ]
 
 
-def project_up(up_idx: (int, np.ndarray),
+def project_up(up_idx: Union[int, np.ndarray],
                num_dn_states: int,
-               dn_indices: (int, np.ndarray)) -> np.ndarray:
+               dn_indices: Union[int, np.ndarray]) -> np.ndarray:
     """Projects spin-up states onto the full basis(-sector).
 
     Parameters
     ----------
-    up_idx: int or np.ndarray
+    up_idx : int or np.ndarray
         The index/indices for the projection.
-    num_dn_states: int
+    num_dn_states : int
         The total number of spin-down states of the basis(-sector).
     dn_indices: ndarray
         An array of the indices of all spin-down states in the basis(-sector).
@@ -44,9 +44,9 @@ def project_up(up_idx: (int, np.ndarray),
     return up_idx * num_dn_states + dn_indices
 
 
-def project_dn(dn_idx: (int, np.ndarray),
+def project_dn(dn_idx: Union[int, np.ndarray],
                num_dn_states: int,
-               up_indices: (int, np.ndarray)) -> np.ndarray:
+               up_indices: Union[int, np.ndarray]) -> np.ndarray:
     """Projects spin-down states onto the full basis(-sector).
 
     Parameters
@@ -61,11 +61,11 @@ def project_dn(dn_idx: (int, np.ndarray),
     return up_indices * num_dn_states + dn_idx
 
 
-def project_elements_up(up_idx: (int, np.ndarray),
+def project_elements_up(up_idx: Union[int, np.ndarray],
                         num_dn_states: int,
-                        dn_indices: (int, np.ndarray),
-                        value: (complex, float),
-                        target: (int, np.ndarray) = None):
+                        dn_indices: Union[int, np.ndarray],
+                        value: Union[complex, float],
+                        target: Union[int, np.ndarray] = None):
     """Projects a value for spin-up states onto the elements of the full basis(-sector).
 
     Parameters
@@ -107,11 +107,11 @@ def project_elements_up(up_idx: (int, np.ndarray),
             yield row, col, value
 
 
-def project_elements_dn(dn_idx: (int, np.ndarray),
+def project_elements_dn(dn_idx: Union[int, np.ndarray],
                         num_dn_states: int,
-                        up_indices: (int, np.ndarray),
-                        value: (complex, float),
-                        target: (int, np.ndarray) = None):
+                        up_indices: Union[int, np.ndarray],
+                        value: Union[complex, float],
+                        target: Union[int, np.ndarray] = None):
     """Projects a value for spin-down states onto the elements of the full basis(-sector).
 
     Parameters
@@ -314,7 +314,7 @@ class LinearOperator(sla.LinearOperator, abc.ABC):
             return la.eig(mat)
 
     def eigh(self):
-        """ Calculate eigenvalues and -vectors of the hermitian matrix.
+        """Calculate eigenvalues and -vectors of the hermitian matrix.
 
         Returns
         -------
@@ -326,6 +326,9 @@ class LinearOperator(sla.LinearOperator, abc.ABC):
         mat = self.array()
         assert is_hermitian(mat)
         return la.eigh(mat)
+
+    def eigsh(self, k=6, which="SA", **kwargs):
+        return sla.eigsh(self, k=k, which=which, **kwargs)  # noqa
 
     def show(self, show=True, **kwargs):
         """Converts the `LinearOperator` to a `Matrix`-object and plots the result."""
@@ -518,8 +521,7 @@ class CreationOperator(LinearOperator):
                     matvec[target] = x[origin]
 
     def _matvec(self, x):
-        newsize = self.shape[0]
-        matvec = np.zeros((newsize, *x.shape[1:]), dtype=x.dtype)
+        matvec = np.zeros((self.shape[0], *x.shape[1:]), dtype=x.dtype)
         if self.sigma == UP:
             self._build_up(matvec, x)
         else:
@@ -577,8 +579,7 @@ class AnnihilationOperator(LinearOperator):
                     matvec[target] = x[origin]
 
     def _matvec(self, x):
-        newsize = self.shape[0]
-        matvec = np.zeros((newsize, *x.shape[1:]), dtype=x.dtype)
+        matvec = np.zeros((self.shape[0], *x.shape[1:]), dtype=x.dtype)
         if self.sigma == UP:
             self._build_up(matvec, x)
         else:
