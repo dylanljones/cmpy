@@ -475,7 +475,7 @@ class Sector:
 
 
 class Basis:
-    """Container class all basis states the full Hilbert space of a model."""
+    """Container class for all basis states of the full Hilbert space."""
 
     __slots__ = ["size", "num_sites", "num_spinstates", "sectors", "fillings"]
 
