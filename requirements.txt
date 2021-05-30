@@ -4,5 +4,6 @@ scipy
 setuptools
 colorcet
 pytest
+hypothesis
 h5py
 gftool

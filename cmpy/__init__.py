@@ -8,9 +8,7 @@
 # LICENSE file in the root directory and this permission notice shall
 # be included in all copies or substantial portions of the Software.
 
-from ._utils import (
-    logger,
-)
+from ._utils import logger
 
 from .collection import *
 
@@ -52,6 +50,7 @@ from .operators import (
     project_site_hopping,
     project_hopping,
     LinearOperator,
+    HamiltonOperator,
     TimeEvolutionOperator,
     CreationOperator,
     AnnihilationOperator

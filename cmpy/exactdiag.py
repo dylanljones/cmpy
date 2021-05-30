@@ -24,7 +24,7 @@ def solve_sector(model: AbstractManyBodyModel, sector: Sector, cache: dict = Non
         eigvals, eigvecs = cache[sector_key]
     else:
         logger.debug("Solving eig  %d, %d", sector.n_up, sector.n_dn)
-        ham = model.hamiltonian(sector=sector)
+        ham = model.hamilton_operator(sector=sector).array()
         eigvals, eigvecs = np.linalg.eigh(ham)
         if cache is not None:
             cache[sector_key] = [eigvals, eigvecs]
@@ -187,12 +187,12 @@ def greens_function_lehmann(model, z, beta, pos=0, sigma=UP):
         sector = model.get_sector(n_up, n_dn)
         sector_p1 = model.basis.upper_sector(n_up, n_dn, sigma)
         if sector_p1 is not None:
-
             eigvals, eigvecs = solve_sector(model, sector, cache=eig_cache)
             eigvals_p1, eigvecs_p1 = solve_sector(model, sector_p1, cache=eig_cache)
             data.accumulate(sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1)
         else:
             eig_cache.clear()
+
     logger.debug("-"*40)
     logger.debug("gs-energy:  %+.4f", data.gs_energy)
     logger.debug("occupation:  %.4f", data.occ)
@@ -201,8 +201,10 @@ def greens_function_lehmann(model, z, beta, pos=0, sigma=UP):
     return data
 
 
-def expm_multiply(a, b, start, stop, num):
-    return sla.expm_multiply(a, b, start=start, stop=stop, num=num)
+def expm_multiply(hamop, state, start, stop, num):
+    # Fixme: Make expm_multiply work with LinearOperator
+    hammat = hamop.matmat(np.eye(hamop.shape[1]))  # convert LinearOperator to array
+    return sla.expm_multiply(hammat, state, start=start, stop=stop, num=num)
 
 
 def greens_greater(model, gs, start, stop, num=1000, pos=0, sigma=UP):
@@ -214,17 +216,17 @@ def greens_greater(model, gs, start, stop, num=1000, pos=0, sigma=UP):
     sector_p1 = model.basis.upper_sector(n_up, n_dn, sigma)
     if sector_p1 is None:
         logger.warning("Upper sector not found!")
-        return None
+        return times, np.zeros_like(times)
 
     cop_dag = CreationOperator(sector, sector_p1, pos=pos, sigma=sigma)
     top_ket = cop_dag.matvec(gs.state)  # T|gs>
-    bra_top = top_ket.conj()                # <gs|T
+    bra_top = top_ket.conj()            # <gs|T
 
+    hamop = -1j * model.hamilton_operator(sector=sector_p1)
     top_e0 = np.exp(+1j * gs.energy * dt)
-    tevop = -1j * model.hamilton_operator(sector=sector_p1)
-    tevop_mat = tevop.matmat(np.eye(tevop.shape[1]))
 
-    overlaps = expm_multiply(tevop_mat, top_ket, start=start, stop=stop, num=num) @ bra_top
+    overlaps = expm_multiply(hamop, top_ket, start=start, stop=stop, num=num) @ bra_top
+
     factor = -1j * np.exp(+1j * gs.energy * times[0])
     overlaps[0] *= factor
     for n in range(1, num):
@@ -242,17 +244,17 @@ def greens_lesser(model, gs, start, stop, num=1000, pos=0, sigma=UP):
     sector_m1 = model.basis.lower_sector(n_up, n_dn, sigma)
     if sector_m1 is None:
         logger.warning("Lower sector not found!")
-        return None
+        return times, np.zeros_like(times)
 
     cop = AnnihilationOperator(sector, sector_m1, pos=pos, sigma=sigma)
     top_ket = cop.matvec(gs.state)  # T|gs>
-    bra_top = top_ket.conj()  # <gs|T
+    bra_top = top_ket.conj()        # <gs|T
 
+    hamop = +1j * model.hamilton_operator(sector=sector_m1)
     top_e0 = np.exp(-1j * gs.energy * dt)
-    tevop = +1j * model.hamilton_operator(sector=sector_m1)
-    tevop_mat = tevop.matmat(np.eye(tevop.shape[1]))
 
-    overlaps = expm_multiply(tevop_mat, top_ket, start=start, stop=stop, num=num) @ bra_top
+    overlaps = expm_multiply(hamop, top_ket, start=start, stop=stop, num=num) @ bra_top
+
     factor = +1j * np.exp(-1j * gs.energy * times[0])
     overlaps[0] *= factor
     for n in range(1, num):

@@ -5,11 +5,6 @@
 # Copyright (c) 2021, Dylan Jones
 
 import logging
-from typing import Union, Iterable
-import numpy as np
-
-# define type for numpy `array_like` types
-ArrayLike = Union[int, float, Iterable, np.ndarray]
 
 # =========================================================================
 # LOGGING
