@@ -13,6 +13,7 @@ from .operators import CreationOperator, AnnihilationOperator, project_up, proje
 from .matrix import EigenState
 from .models import AbstractManyBodyModel
 from .basis import Sector, UP
+from .linalg import expm_multiply
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +202,7 @@ def greens_function_lehmann(model, z, beta, pos=0, sigma=UP):
     return data
 
 
-def expm_multiply(hamop, state, start, stop, num):
+def expm_multiply2(hamop, state, start, stop, num):
     # Fixme: Make expm_multiply work with LinearOperator
     hammat = hamop.matmat(np.eye(hamop.shape[1]))  # convert LinearOperator to array
     return sla.expm_multiply(hammat, state, start=start, stop=stop, num=num)

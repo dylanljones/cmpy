@@ -359,6 +359,7 @@ class HamiltonOperator(LinearOperator):
         return self
 
     def trace(self):
+        # Fixme: Sparse trace method
         return np.trace(self.array())
 
     def __mul__(self, x):
