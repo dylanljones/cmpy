@@ -376,7 +376,25 @@ class State:
 # =========================================================================
 
 
-def upper_sector(n_up, n_dn, sigma, num_sites):
+def upper_sector(n_up: int, n_dn: int, sigma: int, num_sites: int) -> Union[tuple[int, int], None]:
+    """ Returns the upper sector of a spin-sector if it exists.
+
+    Parameters
+    ----------
+    n_up : int
+        The filling of the spin-up states.
+    n_dn : int
+        The filling of the spin-down states.
+    sigma : int
+        The spin-channel to increment.
+    num_sites : int
+        The number of sites in the system.
+
+    Returns
+    -------
+    fillings_p1 : tuple or None
+        The incremented fillings. ``None`` is returned if the upper sector does not exist.
+    """
     if sigma == UP and n_up < num_sites:
         return n_up + 1, n_dn
     elif sigma == DN and n_dn < num_sites:
@@ -384,7 +402,23 @@ def upper_sector(n_up, n_dn, sigma, num_sites):
     return None
 
 
-def lower_sector(n_up, n_dn, sigma):
+def lower_sector(n_up: int, n_dn: int, sigma: int) -> Union[tuple[int, int], None]:
+    """ Returns the lower sector of a spin-sector if it exists.
+
+    Parameters
+    ----------
+    n_up : int
+        The filling of the spin-up states.
+    n_dn : int
+        The filling of the spin-down states.
+    sigma : int
+        The spin-channel to decrement.
+
+    Returns
+    -------
+    fillings_p1 : tuple or None
+        The decremented fillings. ``None`` is returned if the lower sector does not exist.
+    """
     if sigma == UP and n_up > 0:
         return n_up - 1, n_dn
     elif sigma == DN and n_dn > 0:
