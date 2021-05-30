@@ -9,82 +9,51 @@
 # be included in all copies or substantial portions of the Software.
 
 from pytest import mark
+from hypothesis import given, strategies as st
+import numpy as np
 from numpy.testing import assert_array_equal
 from cmpy import basis
 
 
-@mark.parametrize("num, width, result", [
-    (0, 0, "0"),
-    (1, 0, "1"),
-    (2, 0, "10"),
-    (5, 0, "101"),
-    (1, 3, "001"),
-    (2, 3, "010"),
-    (5, 3, "101"),
-    (5, 4, "0101"),
-    (5, None, "101")
-])
-def test_binstr(num, width, result):
-    assert basis.binstr(num, width) == result
+@given(st.integers(0, int(2**15)))
+def test_binstr(num):
+    assert basis.binstr(num) == f"{num:b}"
+    for width in [0, 5, 10, 15, 20]:
+        assert basis.binstr(num, width) == f"{num:0{width}b}"
 
 
-@mark.parametrize("num, width, result", [
-    (0, 0, [0]),
-    (1, 0, [1]),
-    (2, 0, [0, 1]),
-    (5, 0, [1, 0, 1]),
-    (1, 3, [1, 0, 0]),
-    (2, 3, [0, 1, 0]),
-    (5, 3, [1, 0, 1]),
-    (5, 4, [1, 0, 1, 0]),
-    (5, None, [1, 0, 1])
-])
-def test_binarr(num, width, result):
-    assert_array_equal(basis.binarr(num, width), result)
+@given(st.integers(0, int(2**15)))
+def test_binarr(num):
+    result = np.fromiter(f"{num:b}"[::-1], dtype=np.int64)
+    assert_array_equal(basis.binarr(num), result)
+    for width in [0, 5, 10, 15, 20]:
+        result = np.fromiter(f"{num:0{width}b}"[::-1], dtype=np.int64)
+        assert_array_equal(basis.binarr(num, width), result)
 
 
-@mark.parametrize("num, width, result", [
-    (0, 0, []),
-    (1, 0, [0]),
-    (2, 0, [1]),
-    (5, 0, [0, 2]),
-    (1, 3, [0]),
-    (2, 3, [1]),
-    (5, 3, [0, 2]),
-    (5, 4, [0, 2]),
-    (5, None, [0, 2])
-])
-def test_binidx(num, width, result):
-    assert_array_equal(basis.binidx(num, width), result)
+@given(st.integers(0, int(2**15)))
+def test_binidx(num):
+    assert_array_equal(basis.binidx(num), np.where(basis.binarr(num))[0])
+    for width in [0, 5, 10, 15, 20]:
+        assert_array_equal(basis.binidx(num, width), np.where(basis.binarr(num, width))[0])
 
 
-@mark.parametrize("num1, num2, width, result", [
-    (int("0", 2), int("0", 2), 0, [0]),
-    (int("1", 2), int("0", 2), 0, [0]),
-    (int("0", 2), int("1", 2), 0, [0]),
-    (int("1", 2), int("1", 2), 0, [1]),
-    (int("11", 2), int("10", 2), 0, [0, 1]),
-    (int("01", 2), int("10", 2), 0, [0]),
-    (int("01", 2), int("10", 2), 2, [0, 0]),
-    (int("11", 2), int("11", 2), 0, [1, 1]),
-])
-def test_overlap(num1, num2, width, result):
-    assert_array_equal(basis.overlap(num1, num2, width), result)
+@given(st.integers(0, int(2**15)), st.integers(0, int(2**15)))
+def test_overlap(num1, num2):
+    result = np.fromiter(f"{num1 & num2:b}"[::-1], dtype=np.int64)
+    assert_array_equal(basis.overlap(num1, num2), result)
+    for width in [0, 5, 10, 15, 20]:
+        result = np.fromiter(f"{num1 & num2:0{width}b}"[::-1], dtype=np.int64)
+        assert_array_equal(basis.overlap(num1, num2, width), result)
 
 
-@mark.parametrize("num, width, result", [
-    (0, 0, [0]),
-    (1, 0, [1]),
-    (2, 0, [0, 1]),
-    (5, 0, [1, 0, 1]),
-    (1, 3, [1, 0, 0]),
-    (2, 3, [0, 1, 0]),
-    (5, 3, [1, 0, 1]),
-    (5, 4, [1, 0, 1, 0]),
-    (5, None, [1, 0, 1])
-])
-def test_occupations(num, width, result):
-    assert_array_equal(basis.binarr(num, width), result)
+@given(st.integers(0, int(2**15)))
+def test_occupations(num):
+    result = np.fromiter(f"{num:b}"[::-1], dtype=np.int64)
+    assert_array_equal(basis.occupations(num), result)
+    for width in [0, 5, 10, 15, 20]:
+        result = np.fromiter(f"{num:0{width}b}"[::-1], dtype=np.int64)
+        assert_array_equal(basis.occupations(num, width), result)
 
 
 @mark.parametrize("num, pos, result", [
@@ -115,14 +84,28 @@ def test_annihilate(num, pos, result):
     assert basis.annihilate(num, pos) == result
 
 
-@mark.parametrize("num_sites, init_sectors", [
-    (2, False),
-    (2, True),
-    (3, False),
-    (3, True),
-    (20, False),
-    (20, True),
-])
+@given(st.integers(0, 15), st.integers(0, 15))
+def test_upper_sector(n_up, n_dn):
+    num_sites = 15
+    # Test spin-up
+    res = None if n_up == num_sites else (n_up + 1, n_dn)
+    assert basis.upper_sector(n_up, n_dn, basis.UP, num_sites) == res
+    # Test spin-down
+    res = None if n_dn == num_sites else (n_up, n_dn + 1)
+    assert basis.upper_sector(n_up, n_dn, basis.DN, num_sites) == res
+
+
+@given(st.integers(0, 15), st.integers(0, 15))
+def test_lower_sector(n_up, n_dn):
+    # Test spin-up
+    res = None if n_up == 0 else (n_up - 1, n_dn)
+    assert basis.lower_sector(n_up, n_dn, basis.UP) == res
+    # Test spin-down
+    res = None if n_dn == 0 else (n_up, n_dn - 1)
+    assert basis.lower_sector(n_up, n_dn, basis.DN) == res
+
+
+@given(st.integers(0, 15), st.booleans())
 def test_basis_init(num_sites, init_sectors):
     b = basis.Basis(num_sites, init_sectors)
     assert b.num_spinstates == 2 ** num_sites

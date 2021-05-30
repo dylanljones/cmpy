@@ -12,31 +12,29 @@
 
 import abc
 import numpy as np
-import scipy.linalg as la
 from bisect import bisect_left
-from scipy.sparse import linalg as sla
-from scipy.sparse import csr_matrix
-from typing import Callable, Iterable
+import scipy.linalg as la
+import scipy.sparse.linalg as sla
+from typing import Union, Callable, Iterable
 from .basis import binstr, occupations, overlap, UP, SPIN_CHARS
 from .matrix import Matrix, is_hermitian, Decomposition
 
-
-__all__ = ["LinearOperator", "TimeEvolutionOperator", "CreationOperator", "AnnihilationOperator",
+__all__ = ["LinearOperator", "HamiltonOperator", "CreationOperator", "AnnihilationOperator",
            "project_up", "project_dn", "project_elements_up", "project_elements_dn",
            "project_interaction", "project_onsite_energy",
-           "project_site_hopping", "project_hopping", "SparseOperator", ]
+           "project_site_hopping", "project_hopping", "TimeEvolutionOperator"]
 
 
-def project_up(up_idx: (int, np.ndarray),
+def project_up(up_idx: Union[int, np.ndarray],
                num_dn_states: int,
-               dn_indices: (int, np.ndarray)) -> np.ndarray:
+               dn_indices: Union[int, np.ndarray]) -> np.ndarray:
     """Projects spin-up states onto the full basis(-sector).
 
     Parameters
     ----------
-    up_idx: int or np.ndarray
+    up_idx : int or np.ndarray
         The index/indices for the projection.
-    num_dn_states: int
+    num_dn_states : int
         The total number of spin-down states of the basis(-sector).
     dn_indices: ndarray
         An array of the indices of all spin-down states in the basis(-sector).
@@ -44,9 +42,9 @@ def project_up(up_idx: (int, np.ndarray),
     return up_idx * num_dn_states + dn_indices
 
 
-def project_dn(dn_idx: (int, np.ndarray),
+def project_dn(dn_idx: Union[int, np.ndarray],
                num_dn_states: int,
-               up_indices: (int, np.ndarray)) -> np.ndarray:
+               up_indices: Union[int, np.ndarray]) -> np.ndarray:
     """Projects spin-down states onto the full basis(-sector).
 
     Parameters
@@ -61,11 +59,11 @@ def project_dn(dn_idx: (int, np.ndarray),
     return up_indices * num_dn_states + dn_idx
 
 
-def project_elements_up(up_idx: (int, np.ndarray),
+def project_elements_up(up_idx: Union[int, np.ndarray],
                         num_dn_states: int,
-                        dn_indices: (int, np.ndarray),
-                        value: (complex, float),
-                        target: (int, np.ndarray) = None):
+                        dn_indices: Union[int, np.ndarray],
+                        value: Union[complex, float],
+                        target: Union[int, np.ndarray] = None):
     """Projects a value for spin-up states onto the elements of the full basis(-sector).
 
     Parameters
@@ -107,11 +105,11 @@ def project_elements_up(up_idx: (int, np.ndarray),
             yield row, col, value
 
 
-def project_elements_dn(dn_idx: (int, np.ndarray),
+def project_elements_dn(dn_idx: Union[int, np.ndarray],
                         num_dn_states: int,
-                        up_indices: (int, np.ndarray),
-                        value: (complex, float),
-                        target: (int, np.ndarray) = None):
+                        up_indices: Union[int, np.ndarray],
+                        value: Union[complex, float],
+                        target: Union[int, np.ndarray] = None):
     """Projects a value for spin-down states onto the elements of the full basis(-sector).
 
     Parameters
@@ -314,7 +312,7 @@ class LinearOperator(sla.LinearOperator, abc.ABC):
             return la.eig(mat)
 
     def eigh(self):
-        """ Calculate eigenvalues and -vectors of the hermitian matrix.
+        """Calculate eigenvalues and -vectors of the hermitian matrix.
 
         Returns
         -------
@@ -327,140 +325,57 @@ class LinearOperator(sla.LinearOperator, abc.ABC):
         assert is_hermitian(mat)
         return la.eigh(mat)
 
+    def eigsh(self, k=6, which="SA", **kwargs):
+        return sla.eigsh(self, k=k, which=which, **kwargs)  # noqa
+
     def show(self, show=True, **kwargs):
         """Converts the `LinearOperator` to a `Matrix`-object and plots the result."""
         return self.matrix().show(show, **kwargs)
 
 
-class SparseOperator(LinearOperator):
-    """Sparse implementation of a `LinearOperator`."""
+# =========================================================================
+# Hamilton-operator
+# =========================================================================
 
-    __slots__ = ["rows", "cols", "data", "_csr"]
 
-    def __init__(self, shape, dtype=None, rows=None, cols=None, data=None):
-        super().__init__(shape, dtype)
-        self.rows, self.cols = list(), list()
-        self.data = list()
-        self._csr = None
-        if data is not None:
-            self.set_data(rows, cols, data)
+class HamiltonOperator(LinearOperator):
 
-    @property
-    def csr(self):
-        if self._csr is None:
-            arg = (self.data, (self.rows, self.cols))
-            self._csr = csr_matrix(arg, self.shape, self.dtype, copy=True)
-        return self._csr
-
-    def array(self):
-        return self.csr.toarray()
+    def __init__(self, size, data, indices, dtype=None):
+        data = np.asarray(data)
+        indices = np.asarray(indices)
+        if dtype is None:
+            dtype = data.dtype
+        super().__init__((size, size), dtype=dtype)
+        self.data = data
+        self.indices = indices.T
 
     def _matvec(self, x):
-        """Implements matrix-vector multiplication. """
-        return np.dot(self.array(), x)
+        matvec = np.zeros_like(x)
+        for (row, col), val in zip(self.indices, self.data):
+            matvec[col] += val * x[row]
+        return matvec
 
     def _adjoint(self):
-        """Implements the hermitian adjoint operator."""
-        rows = self.rows
-        cols = self.cols
-        data = np.conj(self.data)
-        return self.__class__(self.shape, self.dtype, rows=cols, cols=rows, data=data)
-
-    def set_data(self, rows, cols, data):
-        self._csr = None
-        self.rows = list(rows)
-        self.cols = list(cols)
-        self.data = list(data)
-
-    def append(self, row, col, value):
-        self._csr = None
-        self.rows.append(row)
-        self.cols.append(col)
-        self.data.append(value)
-
-    def find(self, row, col):
-        indices = np.array([self.rows, self.cols]).T
-        return list(np.where(np.all(indices == np.array([row, col]), axis=1))[0])
-
-    def collect_garbage(self):
-        self.rows, self.cols = list(), list()
-        self.data = list()
-
-    def _check_indices(self, row, col):
-        if row < 0:
-            row = self.shape[0] + row
-        if row >= self.shape[0]:
-            raise IndexError(f"Row {row} out of bounds for axis of size {self.shape[0]}.")
-        if col < 0:
-            col = self.shape[1] + col
-        if col >= self.shape[1]:
-            raise IndexError(f"Column {col} out of bounds for axis of size {self.shape[1]}.")
-        return row, col
-
-    def __getitem__(self, item):
-        row, col = self._check_indices(*item)
-        val = 0.
-        for idx in self.find(row, col):
-            val += self.data[idx]
-        return val
-
-    def __setitem__(self, item, value):
-        row, col = self._check_indices(*item)
-        for idx in reversed(sorted(self.find(row, col))):
-            del self.rows[idx]
-            del self.cols[idx]
-            del self.data[idx]
-        self.append(row, col, value)
-
-    def __delitem__(self, item):
-        row, col = self._check_indices(*item)
-        for idx in reversed(sorted(self.find(row, col))):
-            del self.rows[idx]
-            del self.cols[idx]
-            del self.data[idx]
-
-
-# =========================================================================
-# Time evolution operator
-# =========================================================================
-
-
-class TimeEvolutionOperator(LinearOperator):
-
-    def __init__(self, operator, t=0., t0=0., dtype=None):
-        super().__init__(operator.shape, dtype=dtype)
-        self.decomposition = Decomposition.decompose(operator)
-        self.t = t - t0
-
-    def reconstruct(self, xi=None, method='full'):
-        return self.decomposition.reconstrunct(xi, method)
-
-    def set_eigenbasis(self, operator):
-        self.decomposition = Decomposition.decompose(operator)
-
-    def set_time(self, t, t0=0.):
-        self.t = t - t0
-
-    def _matvec(self, x):
-        rv = self.decomposition.rv
-        xi = self.decomposition.xi
-        # Project state into eigenbasis
-        proj = np.inner(rv.T, x)
-        # Evolve projected state
-        proj_t = proj * np.exp(-1j * xi * self.t)
-        # Reconstruct the new state in the site-basis
-        return np.dot(proj_t, rv.T)
-
-    def array(self) -> np.ndarray:
-        return self.reconstruct()
-
-    def __call__(self, t):
-        self.set_time(t)
         return self
 
-    def evolve(self, state, t):
-        self.set_time(t)
-        return self.matvec(state)
+    def trace(self):
+        return np.trace(self.array())
+
+    def __mul__(self, x):
+        """Ensure methods in result."""
+        scaled = super().__mul__(x)
+        scaled.trace = lambda: x * self.trace()
+        scaled.array = lambda: x * self.array()
+        scaled.matrix = lambda: x * self.matrix()
+        return scaled
+
+    def __rmul__(self, x):
+        """Ensure methods in result."""
+        scaled = super().__rmul__(x)
+        scaled.trace = lambda: x * self.trace()
+        scaled.array = lambda: x * self.array()
+        scaled.matrix = lambda: x * self.matrix()
+        return scaled
 
 
 # =========================================================================
@@ -518,13 +433,15 @@ class CreationOperator(LinearOperator):
                     matvec[target] = x[origin]
 
     def _matvec(self, x):
-        newsize = self.shape[0]
-        matvec = np.zeros((newsize, *x.shape[1:]), dtype=x.dtype)
+        matvec = np.zeros((self.shape[0], *x.shape[1:]), dtype=x.dtype)
         if self.sigma == UP:
             self._build_up(matvec, x)
         else:
             self._build_dn(matvec, x)
         return matvec
+
+    def _adjoint(self):
+        return AnnihilationOperator(self.sector_p1, self.sector, self.pos, self.sigma)
 
 
 class AnnihilationOperator(LinearOperator):
@@ -577,10 +494,55 @@ class AnnihilationOperator(LinearOperator):
                     matvec[target] = x[origin]
 
     def _matvec(self, x):
-        newsize = self.shape[0]
-        matvec = np.zeros((newsize, *x.shape[1:]), dtype=x.dtype)
+        matvec = np.zeros((self.shape[0], *x.shape[1:]), dtype=x.dtype)
         if self.sigma == UP:
             self._build_up(matvec, x)
         else:
             self._build_dn(matvec, x)
         return matvec
+
+    def _adjoint(self):
+        return CreationOperator(self.sector_m1, self.sector, self.pos, self.sigma)
+
+
+# =========================================================================
+# Time evolution operator
+# =========================================================================
+
+
+class TimeEvolutionOperator(LinearOperator):
+
+    def __init__(self, operator, t=0., t0=0., dtype=None):
+        super().__init__(operator.shape, dtype=dtype)
+        self.decomposition = Decomposition.decompose(operator)
+        self.t = t - t0
+
+    def reconstruct(self, xi=None, method='full'):
+        return self.decomposition.reconstrunct(xi, method)
+
+    def set_eigenbasis(self, operator):
+        self.decomposition = Decomposition.decompose(operator)
+
+    def set_time(self, t, t0=0.):
+        self.t = t - t0
+
+    def _matvec(self, x):
+        rv = self.decomposition.rv
+        xi = self.decomposition.xi
+        # Project state into eigenbasis
+        proj = np.inner(rv.T, x)
+        # Evolve projected state
+        proj_t = proj * np.exp(-1j * xi * self.t)
+        # Reconstruct the new state in the site-basis
+        return np.dot(proj_t, rv.T)
+
+    def array(self) -> np.ndarray:
+        return self.reconstruct()
+
+    def __call__(self, t):
+        self.set_time(t)
+        return self
+
+    def evolve(self, state, t):
+        self.set_time(t)
+        return self.matvec(state)

@@ -254,11 +254,17 @@ def quasiparticle_weight(omegas: np.ndarray, sigma: np.ndarray,
     win = (-dw <= omegas) * (omegas <= +dw)
     try:
         dsigma = np.polyfit(omegas[win], sigma.real[win], 1)[0]
-        z_qp = 1 / (1 - dsigma)
-        if z_qp < thresh:
-            z_qp = 0
     except np.linalg.LinAlgError:
         # weird linalg/OPENBLAS error: https://github.com/numpy/numpy/issues/16744
-        # only occurs for low temps / high betas
+        # only occurs for low temps / high betas.
+        # Try to compute slope manually
+        omega_win = omegas[win]
+        sigma_win = sigma[win]
+        dx = omega_win[-1] - omega_win[0]
+        dy = sigma_win[-1] - sigma_win[0]
+        dsigma = dy / dx
+
+    z_qp = 1 / (1 - dsigma)
+    if z_qp < thresh:
         z_qp = 0
     return z_qp

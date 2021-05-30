@@ -67,7 +67,7 @@ class GreensFunction(np.ndarray):
         self.beta = beta
         return self
 
-    def accumulate(self, cdag, eigvals, eigvecs, eigvals_p1, eigvecs_p1):
+    def accumulate(self, cdag, eigvals, eigvecs, eigvals_p1, eigvecs_p1, min_energy=0.):
         """Accumulate the `GreensFunction` iterative.
 
         Parameters
@@ -82,15 +82,18 @@ class GreensFunction(np.ndarray):
             The eigenvalues of the left state .math:`<n|`.
         eigvecs_p1 : (M) np.ndarray
             The eigenvectors of the left state .math:`<n|`.
+        min_energy : float, optional
+            The ground-state energy. The default is ``0``-
         """
         cdag_vec = cdag.matmat(eigvecs)
         overlap = abs(eigvecs_p1.T.conj() @ cdag_vec) ** 2
-        if self.beta == np.inf:
-            exp_eigvals = np.ones_like(eigvals)
-            exp_eigvals_p1 = np.zeros_like(eigvals_p1)
+
+        if np.isfinite(self.beta):
+            exp_eigvals = np.exp(-self.beta * (eigvals - min_energy))
+            exp_eigvals_p1 = np.exp(-self.beta * (eigvals_p1 - min_energy))
         else:
-            exp_eigvals = np.exp(-self.beta * eigvals)
-            exp_eigvals_p1 = np.exp(-self.beta * eigvals_p1)
+            exp_eigvals = np.ones_like(eigvals)
+            exp_eigvals_p1 = np.ones_like(eigvals_p1)
 
         for m, eig_m in enumerate(eigvals_p1):
             for n, eig_n in enumerate(eigvals):
