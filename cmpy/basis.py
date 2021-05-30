@@ -20,8 +20,9 @@ __all__ = ["UP", "DN", "SPIN_CHARS", "state_label", "binstr", "binarr",
            "binidx", "overlap", "occupations", "create", "annihilate",
            "SpinState", "State", "Sector", "Basis"]
 
-_BITORDER = +1  # endianess of binary strings
-_ARRORDER = -1  # endianess of binary arrays
+_BITORDER = +1      # endianess of binary strings (index 0 is of the rhs)
+_ARRORDER = -1      # endianess of binary arrays (index 0 is of the lhs)
+_LABELORDERER = +1  # endianess of state labels (index 0 is of the rhs)
 
 UP, DN = 1, 2   # constants for up/down
 
@@ -56,7 +57,7 @@ def state_label(up_num: int, dn_num: int, digits: Optional[int] = None) -> str:
         u = up_num >> i & 1
         d = dn_num >> i & 1
         chars.append(SPIN_CHARS[u + (d << 1)])
-    label = "".join(chars[::-_BITORDER])
+    label = "".join(chars[::_LABELORDERER])
     return label
 
 
@@ -167,7 +168,8 @@ def binidx(num, width: Optional[int] = None) -> Iterable[int]:
     >>> binidx(4, width=4)  # binary: 0100
     [2]
     """
-    b = binstr(num, width)
+    width = width if width is not None else 0
+    b = f"{num:0{width}b}"
     return list(sorted(i for i, char in enumerate(b[::_ARRORDER]) if char == "1"))
 
 
@@ -374,6 +376,22 @@ class State:
 # =========================================================================
 
 
+def upper_sector(n_up, n_dn, sigma, num_sites):
+    if sigma == UP and n_up < num_sites:
+        return n_up + 1, n_dn
+    elif sigma == DN and n_dn < num_sites:
+        return n_up, n_dn + 1
+    return None
+
+
+def lower_sector(n_up, n_dn, sigma):
+    if sigma == UP and n_up > 0:
+        return n_up - 1, n_dn
+    elif sigma == DN and n_dn > 0:
+        return n_up, n_dn - 1
+    return None
+
+
 class Sector:
     """Container class for the spin-up and spin-down states of a sector of the full basis."""
 
@@ -489,21 +507,15 @@ class Basis:
         return n_up in fillings and n_dn in fillings
 
     def upper_sector(self, n_up, n_dn, sigma):
-        n_p1 = [n_up, n_dn]
-        idx = 0 if sigma == UP else 1
-        n_p1[idx] += 1
-        n_up_p1, n_dn_p1 = n_p1
-        if self.check(n_up_p1, n_dn_p1):
-            return self.get_sector(n_up_p1, n_dn_p1)
+        fillings = upper_sector(n_up, n_dn, sigma, self.num_sites)
+        if fillings is not None:
+            return self.get_sector(*fillings)
         return None
 
     def lower_sector(self, n_up, n_dn, sigma):
-        n_m1 = [n_up, n_dn]
-        idx = 0 if sigma == UP else 1
-        n_m1[idx] -= 1
-        n_up_p1, n_dn_p1 = n_m1
-        if self.check(n_up_p1, n_dn_p1):
-            return self.get_sector(n_up_p1, n_dn_p1)
+        fillings = lower_sector(n_up, n_dn, sigma)
+        if fillings is not None:
+            return self.get_sector(*fillings)
         return None
 
     def __getitem__(self, item):
