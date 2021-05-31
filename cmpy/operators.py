@@ -502,8 +502,10 @@ class HamiltonOperator(LinearOperator):
         return self
 
     def trace(self):
-        # Todo: Sparse trace method
-        return np.trace(self.array())
+        # Check elements where the row equals the column
+        indices = np.where(self.indices[:, 0] == self.indices[:, 1])[0]
+        # Return sum of diagonal elements
+        return np.sum(self.data[indices])
 
     def __mul__(self, x):
         """Ensure methods in result."""
