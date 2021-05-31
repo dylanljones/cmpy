@@ -504,7 +504,7 @@ class HamiltonOperator(LinearOperator):
     def trace(self):
         # Check elements where the row equals the column
         indices = np.where(self.indices[:, 0] == self.indices[:, 1])[0]
-        # Return sum of diagonal elements
+        # Return sum of diagonal elements as trace
         return np.sum(self.data[indices])
 
     def __mul__(self, x):
