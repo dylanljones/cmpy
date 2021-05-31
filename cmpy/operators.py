@@ -15,9 +15,9 @@ import numpy as np
 from bisect import bisect_left
 import scipy.linalg as la
 import scipy.sparse.linalg as sla
-from typing import Union, Callable, Iterable
-from .basis import binstr, occupations, overlap, UP, SPIN_CHARS
-from .matrix import Matrix, is_hermitian, Decomposition
+from typing import Union, Callable, Iterable, Sequence, Generator
+from cmpy.basis import binstr, occupations, overlap, UP, SPIN_CHARS
+from cmpy.matrix import Matrix, is_hermitian, Decomposition
 
 __all__ = ["LinearOperator", "HamiltonOperator", "CreationOperator", "AnnihilationOperator",
            "project_up", "project_dn", "project_elements_up", "project_elements_dn",
@@ -25,51 +25,77 @@ __all__ = ["LinearOperator", "HamiltonOperator", "CreationOperator", "Annihilati
            "project_site_hopping", "project_hopping", "TimeEvolutionOperator"]
 
 
-def project_up(up_idx: Union[int, np.ndarray],
-               num_dn_states: int,
+def project_up(up_idx: int, num_dn_states: int,
                dn_indices: Union[int, np.ndarray]) -> np.ndarray:
-    """Projects spin-up states onto the full basis(-sector).
+    """Projects a spin-up state onto the full basis(-sector).
 
     Parameters
     ----------
-    up_idx : int or np.ndarray
-        The index/indices for the projection.
+    up_idx : int
+        The index of the up-state to project.
     num_dn_states : int
         The total number of spin-down states of the basis(-sector).
-    dn_indices: ndarray
+    dn_indices: int or (N) np.ndarray
         An array of the indices of all spin-down states in the basis(-sector).
+
+    Returns
+    -------
+    projected_up : np.ndarray
+        The indices of the projected up-state.
+
+    Examples
+    --------
+    >>> num_dn = 4
+    >>> all_dn = np.arange(4)
+    >>> project_up(0, num_dn, all_dn)
+    array([0, 1, 2, 3])
+    >>> project_up(1, num_dn, all_dn)
+    array([4, 5, 6, 7])
     """
-    return up_idx * num_dn_states + dn_indices
+    return np.atleast_1d(up_idx * num_dn_states + dn_indices)
 
 
-def project_dn(dn_idx: Union[int, np.ndarray],
-               num_dn_states: int,
+def project_dn(dn_idx: int, num_dn_states: int,
                up_indices: Union[int, np.ndarray]) -> np.ndarray:
-    """Projects spin-down states onto the full basis(-sector).
+    """Projects a spin-down state onto the full basis(-sector).
 
     Parameters
     ----------
-    dn_idx: int or np.ndarray
-        The index/indices for the projection.
+    dn_idx: int
+        The index of the down-state to project.
     num_dn_states: int
         The total number of spin-down states of the basis(-sector).
-    up_indices: ndarray
+    up_indices: int or (N) np.ndarray
         An array of the indices of all spin-up states in the basis(-sector).
+
+    Returns
+    -------
+    projected_dn : np.ndarray
+        The indices of the projected down-state.
+
+    Examples
+    --------
+    >>> num_dn = 4
+    >>> all_up = np.arange(4)
+    >>> project_dn(0, num_dn, all_up)
+    array([ 0,  4,  8, 12])
+    >>> project_dn(1, num_dn, all_up)
+    array([ 1,  5,  9, 13])
     """
-    return up_indices * num_dn_states + dn_idx
+    return np.atleast_1d(up_indices * num_dn_states + dn_idx)
 
 
-def project_elements_up(up_idx: Union[int, np.ndarray],
-                        num_dn_states: int,
+def project_elements_up(up_idx: int, num_dn_states: int,
                         dn_indices: Union[int, np.ndarray],
                         value: Union[complex, float],
-                        target: Union[int, np.ndarray] = None):
-    """Projects a value for spin-up states onto the elements of the full basis(-sector).
+                        target: Union[int, np.ndarray] = None
+                        ) -> Generator[tuple[int, int, float]]:
+    """Projects a value for a spin-up state onto the elements of the full basis(-sector).
 
     Parameters
     ----------
-    up_idx: int or np.ndarray
-        The index/indices for the projection.
+    up_idx : int
+        The index of the up-state to project.
     num_dn_states: int
         The total number of spin-down states of the basis(-sector).
     dn_indices: int or np.ndarray
@@ -88,6 +114,21 @@ def project_elements_up(up_idx: Union[int, np.ndarray],
         The column-index of the element.
     value: float or complex
         The value of the matrix-element.
+
+    Examples
+    --------
+    >>> num_dn = 4
+    >>> all_dn = np.arange(4)
+    >>> np.array(list(project_elements_up(0, num_dn, all_dn, value=1)))
+    array([[0, 0, 1],
+           [1, 1, 1],
+           [2, 2, 1],
+           [3, 3, 1]])
+    >>> np.array(list(project_elements_up(1, num_dn, all_dn, value=1)))
+    array([[4, 4, 1],
+           [5, 5, 1],
+           [6, 6, 1],
+           [7, 7, 1]])
     """
     if not value:
         return
@@ -98,24 +139,21 @@ def project_elements_up(up_idx: Union[int, np.ndarray],
     else:
         targets = project_up(target, num_dn_states, dn_indices)
 
-    if isinstance(origins, int):
-        yield origins, targets, value
-    else:
-        for row, col in zip(origins, targets):
-            yield row, col, value
+    for row, col in zip(origins, targets):
+        yield row, col, value
 
 
-def project_elements_dn(dn_idx: Union[int, np.ndarray],
-                        num_dn_states: int,
+def project_elements_dn(dn_idx: int, num_dn_states: int,
                         up_indices: Union[int, np.ndarray],
                         value: Union[complex, float],
-                        target: Union[int, np.ndarray] = None):
-    """Projects a value for spin-down states onto the elements of the full basis(-sector).
+                        target: Union[int, np.ndarray] = None
+                        ) -> Generator[tuple[int, int, float]]:
+    """Projects a value for a spin-down state onto the elements of the full basis(-sector).
 
     Parameters
     ----------
-    dn_idx: int or ndarray
-        The index/indices for the projection.
+    dn_idx: int
+        The index of the down-state to project.
     num_dn_states: int
         The total number of spin-down states of the basis(-sector).
     up_indices: int or np.ndarray
@@ -134,6 +172,21 @@ def project_elements_dn(dn_idx: Union[int, np.ndarray],
         The column-index of the element.
     value: float or complex
         The value of the matrix-element.
+
+    Examples
+    --------
+    >>> num_dn = 4
+    >>> all_up = np.arange(4)
+    >>> np.array(list(project_elements_dn(0, num_dn, all_up, value=1)))
+    array([[ 0,  0,  1],
+           [ 4,  4,  1],
+           [ 8,  8,  1],
+           [12, 12,  1]])
+    >>> np.array(list(project_elements_dn(1, num_dn, all_up, value=1)))
+    array([[ 1,  1,  1],
+           [ 5,  5,  1],
+           [ 9,  9,  1],
+           [13, 13,  1]])
     """
     if not value:
         return
@@ -144,11 +197,8 @@ def project_elements_dn(dn_idx: Union[int, np.ndarray],
     else:
         targets = project_dn(target, num_dn_states, up_indices)
 
-    if isinstance(origins, int):
-        yield origins, targets, value
-    else:
-        for row, col in zip(origins, targets):
-            yield row, col, value
+    for row, col in zip(origins, targets):
+        yield row, col, value
 
 
 # =========================================================================
@@ -156,7 +206,28 @@ def project_elements_dn(dn_idx: Union[int, np.ndarray],
 # =========================================================================
 
 
-def project_onsite_energy(up_states, dn_states, eps):
+def project_onsite_energy(up_states: Sequence[int], dn_states: Sequence[int],
+                          eps: float) -> Generator[tuple[int, int, float]]:
+    """Projects the on-site energy of a many-body Hamiltonian onto full basis(-sector).
+
+    Parameters
+    ----------
+    up_states : array_like
+        An array of all spin-up states in the basis(-sector).
+    dn_states : array_like
+        An array of all spin-down states in the basis(-sector).
+    eps : float
+        The on-site energy.
+
+    Yields
+    ------
+    row: int
+        The row-index of the on-site energy.
+    col: int
+        The column-index of the on-site energy.
+    value: float
+        The on-site energy.
+    """
     num_dn = len(dn_states)
     all_up, all_dn = np.arange(len(up_states)), np.arange(num_dn)
 
@@ -171,7 +242,28 @@ def project_onsite_energy(up_states, dn_states, eps):
         yield from project_elements_dn(dn_idx, num_dn, all_up, energy)
 
 
-def project_interaction(up_states, dn_states, u):
+def project_interaction(up_states: Sequence[int], dn_states: Sequence[int],
+                        u: float) -> Generator[tuple[int, int, float]]:
+    """Projects the on-site interaction of a many-body Hamiltonian onto full basis(-sector).
+
+    Parameters
+    ----------
+    up_states : array_like
+        An array of all spin-up states in the basis(-sector).
+    dn_states : array_like
+        An array of all spin-down states in the basis(-sector).
+    u : float
+        The on-site interaction.
+
+    Yields
+    ------
+    row: int
+        The row-index of the on-site interaction.
+    col: int
+        The column-index of the on-site interaction.
+    value: float
+        The on-site interaction.
+    """
     num_dn = len(dn_states)
     for up_idx, up in enumerate(up_states):
         for dn_idx, dn in enumerate(dn_states):
@@ -225,8 +317,35 @@ def _compute_hopping(num_sites, states, pos, hopping):
                 yield i, j, value
 
 
-def project_site_hopping(up_states, dn_states, num_sites: int,
-                         hopping: (Callable, Iterable, float), pos: int):
+def project_site_hopping(up_states: Sequence[int], dn_states: Sequence[int],
+                         num_sites: int, hopping: Union[Callable, Iterable, float],
+                         pos: int) -> Generator[tuple[int, int, float]]:
+    """Projects the hopping of a single site of a many-body Hamiltonian onto full basis(-sector).
+
+    Parameters
+    ----------
+    up_states : array_like
+        An array of all spin-up states in the basis(-sector).
+    dn_states : array_like
+        An array of all spin-down states in the basis(-sector).
+    num_sites : int
+        The number of sites in the model.
+    hopping : callable or array_like
+        An iterable or callable defining the hopping energy. If a callable is used
+        the two positions of the hopping elements are passed to the method. Otherwise,
+        the positions are used as indices.
+    pos : int
+        The index of the position considered in the hopping processes.
+
+    Yields
+    ------
+    row: int
+        The row-index of the hopping element.
+    col: int
+        The column-index of the hopping element.
+    value: float
+        The hopping energy.
+    """
     num_dn = len(dn_states)
     all_up, all_dn = np.arange(len(up_states)), np.arange(num_dn)
 
@@ -237,7 +356,37 @@ def project_site_hopping(up_states, dn_states, num_sites: int,
         yield from project_elements_dn(dn_idx, num_dn, all_up, amp, target=target)
 
 
-def project_hopping(up_states, dn_states, num_sites, hopping: (Callable, Iterable, float)):
+def project_hopping(up_states: Sequence[int], dn_states: Sequence[int],
+                    num_sites: int, hopping: Union[Callable, Iterable, float]
+                    ) -> Generator[tuple[int, int, float]]:
+    """Projects the hopping of all sites of a many-body Hamiltonian onto full basis(-sector).
+
+    Parameters
+    ----------
+    up_states : array_like
+        An array of all spin-up states in the basis(-sector).
+    dn_states : array_like
+        An array of all spin-down states in the basis(-sector).
+    num_sites : int
+        The number of sites in the model.
+    hopping : callable or array_like
+        An iterable or callable defining the hopping energy. If a callable is used
+        the two positions of the hopping elements are passed to the method. Otherwise,
+        the positions are used as indices.
+
+    See Also
+    --------
+    project_site_hopping
+
+    Yields
+    ------
+    row: int
+        The row-index of the hopping element.
+    col: int
+        The column-index of the hopping element.
+    value: float
+        The hopping energy.
+    """
     for pos in range(num_sites):
         yield from project_site_hopping(up_states, dn_states, num_sites, hopping, pos)
 
@@ -359,7 +508,7 @@ class HamiltonOperator(LinearOperator):
         return self
 
     def trace(self):
-        # Fixme: Sparse trace method
+        # Todo: Sparse trace method
         return np.trace(self.array())
 
     def __mul__(self, x):
