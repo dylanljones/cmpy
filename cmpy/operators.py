@@ -15,7 +15,7 @@ import numpy as np
 from bisect import bisect_left
 import scipy.linalg as la
 import scipy.sparse.linalg as sla
-from typing import Union, Callable, Iterable, Sequence, Generator
+from typing import Union, Callable, Iterable, Sequence
 from cmpy.basis import binstr, occupations, overlap, UP, SPIN_CHARS
 from cmpy.matrix import Matrix, is_hermitian, Decomposition
 
