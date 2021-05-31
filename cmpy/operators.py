@@ -269,46 +269,43 @@ def project_interaction(up_states: Sequence[int], dn_states: Sequence[int], u: f
 
 
 def _hopping_candidates(num_sites, state, pos):
+    # TODO: Not sure if signs are correct
     results = []
     op = 1 << pos
     occ = state & op
-
+    sign_to = 1
+    sign_from = 1
     tmp = state ^ op  # Annihilate or create electron at `pos`
     for pos2 in range(num_sites):
         if pos >= pos2:
             continue
         op2 = (1 << pos2)
         occ2 = state & op2
+
         # Hopping from `pos` to `pos2` possible
         if occ and not occ2:
             new = tmp ^ op2
-            results.append((pos2, new))
+            results.append((pos2, new, sign_to))
+        else:  # state filled, no hopping but sign change
+            sign_to *= -1
+
         # Hopping from `pos2` to `pos` possible
-        elif not occ and occ2:
+        if not occ and occ2:
             new = tmp ^ op2
-            results.append((pos2, new))
-
+            results.append((pos2, new, sign_from))
+            sign_from *= -1  # if this site is jumped over sign changes
     return results
-
-
-def _ordering_phase(state, pos1, pos2=0):
-    if pos1 == pos2:
-        return 0
-    i0, i1 = sorted([pos1, pos2])
-    particles = binstr(state)[i0 + 1:i1].count("1")
-    return +1 if particles % 2 == 0 else -1
 
 
 def _compute_hopping(num_sites, states, pos, hopping):
     for i, state in enumerate(states):
-        for pos2, new in _hopping_candidates(num_sites, state, pos):
+        for pos2, new, sign in _hopping_candidates(num_sites, state, pos):
             try:
                 t = hopping(pos, pos2)
             except TypeError:
                 t = hopping
             if t:
                 j = bisect_left(states, new)
-                sign = _ordering_phase(state, pos, pos2)
                 value = sign * t
                 yield i, j, value
 
