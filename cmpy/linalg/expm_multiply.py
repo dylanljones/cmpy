@@ -6,7 +6,7 @@
 
 import numpy as np
 from scipy.sparse.linalg import onenormest
-from scipy.sparse.linalg.interface import IdentityOperator # noqa
+from scipy.sparse.linalg.interface import IdentityOperator, LinearOperator # noqa
 from scipy.sparse.linalg._expm_multiply import (
     _expm_multiply_interval_core_0,
     _expm_multiply_interval_core_1,
@@ -23,6 +23,12 @@ def _trace(a, **kwargs):
         return np.trace(a, **kwargs)
     except ValueError:
         return a.trace()
+
+
+def _identity_like(a):
+    if isinstance(a, LinearOperator):
+        return IdentityOperator(shape=a.shape)
+    return np.eye(*a.shape)
 
 
 # noinspection PyPep8Naming
@@ -70,7 +76,7 @@ def _expm_multiply_interval(A, B, start=None, stop=None, num=None,
     if A.shape[1] != B.shape[0]:
         raise ValueError('shapes of matrices A {} and B {} are incompatible'
                          .format(A.shape, B.shape))
-    ident = IdentityOperator(shape=A.shape)
+    ident = _identity_like(A)
     n = A.shape[0]
     if len(B.shape) == 1:
         n0 = 1
@@ -166,7 +172,7 @@ def _expm_multiply_simple(A, B, t=1.0, balance=False):
     if A.shape[1] != B.shape[0]:
         raise ValueError('shapes of matrices A {} and B {} are incompatible'
                          .format(A.shape, B.shape))
-    ident = IdentityOperator(shape=A.shape)
+    ident = _identity_like(A)
     n = A.shape[0]
     if len(B.shape) == 1:
         n0 = 1
