@@ -56,8 +56,6 @@ from .operators import (
     AnnihilationOperator
 )
 
-from .dos import density_of_states
-
 from .models.abc import (
     ModelParameters,
     AbstractModel,

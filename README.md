@@ -22,11 +22,9 @@ python setup.py install
 
 | Module | Description  |
 |:-------|:-----|
-| hdf5 | Hdf5-database tools |
 | basis | Tools for many-body basis representations  |
 | matrix | Matrix tools and np.ndarray-wrapper  |
-| operator | Abstract linear operator, sparse implementation and other tools |
-| dos | Methods for computing the density of states |
+| operators | Abstract linear operator, sparse implementation and other tools |
 | collection | Collection of random functions and constants |
 
 ### Models
@@ -102,17 +100,18 @@ mat = Matrix.zeros(3, 3)
 #### Operators
 
 The ``operators``-module provides the base-class ``LinearOperator`` based on ``scipy.LinearOperator``.
-A simple sparse implementation which supports appending data is also included:
+A simple sparse implementation of a Hamiltonian is also included.
 ````python
 import numpy as np
-from cmpy import SparseOperator
+from cmpy import HamiltonOperator
 
-shape = (3, 3)
-op = SparseOperator(shape)
-op.append(0, 0, 1)
-op.append(1, 1, 1)
-op.append(2, 2, 1)
-
-op.matvec(np.ones(3))
+size = 5
+rows = [0, 1, 2, 3, 4, 0, 1, 2, 3, 1, 2, 3, 4]
+cols = [0, 1, 2, 3, 4, 1, 2, 3, 4, 0, 1, 2, 3]
+data = [1, 1, 1, 1, 1, 1, 1, 1, 1]
+indices = (rows, cols)
+hamop = HamiltonOperator(size, data, indices)
 ````
 
+The inlcuded models provide a method `hamilton_operator` to generate the 
+`HamiltonOperator` for a specific particle sector or the full Hilber space.

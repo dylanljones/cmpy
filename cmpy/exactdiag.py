@@ -202,12 +202,6 @@ def greens_function_lehmann(model, z, beta, pos=0, sigma=UP):
     return data
 
 
-def expm_multiply2(hamop, state, start, stop, num):
-    # Fixme: Make expm_multiply work with LinearOperator
-    hammat = hamop.matmat(np.eye(hamop.shape[1]))  # convert LinearOperator to array
-    return sla.expm_multiply(hammat, state, start=start, stop=stop, num=num)
-
-
 def greens_greater(model, gs, start, stop, num=1000, pos=0, sigma=UP):
     n_up, n_dn = gs.n_up, gs.n_dn
     sector = model.basis.get_sector(n_up, n_dn)
