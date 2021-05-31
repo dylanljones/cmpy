@@ -88,8 +88,7 @@ def project_dn(dn_idx: int, num_dn_states: int,
 def project_elements_up(up_idx: int, num_dn_states: int,
                         dn_indices: Union[int, np.ndarray],
                         value: Union[complex, float],
-                        target: Union[int, np.ndarray] = None
-                        ) -> Generator[tuple[int, int, float]]:
+                        target: Union[int, np.ndarray] = None):
     """Projects a value for a spin-up state onto the elements of the full basis(-sector).
 
     Parameters
@@ -146,8 +145,7 @@ def project_elements_up(up_idx: int, num_dn_states: int,
 def project_elements_dn(dn_idx: int, num_dn_states: int,
                         up_indices: Union[int, np.ndarray],
                         value: Union[complex, float],
-                        target: Union[int, np.ndarray] = None
-                        ) -> Generator[tuple[int, int, float]]:
+                        target: Union[int, np.ndarray] = None):
     """Projects a value for a spin-down state onto the elements of the full basis(-sector).
 
     Parameters
@@ -206,8 +204,7 @@ def project_elements_dn(dn_idx: int, num_dn_states: int,
 # =========================================================================
 
 
-def project_onsite_energy(up_states: Sequence[int], dn_states: Sequence[int],
-                          eps: float) -> Generator[tuple[int, int, float]]:
+def project_onsite_energy(up_states: Sequence[int], dn_states: Sequence[int], eps: float):
     """Projects the on-site energy of a many-body Hamiltonian onto full basis(-sector).
 
     Parameters
@@ -242,8 +239,7 @@ def project_onsite_energy(up_states: Sequence[int], dn_states: Sequence[int],
         yield from project_elements_dn(dn_idx, num_dn, all_up, energy)
 
 
-def project_interaction(up_states: Sequence[int], dn_states: Sequence[int],
-                        u: float) -> Generator[tuple[int, int, float]]:
+def project_interaction(up_states: Sequence[int], dn_states: Sequence[int], u: float):
     """Projects the on-site interaction of a many-body Hamiltonian onto full basis(-sector).
 
     Parameters
@@ -317,9 +313,8 @@ def _compute_hopping(num_sites, states, pos, hopping):
                 yield i, j, value
 
 
-def project_site_hopping(up_states: Sequence[int], dn_states: Sequence[int],
-                         num_sites: int, hopping: Union[Callable, Iterable, float],
-                         pos: int) -> Generator[tuple[int, int, float]]:
+def project_site_hopping(up_states: Sequence[int], dn_states: Sequence[int], num_sites: int,
+                         hopping: Union[Callable, Iterable, float], pos: int):
     """Projects the hopping of a single site of a many-body Hamiltonian onto full basis(-sector).
 
     Parameters
@@ -356,9 +351,8 @@ def project_site_hopping(up_states: Sequence[int], dn_states: Sequence[int],
         yield from project_elements_dn(dn_idx, num_dn, all_up, amp, target=target)
 
 
-def project_hopping(up_states: Sequence[int], dn_states: Sequence[int],
-                    num_sites: int, hopping: Union[Callable, Iterable, float]
-                    ) -> Generator[tuple[int, int, float]]:
+def project_hopping(up_states: Sequence[int], dn_states: Sequence[int], num_sites: int,
+                    hopping: Union[Callable, Iterable, float]):
     """Projects the hopping of all sites of a many-body Hamiltonian onto full basis(-sector).
 
     Parameters
