@@ -135,6 +135,7 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel):
         return np.sum(np.square(np.abs(self.v)) / (x - self.eps_bath), axis=-1)
 
     def _hamiltonian_data(self, up_states, dn_states):
+        """Gets called by the `hamilton_operator`-method of the abstract base class."""
         num_sites = self.num_sites
         u = np.append(self.u, np.zeros(self.num_bath))
         eps = np.append(self.eps_imp - self.mu, self.eps_bath)
