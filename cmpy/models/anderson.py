@@ -271,7 +271,7 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
         ham = self.hamilton_operator(sector=gs_up1_sector)
         tevo_op_exp = -1j * ham @ np.eye(*ham.shape) * dt
         # overlaps = expm_multiply(tevo_op, ket, start=start, stop=stop, num=num) @ bra
-        overlaps = np.zeros(num)
+        overlaps = np.zeros(num, dtype=complex)
         # tevo_ket = expm(tevo_op_exp) @ ket
         tevo_op = expm(tevo_op_exp)
 
@@ -286,21 +286,21 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
     def t_evo_ls(self, gs: EigenState, start, stop, num):
         tt, dt = np.linspace(start, stop, num=num, retstep=True)
         if gs.nup == 0:
+            print("No up electron to annihilate.")
             return tt, np.zeros_like(tt)
 
         gs_sector = self.get_sector(gs.nup, gs.ndn)
-        gs_up1_sector = self.get_sector(gs.nup+1, gs.ndn)
-        c_0_up = AnnihilationOperator(gs_sector, gs_up1_sector, pos=0, sigma=UP)
-        ket = cd_0_up.matvec(gs.vector)
+        gs_upm1_sector = self.get_sector(gs.nup-1, gs.ndn)
+        c_0_up = AnnihilationOperator(gs_sector, gs_upm1_sector, pos=0, sigma=UP)
+        ket = c_0_up.matvec(gs.vector)
         bra = ket.conj()
-        print(bra, ket)
 
-        tevo_gs_energy = np.exp(1j*gs.energy*dt)
+        tevo_gs_energy = np.exp(-1j*gs.energy*dt)
         # exponential operator exp(-i*H*t):
-        ham = self.hamilton_operator(sector=gs_up1_sector)
+        ham = self.hamilton_operator(sector=gs_upm1_sector)
         tevo_op_exp = -1j * ham @ np.eye(*ham.shape) * dt
         # overlaps = expm_multiply(tevo_op, ket, start=start, stop=stop, num=num) @ bra
-        overlaps = np.zeros(num)
+        overlaps = np.zeros(num, dtype=complex)
         # tevo_ket = expm(tevo_op_exp) @ ket
         tevo_op = expm(tevo_op_exp)
 

@@ -4,6 +4,8 @@
 import numpy as np
 from lattpy import Lattice
 from cmpy.models import SingleImpurityAndersonModel
+import gftool as gt
+import gftool.siam
 
 def visualize_states():
     from cmpy import Basis
@@ -29,32 +31,41 @@ def visualize_states():
     # print(state)
 
 
-
-def mpl():
-    import matplotlib.pyplot as plt
-    # import matplotlib as mpl
-    # mpl.rcParams.update(mpl.rcParamsDefault)
-    import matplotlib.font_manager
-    x = np.linspace(0,1,100)
-    y = x
-    plt.plot(x,y)
-    # plt.rcParams['font.family'] = 'cursive'
-    plt.xlabel("asdads A H B ", fontname="Times New Roman")
-    plt.ylabel("asdads [eV]")
-
-    # plt.rcParams['font.sans-serif'] = ['Tahoma',
-    #                            'Lucida Grande', 'Verdana']
-    plt.show()
-
-
 def siam():
     import matplotlib.pyplot as plt
-    siam = SingleImpurityAndersonModel(u=1.0, eps_imp=1.0, eps_bath=[2.0,2.0], v=[1.0,1.0])
-    zz = np.linspace(-2,2,50) + 0.001j
+
+    U =0.0
+    eps = np.array([1.0, 1.0, 1.0])-0.5
+    V = np.array([1.0,1.0])
+    siam = SingleImpurityAndersonModel(u=U, eps_imp=eps[0], eps_bath=eps[1:], v=V)
+    # zz = np.linspace(-2,2,50) + 0.001j
+    # gf0_loc_z = partial(gt.siam.gf0_loc_z, e_onsite=eps[0], e_bath=eps[1:], hopping_sqr=abs(V) ** 2)
+
+
     # siam.impurity_gf(zz, 10)
     gs = siam.get_total_gs()
-    tt, overlaps = siam.t_evo_gr(gs, 0, 100, 10000)
-    plt.plot(tt, overlaps)
+
+    tt, overlaps_gr = siam.t_evo_gr(gs, 0, 100, 1000)
+    tt, overlaps_ls = siam.t_evo_ls(gs, 0, 100, 1000)
+    delta = 1e-4
+    eta = -np.log(delta) / tt[-1]
+    ww = np.linspace(-4, 4, num=5001) + 1j * eta
+
+    print(f"particle sector: {gs.nup}, {gs.ndn}")
+    g_ret = overlaps_gr + overlaps_ls
+    # gf0_ret_t = siam_weh.gf0_loc_ret_t(tt, eps[0], eps[1:], V)
+    # gf_0up_ww = gt.fourier.tt2z(tt, gf_0_ret_t, ww)
+
+    gf0_ww = gt.siam.gf0_loc_z(ww, eps[0], e_bath=eps[1:], hopping_sqr=abs(V) ** 2)
+    # plt.plot(tt, overlaps_gr)
+    # plt.plot(tt, overlaps_ls)
+    # plt.plot(tt, g_ret)
+
+
+    g_ret_ww = gt.fourier.tt2z(tt, g_ret, ww)
+    plt.plot(ww, -g_ret_ww.imag, label=f"tevo, U={U}")
+    plt.plot(ww, -gf0_ww.imag, label="non-int Weh")
+    plt.legend()
     plt.show()
 
 def test_project_elements():
