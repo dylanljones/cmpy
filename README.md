@@ -1,4 +1,4 @@
-# cmpy 0.0.5
+# cmpy 0.0.6
 
 NOTE: This project is still under development and might change significantly!
 
@@ -102,16 +102,31 @@ mat = Matrix.zeros(3, 3)
 The ``operators``-module provides the base-class ``LinearOperator`` based on ``scipy.LinearOperator``.
 A simple sparse implementation of a Hamiltonian is also included.
 ````python
-import numpy as np
 from cmpy import HamiltonOperator
 
 size = 5
 rows = [0, 1, 2, 3, 4, 0, 1, 2, 3, 1, 2, 3, 4]
 cols = [0, 1, 2, 3, 4, 1, 2, 3, 4, 0, 1, 2, 3]
-data = [1, 1, 1, 1, 1, 1, 1, 1, 1]
+data = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1]
 indices = (rows, cols)
 hamop = HamiltonOperator(size, data, indices)
 ````
+Converting the operator to an array yields
+````python
+>>> hamop.array()
+[[0 1 0 0 0]
+ [1 0 1 0 0]
+ [0 1 0 1 0]
+ [0 0 1 0 1]
+ [0 0 0 1 0]]
+````
 
-The inlcuded models provide a method `hamilton_operator` to generate the 
-`HamiltonOperator` for a specific particle sector or the full Hilber space.
+The inlcuded models provide the method `hamilton_operator` to generate the 
+`HamiltonOperator` for a specific particle sector or the full Hilber space, for example:
+```python
+>>> from cmpy.models import SingleImpurityAndersonModel
+
+>>> siam = SingleImpurityAndersonModel(u=2, mu=None)    # Half filling
+>>> hamop = siam.hamilton_operator(1, 1)                # Hamiltonian of sector 1, 1
+HamiltonOperator(shape: (4, 4), dtype: float64)
+```

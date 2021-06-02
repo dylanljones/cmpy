@@ -180,10 +180,10 @@ class GreensFunctionMeasurement:
         self._accumulate(sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1, factor)
 
 
-def greens_function_lehmann(model, z, beta, pos=0, sigma=UP):
+def greens_function_lehmann(model, z, beta, pos=0, sigma=UP, eig_cache=None):
     logger.debug(f"Accumulating lehmann GF")
     data = GreensFunctionMeasurement(z, beta, pos, sigma)
-    eig_cache = dict()
+    eig_cache = eig_cache if eig_cache is not None else dict()
     for n_up, n_dn in model.iter_fillings():
         sector = model.get_sector(n_up, n_dn)
         sector_p1 = model.basis.upper_sector(n_up, n_dn, sigma)

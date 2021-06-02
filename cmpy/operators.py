@@ -13,11 +13,10 @@
 import abc
 import numpy as np
 from bisect import bisect_left
-import scipy.linalg as la
 import scipy.sparse.linalg as sla
 from typing import Union, Callable, Iterable, Sequence
 from cmpy.basis import occupations, overlap, UP, SPIN_CHARS
-from cmpy.matrix import Matrix, is_hermitian, Decomposition
+from cmpy.matrix import Matrix, Decomposition
 
 __all__ = ["LinearOperator", "HamiltonOperator", "CreationOperator", "AnnihilationOperator",
            "project_up", "project_dn", "project_elements_up", "project_elements_dn",
@@ -123,11 +122,21 @@ def project_elements_up(up_idx: int, num_dn_states: int,
            [1, 1, 1],
            [2, 2, 1],
            [3, 3, 1]])
+    >>> np.array(list(project_elements_up(0, num_dn, all_dn, value=1, target=1)))
+    array([[0, 4, 1],
+           [1, 5, 1],
+           [2, 6, 1],
+           [3, 7, 1]])
     >>> np.array(list(project_elements_up(1, num_dn, all_dn, value=1)))
     array([[4, 4, 1],
            [5, 5, 1],
            [6, 6, 1],
            [7, 7, 1]])
+    >>> np.array(list(project_elements_up(1, num_dn, all_dn, value=1, target=2)))
+    array([[ 4,  8,  1],
+           [ 5,  9,  1],
+           [ 6, 10,  1],
+           [ 7, 11,  1]])
     """
     if not value:
         return
@@ -180,11 +189,21 @@ def project_elements_dn(dn_idx: int, num_dn_states: int,
            [ 4,  4,  1],
            [ 8,  8,  1],
            [12, 12,  1]])
+    >>> np.array(list(project_elements_dn(0, num_dn, all_up, value=1, target=1)))
+    array([[ 0,  1,  1],
+           [ 4,  5,  1],
+           [ 8,  9,  1],
+           [12, 13,  1]])
     >>> np.array(list(project_elements_dn(1, num_dn, all_up, value=1)))
     array([[ 1,  1,  1],
            [ 5,  5,  1],
            [ 9,  9,  1],
            [13, 13,  1]])
+    >>> np.array(list(project_elements_dn(1, num_dn, all_up, value=1, target=2)))
+    array([[ 1,  2,  1],
+           [ 5,  6,  1],
+           [ 9, 10,  1],
+           [13, 14,  1]])
     """
     if not value:
         return
@@ -410,7 +429,11 @@ class LinearOperator(sla.LinearOperator, abc.ABC):
         For a complex matrix, the Hermitian adjoint is equal to the conjugate transpose.
         Can be abbreviated self.H instead of self.adjoint().
         As with _matvec and _matmat, implementing either _rmatvec or _adjoint implements the
-        other automatically. Implementing _adjoint is preferable
+        other automatically. Implementing _adjoint is preferable!
+
+    _trace(): Trace of operator.
+        Computes the trace of the operator using the a dense array.
+        Implementing _trace with a more sophisticated method is preferable!
     """
 
     def __init__(self, shape, dtype=None):
@@ -429,80 +452,18 @@ class LinearOperator(sla.LinearOperator, abc.ABC):
         """Returns the `LinearOperator` in form of a dense `Matrix`-object."""
         return Matrix(self.array())
 
-    def eig(self, check_hermitian=True):
-        """ Calculate eigenvalues and -vectors of the Hamiltonian.
-
-        Parameters
-        ----------
-        check_hermitian: bool, optional
-            If `True` and the instance of the the mnatrix is hermitian,
-            np.eigh is used as eigensolver.
-
-        Returns
-        -------
-        eigenvalues: np.ndarray
-            eigenvalues of the matrix
-        eigenvectors: np.ndarray
-            eigenvectors of the matrix
-        """
-        mat = self.array()
-        if check_hermitian and is_hermitian(mat):
-            return la.eigh(mat)
-        else:
-            return la.eig(mat)
-
-    def eigh(self):
-        """Calculate eigenvalues and -vectors of the hermitian matrix.
-
-        Returns
-        -------
-        eigenvalues: np.ndarray
-            eigenvalues of the matrix
-        eigenvectors: np.ndarray
-            eigenvectors of the matrix
-        """
-        mat = self.array()
-        assert is_hermitian(mat)
-        return la.eigh(mat)
-
-    def eigsh(self, k=6, which="SA", **kwargs):
-        return sla.eigsh(self, k=k, which=which, **kwargs)  # noqa
-
     def show(self, show=True, **kwargs):
         """Converts the `LinearOperator` to a `Matrix`-object and plots the result."""
         return self.matrix().show(show, **kwargs)
 
+    def _trace(self) -> float:
+        """Naive implementation of trace. Override for more efficient calculation."""
+        x = np.eye(self.shape[1], dtype=self.dtype)
+        return np.trace(self.matmat(x))
 
-# =========================================================================
-# Hamilton-operator
-# =========================================================================
-
-
-class HamiltonOperator(LinearOperator):
-
-    def __init__(self, size, data, indices, dtype=None):
-        data = np.asarray(data)
-        indices = np.asarray(indices)
-        if dtype is None:
-            dtype = data.dtype
-        super().__init__((size, size), dtype=dtype)
-        self.data = data
-        self.indices = indices.T
-
-    def _matvec(self, x):
-        matvec = np.zeros_like(x)
-        for (row, col), val in zip(self.indices, self.data):
-            matvec[col] += val * x[row]
-        return matvec
-
-    def _adjoint(self):
-        return self
-
-    def trace(self):
-        # Check elements where the row equals the column
-        indices = np.where(self.indices[:, 0] == self.indices[:, 1])[0]
-        # Return sum of diagonal elements as trace
-        return np.sum(self.data[indices])
+    def trace(self) -> float:
+        """Computes the trace of the ``LinearOperator``."""
+        return self._trace()
 
     def __mul__(self, x):
         """Ensure methods in result."""
@@ -520,6 +481,38 @@ class HamiltonOperator(LinearOperator):
         scaled.matrix = lambda: x * self.matrix()
         return scaled
 
+# =========================================================================
+# Hamilton-operator
+# =========================================================================
+
+
+class HamiltonOperator(LinearOperator):
+
+    def __init__(self, size, data, indices, dtype=None):
+        data = np.asarray(data)
+        indices = np.asarray(indices)
+        if dtype is None:
+            dtype = data.dtype
+        super().__init__((size, size), dtype=dtype)
+        self.data = data
+        self.indices = indices.T
+
+    def _matvec(self, x) -> np.ndarray:
+        matvec = np.zeros_like(x)
+        for (row, col), val in zip(self.indices, self.data):
+            matvec[col] += val * x[row]
+        return matvec
+
+    def _adjoint(self) -> "HamiltonOperator":
+        """Hamiltonian is hermitian."""
+        return self
+
+    def _trace(self) -> float:
+        """More efficient trace."""
+        # Check elements where the row equals the column
+        indices = np.where(self.indices[:, 0] == self.indices[:, 1])[0]
+        # Return sum of diagonal elements
+        return np.sum(self.data[indices])
 
 # =========================================================================
 # Creation- and Annihilation-Operators
