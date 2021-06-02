@@ -102,7 +102,6 @@ mat = Matrix.zeros(3, 3)
 The ``operators``-module provides the base-class ``LinearOperator`` based on ``scipy.LinearOperator``.
 A simple sparse implementation of a Hamiltonian is also included.
 ````python
-import numpy as np
 from cmpy import HamiltonOperator
 
 size = 5
@@ -129,6 +128,5 @@ The inlcuded models provide the method `hamilton_operator` to generate the
 
 >>> siam = SingleImpurityAndersonModel(u=2, mu=None)    # Half filling
 >>> hamop = siam.hamilton_operator(1, 1)                # Hamiltonian of sector 1, 1
-
 HamiltonOperator(shape: (4, 4), dtype: float64)
 ```
