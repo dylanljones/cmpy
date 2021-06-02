@@ -1,4 +1,4 @@
-# cmpy 0.0.5
+# cmpy 0.0.6
 
 NOTE: This project is still under development and might change significantly!
 
