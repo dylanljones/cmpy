@@ -14,7 +14,7 @@ import numpy as np
 from itertools import product, permutations
 from dataclasses import dataclass
 from collections import defaultdict
-from typing import Optional, Union, Iterable
+from typing import Optional, Union, Iterable, Tuple, List
 
 __all__ = ["UP", "DN", "SPIN_CHARS", "state_label", "binstr", "binarr",
            "binidx", "overlap", "occupations", "create", "annihilate",
@@ -376,7 +376,7 @@ class State:
 # =========================================================================
 
 
-def upper_sector(n_up: int, n_dn: int, sigma: int, num_sites: int) -> Union[tuple[int, int], None]:
+def upper_sector(n_up: int, n_dn: int, sigma: int, num_sites: int) -> Union[Tuple[int, int], None]:
     """ Returns the upper sector of a spin-sector if it exists.
 
     Parameters
@@ -402,7 +402,7 @@ def upper_sector(n_up: int, n_dn: int, sigma: int, num_sites: int) -> Union[tupl
     return None
 
 
-def lower_sector(n_up: int, n_dn: int, sigma: int) -> Union[tuple[int, int], None]:
+def lower_sector(n_up: int, n_dn: int, sigma: int) -> Union[Tuple[int, int], None]:
     """ Returns the lower sector of a spin-sector if it exists.
 
     Parameters
@@ -511,7 +511,7 @@ class Basis:
         states = set(int("".join(bits), 2) for bits in permutations(bitvals))
         return np.asarray(sorted(states))
 
-    def get_states(self, n: int = None) -> list[int]:
+    def get_states(self, n: int = None) -> List[int]:
         if n in self.sectors:
             # Get cached spin-sector states
             states = self.sectors.get(n, list(range(self.num_spinstates)))
