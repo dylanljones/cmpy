@@ -5,7 +5,6 @@
 # Copyright (c) 2021, Dylan Jones
 
 import logging
-import logging.config
 
 # =========================================================================
 # LOGGING
