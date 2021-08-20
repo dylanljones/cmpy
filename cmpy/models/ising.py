@@ -4,11 +4,15 @@
 # 
 # Copyright (c) 2021, Dylan Jones
 
-
 import random
+import logging
 import numpy as np
+import scipy.interpolate
+from scipy.sparse import csr_matrix
 from lattpy import Lattice, LatticeData
-from typing import Optional, Union, Callable, Sequence
+from typing import Optional, Union, Callable, Sequence, Iterator
+
+logger = logging.getLogger(__name__)
 
 
 class HsField:
@@ -93,56 +97,141 @@ class HsField:
         return string
 
 
+def check_spin_flip(de, temp):
+    metro = np.exp(-de / temp)
+    if not isinstance(de, np.ndarray):
+        return (de < 0) or (temp > 0 and random.random() < metro)
+    return (de < 0) | ((de > 0) & (np.random.rand(len(de)) < metro))
+
+
+class GridInterpolation:
+
+    def __init__(self, positions, padding=0.5, step=1.0, method="nearest"):
+        # Set up a regular grid of interpolation points
+        x, y = positions.T
+        xi = np.arange(x.min() - padding, x.max() + padding, step)
+        yi = np.arange(y.min() - padding, y.max() + padding, step)
+        xi, yi = np.meshgrid(xi, yi)
+
+        self._method = method
+        self._positions = positions
+        self._grid = xi, yi
+
+    def interpolate(self, z):
+        zi = scipy.interpolate.griddata(self._positions, z, self._grid, method=self._method)
+        xi, yi = self._grid
+        return xi, yi, zi
+
+    def __call__(self, z):
+        return self.interpolate(z)
+
+
 class IsingModel(Lattice):
 
-    def __init__(self, j=1., h=0., temp=0.):
-        super().__init__(vectors=np.eye(2))
-        self.add_atom()
-        self.add_connections(1)
-
-        self.field = None
-        self.j = j
-        self.h = h
+    def __init__(self, vectors, j1=0, j2=-1.0, temp=0.):
+        super().__init__(vectors)
+        self.j1 = j1
+        self.j2 = j2
         self.temp = temp
+        self._config: Optional[np.ndarray] = None
 
-    def build(self, shape: Union[int, Sequence[int]],
-              relative: Optional[bool] = False,
-              pos: Optional[Union[float, Sequence[float]]] = None,
-              check: Optional[bool] = True,
-              num_jobs: Optional[int] = -1,
-              periodic: Optional[Union[int, Sequence[int]]] = None,
-              callback: Optional[Callable] = None,
-              dtype: Union[int, str, np.dtype] = None
-              ) -> LatticeData:
-        self.field = HsField(self.num_sites)
-        return super().build(shape, relative, pos, check, num_jobs, periodic, callback, dtype)
+    @property
+    def config(self):
+        if self._config is None:
+            self.init_config(-1)
+        return self._config
 
-    def get_energy_element(self, i, unique=False):
-        s = self.field.config[i]
-        s_neighbours = [self.field.config[j] for j in self.nearest_neighbors(i, unique=unique)]
-        return - self.j * s * np.sum(s_neighbours) - s * self.h
+    def init_config(self, value: int = -1):
+        """Initializes the spin configuration with the given value."""
+        self._config = np.full(self.num_sites, fill_value=value)
 
-    def try_flip(self, i) -> bool:
-        # Check energy difference from potential spin flip
-        delta_e = - self.get_energy_element(i)
-        # Update field if energy advantage
-        if delta_e < 0:
-            self.field.update(i)
-            return True
-        # At finite temp > 0: Metropolis acceptance
-        elif self.temp > 0 and random.random() < np.exp(-1/self.temp * delta_e):
-            self.field.update(i)
-            return True
-        return False
+    def shuffle_config(self, p: Union[float, Sequence[float]] = None) -> None:
+        """Initializes the configuration with a random distribution of `-1` and `+1`.
 
-    def energy(self):
-        energy = 0.0
-        for i in range(self.num_sites):
-            energy += self.get_energy_element(i, unique=True)
-        return energy / self.num_sites
+        Parameters
+        ----------
+        p : float or Sequence, optional
+            Optional sample probabilities of the values `-1` and `+1`.
+            The first probability corresponds to `-1`, the second to `+1`.
+            If `p` is a `float` the values are sample with the probabilities `(p, 1-p)`,
+            if no `p` is passed equal probabilities of `0.5` are used for both values.
+        """
+        if p is None:
+            p = [0.5, 0.5]
+        elif isinstance(p, float):
+            p = [p, 1-p]
+        spins = np.random.choice([-1, +1], p=p, size=self.num_sites)
+        self._config = spins
 
-    def magnetization(self):
-        return self.field.mean()
+    # =========================================================================
 
-    def info_string(self):
-        return f"<M>: {self.magnetization():.2f}, <E>: {self.energy():.2f}"
+    def hamiltonian_data(self):
+        dmap = self.data.map()
+        indices = dmap.indices
+        hop_mask = dmap.hopping(0)
+        data = np.zeros(dmap.size)
+        data[dmap.onsite()] = self.j1 * self.config[:]
+        data[hop_mask] = self.j2 * np.prod(self.config[indices[:, hop_mask]], axis=0)
+        return indices, data
+
+    def hamiltonian(self):
+        num_sites = self.num_sites
+        indices, data = self.hamiltonian_data()
+        return csr_matrix((data, indices), shape=(num_sites, num_sites))
+
+    def site_energy(self, index: int):
+        s = self._config[index]
+        s_neighbours = [self._config[j] for j in self.nearest_neighbors(index)]
+        return self.j1 * s + self.j2 * s * np.sum(s_neighbours)
+
+    def site_energies(self):
+        spins = self.config
+        config_padded = np.append(self.config, 0)
+        neighbors = self.data.neighbors
+        spins_neighbors = config_padded[neighbors]
+        return self.j1 * spins + self.j2 * spins * np.sum(spins_neighbors, axis=1)
+
+    # =========================================================================
+
+    def energy(self, per_site: bool = True):
+        energy = sum(self.site_energies())
+        if per_site:
+            energy /= self.num_sites
+        return energy
+
+    def flip_spins(self, index: Union[int, Sequence[int]]):
+        self._config[index] *= -1
+
+    def check_spin_flip(self, index: int) -> bool:
+        """Checks if a spin flip of a site results in a energy advantage."""
+        delta_e = self.site_energy(index)
+        return check_spin_flip(delta_e, self.temp)
+
+    def try_spin_flip(self, index: int):
+        if self.check_spin_flip(index):
+            self.flip_spins(index)
+
+    def flip_random(self, num: int = None, delta_e=None):
+        if delta_e is None:
+            delta_e = -2 * self.site_energies()
+
+        indices = np.arange(self.num_sites)
+        if num is None:
+            np.random.shuffle(indices)
+        else:
+            num = min(num, self.num_sites)
+            indices = np.random.choice(indices, size=num, repeat=False)
+
+        for i in indices:
+            de = delta_e[i]
+            if check_spin_flip(de, self.temp):
+                self.flip_spins(i)
+                # If a spin is flipped the energy difference of the site needs to be flipped
+                # and the energy differences of the neighbors need to be updated
+                delta_e[i] = - de
+                for j in self.nearest_neighbors(i):
+                    try:
+                        delta_e[j] = - self.site_energy(j)
+                    except IndexError:
+                        pass
+        return delta_e
