@@ -109,6 +109,7 @@ class CPA(SingleSiteApproximation):
         super().__init__(energies, concentrations, hop)
         self.maxiter = maxiter
         self.thresh = thresh
+        self.errs = list()
 
     def greens(self, z) -> np.array:
         """Computes the Green's function in the coherent potential approximation."""
@@ -117,17 +118,20 @@ class CPA(SingleSiteApproximation):
         gf_avrg = np.zeros_like(z)
         for i in range(self.maxiter):
             # Compute average GF via the self-energy
+            # <G> = G_0(E - Σ) = 1 / (E - H_0 - Σ)
             gf_avrg = gf0_z_onedim(z - sigma, self.half_bandwith)
-            gf0_inv = sigma + 1 / gf_avrg
+            gf_avrg_inv = 1 / gf_avrg
+            gf0_inv = sigma + gf_avrg_inv
 
             # Dyson equation
-            gf_a = 1 / (sigma - self.eps[0] + 1 / gf_avrg)
-            gf_b = 1 / (sigma - self.eps[1] + 1 / gf_avrg)
+            gf_a = 1 / (sigma - self.eps[0] + gf_avrg_inv)     # G_A = 1 / (E - H_0 - eps_A)
+            gf_b = 1 / (sigma - self.eps[1] + gf_avrg_inv)     # G_B = 1 / (E - H_0 - eps_B)
 
-            gf_avrg = self.con[0] * gf_a + self.con[1] * gf_b
-            sigma = gf0_inv - 1 / gf_avrg
+            gf_avrg = self.con[0] * gf_a + self.con[1] * gf_b  # <G> = c_A G_A + c_B G_B
+            sigma = gf0_inv - 1 / gf_avrg                      # Σ = G_0^{-1} - <G>^{-1}
 
             diff = np.trapz(abs(sigma - sigma_old), z.real)
+            self.errs.append(diff)
             if diff < self.thresh:
                 print(f"Converged in {i} iterations")
                 break
@@ -145,22 +149,29 @@ def main():
 
     con = np.array([c, 1 - c])
     eps = np.array([-1, +1])
-    omega = np.linspace(-4, +4, 1000)
-    z = omega + 1e-4j
+    z = np.linspace(-3, +3, 1000) + 1e-4j
 
-    bins, hist = sample_eigvals(num_sites, con, eps, t, samples=20)
-    hist_median, hist_errs = histogram_median(hist)
+    # bins, hist = sample_eigvals(num_sites, con, eps, t, samples=20)
+    # hist_median, hist_errs = histogram_median(hist)
 
     vca = VCA(eps, con, t)
     ata = ATA(eps, con, t)
-    cpa = CPA(eps, con, t)
+    cpa = CPA(eps, con, t, thresh=1e-8, maxiter=10_000)
 
     fig, ax = plt.subplots(figsize=(5 * 16 / 9, 5))
-    ax.errorbar(bins, hist_median, yerr=hist_errs, ecolor='red', label="EIG")
+    # ax.errorbar(bins, hist_median, yerr=hist_errs, ecolor='red', label="EIG")
+    # ax.plot(bins, hist_median, color="k")
     ax.plot(z.real, vca.dos(z), label=vca.label, lw=1.5)
     ax.plot(z.real, ata.dos(z), label=ata.label, lw=1.5)
     ax.plot(z.real, cpa.dos(z), label=cpa.label, lw=1.5)
     ax.legend()
+
+    fig, ax = plt.subplots()
+    ax.set_yscale("log")
+    line = ax.plot(cpa.errs)[0]
+    col = line.get_color()
+    ax.axhline(y=cpa.thresh, color=col, ls="--")
+
     plt.show()
 
 
