@@ -86,7 +86,7 @@ def project_dn(dn_idx: int, num_dn_states: int,
 
 def project_elements_up(up_idx: int, num_dn_states: int,
                         dn_indices: Union[int, np.ndarray],
-                        value: Union[complex, float],
+                        value: Union[complex, float, np.ndarray],
                         target: Union[int, np.ndarray] = None):
     """Projects a value for a spin-up state onto the elements of the full basis(-sector).
 
@@ -153,7 +153,7 @@ def project_elements_up(up_idx: int, num_dn_states: int,
 
 def project_elements_dn(dn_idx: int, num_dn_states: int,
                         up_indices: Union[int, np.ndarray],
-                        value: Union[complex, float],
+                        value: Union[complex, float, np.ndarray],
                         target: Union[int, np.ndarray] = None):
     """Projects a value for a spin-down state onto the elements of the full basis(-sector).
 
@@ -459,7 +459,7 @@ class LinearOperator(sla.LinearOperator, abc.ABC):
     def _trace(self) -> float:
         """Naive implementation of trace. Override for more efficient calculation."""
         x = np.eye(self.shape[1], dtype=self.dtype)
-        return np.trace(self.matmat(x))
+        return float(np.trace(self.matmat(x)))
 
     def trace(self) -> float:
         """Computes the trace of the ``LinearOperator``."""
@@ -468,17 +468,23 @@ class LinearOperator(sla.LinearOperator, abc.ABC):
     def __mul__(self, x):
         """Ensure methods in result."""
         scaled = super().__mul__(x)
-        scaled.trace = lambda: x * self.trace()
-        scaled.array = lambda: x * self.array()
-        scaled.matrix = lambda: x * self.matrix()
+        try:
+            scaled.trace = lambda: x * self.trace()
+            scaled.array = lambda: x * self.array()
+            scaled.matrix = lambda: x * self.matrix()
+        except AttributeError:
+            pass
         return scaled
 
     def __rmul__(self, x):
         """Ensure methods in result."""
         scaled = super().__rmul__(x)
-        scaled.trace = lambda: x * self.trace()
-        scaled.array = lambda: x * self.array()
-        scaled.matrix = lambda: x * self.matrix()
+        try:
+            scaled.trace = lambda: x * self.trace()
+            scaled.array = lambda: x * self.array()
+            scaled.matrix = lambda: x * self.matrix()
+        except AttributeError:
+            pass
         return scaled
 
 # =========================================================================
@@ -512,7 +518,7 @@ class HamiltonOperator(LinearOperator):
         # Check elements where the row equals the column
         indices = np.where(self.indices[:, 0] == self.indices[:, 1])[0]
         # Return sum of diagonal elements
-        return np.sum(self.data[indices])
+        return float(np.sum(self.data[indices]))
 
 # =========================================================================
 # Creation- and Annihilation-Operators
