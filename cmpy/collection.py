@@ -36,20 +36,119 @@ def bose_func(e, mu=0., beta=np.inf):
     return 1 / (np.exp(beta * (e - mu)) - 1)
 
 
-def gaussian(x, x0=0.0, sigma=1.0):
-    return np.exp(-np.power(x - x0, 2.) / (2 * np.power(sigma, 2.)))
+def gaussian(x: np.ndarray, x0: float = 0.0, sigma: float = 1.0) -> np.ndarray:
+    """Gaussian probability distribution
+
+    Parameters
+    ----------
+    x : (N, ) np.ndarray
+        The x-values for evaluating the function.
+    x0 : float, optional
+        The center of the Gaussian function. The default is the origin.
+    sigma : float, optional
+        The width of the probability distribution.
+
+    Returns
+    -------
+    psi : (N, ) np.ndarray
+    """
+    # return np.exp(-np.power(x - x0, 2.) / (2 * np.power(sigma, 2.)))
+    psi = np.exp(-np.power(x - x0, 2.) / (4 * sigma**2))
+    norm = np.sqrt(np.sqrt(2 * np.pi) * sigma)
+    return psi / norm
 
 
-def delta_func(x, x0, width=1, gauss=False):
-    if gauss:
-        sig = np.abs(x[width] - x[0])
-        return np.exp(-np.power(x - x0, 2.) / (2 * np.power(sig, 2.)))
+def delta_func(x: np.ndarray, x0: float = 0) -> np.ndarray:
+    """Delta distribution.
+
+    Parameters
+    ----------
+    x : (N, ) np.ndarray
+        The x-values for evaluating the function.
+    x0 : float, optional
+        The center of the function. The default is the origin.
+    """
+    idx = np.abs(x - x0).argmin()
+    delta = np.zeros_like(x)
+    delta[idx] = 1.
+    return delta
+
+
+def initialize_state(size, index=None, mode="delta", *args, **kwargs):
+    """Initialize the statevector of a state
+
+    Parameters
+    ----------
+    size : int
+        The size of the statevector/Hilbert space.
+    index : int or float, optional
+        The position or site index where the state is localized.
+    mode : str, optional
+        The mode for initializing the state. valid modes are: 'delta' and 'gauss'
+    *args
+        Positional arguments for state function.
+    **kwargs
+        Keyword arguments for the state function.
+
+    Returns
+    -------
+    psi : (N, ) np.ndarray
+    """
+    x = np.arange(size)
+    index = int(size // 2) if index is None else index
+    if mode == "delta":
+        psi = delta_func(x, index)
+    elif mode == "gauss":
+        psi = gaussian(x, index, *args, **kwargs)
     else:
-        idx = np.abs(x - x0).argmin()
-        indices = np.arange(max(idx-width, 0), min(idx+width+1, len(x)-1))
-        delta = np.zeros_like(x)
-        delta[indices] = 1
-        return delta
+        raise ValueError(f"Mode '{mode}' not supported. Valid modes: 'delta', 'gauss'")
+    return psi
+
+
+def tevo_state_eig(eigvals, eigvecs, state, times):
+    """Evolve a state under the given hamiltonian.
+
+    Parameters
+    ----------
+    eigvals : (N) np.ndarray
+    eigvecs : (N, N) np.ndarray
+    state : (N, ) np.ndarray
+    times : float or (M, ) array_like
+
+    Returns
+    -------
+    states : (M, N) np.nd_array or (N, ) np.ndarray
+    """
+    scalar = not hasattr(times, "__len__")
+    if scalar:
+        times = [times]
+    eigvecs_t = eigvecs.T
+
+    # Project initial state into eigenbasis
+    proj = np.inner(eigvecs_t, state)
+    # Evolve projected states
+    proj_t = proj[np.newaxis, ...] * np.exp(-1j * eigvals * times[:, np.newaxis])
+    # Reconstruct the new state in the site-basis
+    states = np.dot(proj_t, eigvecs_t)
+
+    return states[0] if scalar else states
+
+
+def tevo_state(ham, state, times):
+    """Evolve a state under the given hamiltonian.
+
+    Parameters
+    ----------
+    ham : (N, N) np.ndarray
+    state : (N, ) np.ndarray
+    times : float or (M, ) array_like
+
+    Returns
+    -------
+    states : (M, N) np.nd_array or (N, ) np.ndarray
+    """
+    eigvals, eigvecs = np.linalg.eigh(ham)
+    return tevo_state_eig(eigvals, eigvecs, state, times)
 
 
 # =========================================================================
