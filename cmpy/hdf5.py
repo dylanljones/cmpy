@@ -16,6 +16,48 @@ from abc import ABC
 from typing import Union, Optional, List
 
 
+def data_keys(hdf5object):
+    def makelist(name):
+        keys.append(name)
+
+    keys = []
+    hdf5object.visit(makelist)
+    return keys
+
+def dict_to_hdf5(data_dict, hdf5_filename, path=""):
+    myfile = File(os.path.join(path, hdf5_filename), mode="w")
+    dict_parents = [data_dict]
+    parents = [myfile]
+    while dict_parents:
+        new_dict_parents = list()
+        new_parents = list()
+        for root, filegroup in zip(dict_parents, parents):
+            for key, value in root.items():
+                if isinstance(value, dict):
+                    new_filegroup = filegroup.create_group(key)
+                    new_dict_parents.append(root[key])
+                    new_parents.append(new_filegroup)
+                else:
+                    filegroup.create_dataset(key, data=value)
+        parents = new_parents
+        dict_parents = new_dict_parents
+
+def hdf5_to_dict(hdf5_filename, path=""):
+    myfile = File(os.path.join(path, hdf5_filename), mode="r")
+    links = data_keys(myfile)
+    tree = {}
+    for path in links:
+        node = tree
+        splitpath = path.split('/')
+        for pathindex in range(len(splitpath)):
+            if splitpath[pathindex]:
+                part_path = os.path.join(*splitpath[:pathindex+1])
+                if isinstance(myfile[part_path], Group):
+                    node = node.setdefault(splitpath[pathindex], dict())
+                else:
+                    node = node.setdefault(splitpath[pathindex], myfile[part_path][()])
+    return tree
+
 def require_group(parent: Union[h5py.File, h5py.Group], name: str,
                   track_order: Optional[bool] = False) -> h5py.Group:
     """Returns the specified group if it exists or creates the group otherwise.
