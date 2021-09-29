@@ -304,3 +304,10 @@ def density_of_states(disp, bins=None, loc=0.5, normalize=False, counts=False,
         state_counts = np.append(0, np.append(state_counts, 0))
 
     return binvals, state_counts
+
+
+def histogram_median(hist, dp=31.7/2):
+    median = np.percentile(hist, 50, axis=0)
+    hist_up = np.percentile(hist, 100 - dp, axis=0)
+    hist_dn = np.percentile(hist, dp, axis=0)
+    return median, np.abs(median - [hist_dn, hist_up])

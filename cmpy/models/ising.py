@@ -1,16 +1,17 @@
 # coding: utf-8
 #
 # This code is part of cmpy.
-# 
+#
 # Copyright (c) 2021, Dylan Jones
 
 import random
 import logging
+import itertools
 import numpy as np
 import scipy.interpolate
 from scipy.sparse import csr_matrix
-from lattpy import Lattice, LatticeData
 from typing import Optional, Union, Callable, Sequence, Iterator
+from lattpy import Lattice, LatticeData
 
 logger = logging.getLogger(__name__)
 
@@ -126,10 +127,29 @@ class GridInterpolation:
         return self.interpolate(z)
 
 
+def get_neighbor_chains(latt, i, num_pair=2):
+    if 2 > num_pair or num_pair > 5:
+        raise ValueError(f"Number of neighbor pairs must be in [2, 5], but is {num_pair}.")
+
+    neighbors = list()
+    for distidx, indices in latt.iter_neighbors(i):
+        for j in indices:
+            neighbors.append((distidx, j))
+
+    neighbor_chains = list()
+    for items in itertools.combinations(neighbors, r=num_pair - 1):
+        indices = [j for distidx, j in items]
+        dists = [distidx for distidx, j in items]
+        neighbor_chains.append((indices, dists))
+
+    return neighbor_chains
+
+
 class IsingModel(Lattice):
 
-    def __init__(self, vectors, j1=0, j2=-1.0, temp=0.):
+    def __init__(self, vectors, inter=None, j1=0, j2=-1.0, temp=0.):
         super().__init__(vectors)
+        self._inter = inter
         self.j1 = j1
         self.j2 = j2
         self.temp = temp
@@ -164,6 +184,24 @@ class IsingModel(Lattice):
         self._config = spins
 
     # =========================================================================
+
+    def get_neighbor_chains(self, i, num_inter=2):
+        return get_neighbor_chains(self, i, num_inter)
+
+    def get_interaction(self, site, indices, dists):
+        num_inter = len(indices)
+        energies = np.array(self._inter[num_inter])
+        return energies[tuple(dists)]
+
+    def get_all_interactions(self, i, max_num_inter=2):
+        inters = list()
+        inters.append([i, self._inter[0]])
+
+        for num_inter in range(2, max_num_inter+1):
+            for indices, dists in self.get_neighbor_chains(i, num_inter):
+                energy = self.get_interaction(i, indices, dists)
+                inters.append([indices, energy])
+        return inters
 
     def hamiltonian_data(self):
         dmap = self.data.map()
