@@ -223,7 +223,7 @@ def project_elements_dn(dn_idx: int, num_dn_states: int,
 # =========================================================================
 
 
-def project_onsite_energy(up_states: Sequence[int], dn_states: Sequence[int], eps: float):
+def project_onsite_energy(up_states: Sequence[int], dn_states: Sequence[int], eps: Sequence[float]):
     """Projects the on-site energy of a many-body Hamiltonian onto full basis(-sector).
 
     Parameters
@@ -232,7 +232,7 @@ def project_onsite_energy(up_states: Sequence[int], dn_states: Sequence[int], ep
         An array of all spin-up states in the basis(-sector).
     dn_states : array_like
         An array of all spin-down states in the basis(-sector).
-    eps : float
+    eps : array_like
         The on-site energy.
 
     Yields
@@ -258,7 +258,7 @@ def project_onsite_energy(up_states: Sequence[int], dn_states: Sequence[int], ep
         yield from project_elements_dn(dn_idx, num_dn, all_up, energy)
 
 
-def project_interaction(up_states: Sequence[int], dn_states: Sequence[int], u: float):
+def project_interaction(up_states: Sequence[int], dn_states: Sequence[int], u: Sequence[float]):
     """Projects the on-site interaction of a many-body Hamiltonian onto full basis(-sector).
 
     Parameters
@@ -267,7 +267,7 @@ def project_interaction(up_states: Sequence[int], dn_states: Sequence[int], u: f
         An array of all spin-up states in the basis(-sector).
     dn_states : array_like
         An array of all spin-down states in the basis(-sector).
-    u : float
+    u : array_like
         The on-site interaction.
 
     Yields
