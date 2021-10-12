@@ -154,7 +154,7 @@ class AbstractModel(ModelParameters, ABC):
     def __str__(self) -> str:
         return f"{self.__class__.__name__}({ModelParameters.__str__(self)})"
 
-    def hamiltonian(self, *args, **kwargs) -> LinearOperator:
+    def hamiltonian(self, *args, **kwargs):
         pass
 
 
