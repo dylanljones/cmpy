@@ -48,6 +48,39 @@ def save_figure(fig, *relpaths, dpi=600, frmt=None, rasterized=True):
     return file
 
 
+def setup_plot(fig, ax, **kwargs):
+    """Format the plot object"""
+    if "xlim" in kwargs:
+        ax.set_xlim(*kwargs["xlim"])
+    if "ylim" in kwargs:
+        ax.set_ylim(*kwargs["ylim"])
+    if "xlabel" in kwargs:
+        ax.set_xlabel(kwargs["xlabel"])
+    if "ylabel" in kwargs:
+        ax.set_ylabel(kwargs["ylabel"])
+    if "grid" in kwargs:
+        grid_args = kwargs["grid"]
+        if isinstance(grid_args, dict):
+            ax.grid(**grid_args)
+        elif isinstance(grid_args, str):
+            ax.grid(axis=grid_args)
+        elif grid_args:
+            ax.grid()
+    if "title" in kwargs:
+        ax.title(kwargs["title"])
+    if "figsize" in kwargs:
+        fig.set_size_inches(*kwargs["figsize"])
+    if "legend" in kwargs:
+        legend_args = kwargs["legend"]
+        if isinstance(legend_args, dict):
+            ax.legend(**legend_args)
+        elif legend_args:
+            ax.legend()
+    if "tight" in kwargs:
+        if kwargs["tight"]:
+            fig.tight_layout()
+
+
 class Plot:
     """Matplotlib.pyplot.Axes wrapper which also supports some methods of the figure.
 

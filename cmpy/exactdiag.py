@@ -265,8 +265,9 @@ def greens_function_tevo(model, start, stop, num=1000, pos=0, sigma=UP):
     return times, gf_greater - gf_lesser
 
 
-def fourier_t2z(times, gf_t, omegas, delta=1e-2):
-    eta = -np.log(delta) / times[-1]
+def fourier_t2z(times, gf_t, omegas, delta=1e-2, eta=None):
+    if eta is None:
+        eta = -np.log(delta) / times[-1]
     z = omegas + 1j * eta
     gf_w = gt.fourier.tt2z(times, gf_t, z)
     return z, gf_w
