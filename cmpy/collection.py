@@ -19,6 +19,36 @@ sz = np.array([[1, 0], [0, -1]])
 pauli = si, sx, sy, sz
 
 
+def kron(*args) -> np.ndarray:
+    """Computes the Kronecker product of two or more arrays.
+
+    Parameters
+    ----------
+    *args : list of array_like or array_like
+        Input arrays.
+
+    Returns
+    -------
+    out : np.ndarray
+        The Kronecker product of the input arrays.
+
+    Examples
+    --------
+    >>> kron([1, 0], [1, 0])
+    array([1, 0, 0, 0])
+    >>> kron([[1, 0], [1, 0]])
+    array([1, 0, 0, 0])
+    >>> kron([1, 0], [1, 0], [1, 0])
+    array([1, 0, 0, 0, 0, 0, 0, 0])
+    """
+    if len(args) == 1:
+        args = args[0]
+    x = 1
+    for arg in args:
+        x = np.kron(x, arg)
+    return x
+
+
 # =========================================================================
 # Functions
 # =========================================================================
