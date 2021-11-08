@@ -18,7 +18,7 @@ from typing import Union, Iterable, Tuple, List
 
 __all__ = ["UP", "DN", "SPIN_CHARS", "state_label", "binstr", "binarr",
            "binidx", "overlap", "occupations", "create", "annihilate",
-           "SpinState", "State", "Sector", "Basis"]
+           "SpinState", "State", "Sector", "Basis", "SpinBasis"]
 
 _BITORDER = +1      # endianess of binary strings (index 0 is of the rhs)
 _ARRORDER = -1      # endianess of binary arrays (index 0 is of the lhs)
@@ -170,6 +170,76 @@ def binidx(num, width: int = None) -> Iterable[int]:
     width = width if width is not None else 0
     b = f"{num:0{width}b}"
     return list(sorted(i for i, char in enumerate(b[::_ARRORDER]) if char == "1"))
+
+
+def get_ibit(num: int, index: int, length: int = 1) -> int:
+    """Returns a slice of a binary integer
+
+    Parameters
+    ----------
+    num : int
+        The binary integer.
+    index : int
+        The index of the slice (start).
+    length : int
+        The length of the slice. The default is `1`.
+
+    Returns
+    -------
+    ibit : int
+        The bit-slice of the original integer
+
+    Examples
+    --------
+    >>> get_ibit(0, 0)              # binary:    0000
+    0
+    >>> get_ibit(7, 0)              # binary:    0111
+    1
+    >>> get_ibit(7, 1)              # binary:    0111
+    1
+    >>> get_ibit(7, 3)              # binary:    0111
+    0
+    >>> get_ibit(7, 0, length=2)    # binary:    0111
+    3
+    """
+    mask = 2 ** length - 1
+    return (num >> index) & mask
+
+
+def set_ibit(num: int, index: int, value: int, length: int = 1) -> int:
+    """Replaces a slice of a binary integer with another integer.
+
+    Parameters
+    ----------
+    num : int
+        The binary integer.
+    index : int
+        The index of the slice (start).
+    value : int
+        The binary value to insert into the bitstring of the original integer.
+    length : int
+        The length of the slice. The default is `1`.
+
+    Returns
+    -------
+    ibit : int
+        The new integer.
+
+    Examples
+    --------
+    >>> set_ibit(0, 0, 1)           # binary:    0000
+    1
+    >>> set_ibit(2, 0, 1)           # binary:    0010
+    3
+    >>> set_ibit(2, 2, 1)           # binary:    0010
+    6
+    >>> set_ibit(4, 0, 3, length=2) # binary:    0100
+    7
+    """
+    mask = 2 ** length - 1
+    value = (value & mask) << index
+    mask = mask << index
+    return (num & ~mask) | value
 
 
 def overlap(num1: int, num2: int, width: int = None, dtype: Union[int, str] = None) -> np.ndarray:
@@ -556,3 +626,67 @@ class Basis:
     def __repr__(self):
         return f"{self.__class__.__name__}(size: {self.size}, num_sites: {self.num_sites}, " \
                f"fillings: {self.fillings})"
+
+
+def spinstate_label(state: int, digits: int = None) -> str:
+    chars = {"0": DN_CHAR, "1": UP_CHAR}
+    return "".join(chars[c] for c in binstr(state, digits))
+
+
+class SpinBasis:
+    """Container class for spin basis states."""
+
+    __slots__ = ["size", "num_sites", "num_spinstates", "sectors", "spins"]
+
+    def __init__(self, num_sites: int = 0):
+        self.size = 0
+        self.num_sites = 0
+        self.sectors = defaultdict(list)
+        self.spins = list()
+        self.init(num_sites)
+
+    def init(self, num_sites: int, init_sectors: bool = False):
+        self.num_sites = num_sites
+        self.size = self.num_sites ** 2
+        self.spins = list(np.arange(-0.5*num_sites, +0.5*num_sites + 0.1, 1))
+        if init_sectors:
+            for state in range(2 ** num_sites):
+                state_str = f"{state:b}"
+                s = 0.5 * (state_str.count("1") - state_str.count("0"))
+                self.sectors[s].append(state)
+
+    def generate_states(self, s: float = None) -> List[int]:
+        if s is None:
+            return list(range(2 ** self.num_sites))
+
+        n_up = self.num_sites / 2 + s
+        n_dn = self.num_sites / 2 - s
+        if (n_up % 1 != 0.) or (n_dn % 1 != 0.):
+            raise ValueError(f"Total spin of {s} not realizable with {self.num_sites} states")
+
+        n_up, n_dn = int(n_up), int(n_dn)
+        bitvals = ["0" for _ in range(n_dn)]
+        bitvals += ["1" for _ in range(n_up)]
+        states = set(int("".join(bits), 2) for bits in permutations(bitvals))
+        return list(sorted(states))
+
+    def get_states(self, s: float = None) -> List[int]:
+        if s in self.sectors:
+            # Get cached spin-sector states
+            states = self.sectors.get(s, list(range(self.num_sites)))
+        else:
+            # Compute new spin-sector states and store them
+            states = self.generate_states(s)
+            self.sectors[s] = list(states)
+        return states
+
+    def state_labels(self, s: float = None):
+        states = self.get_states(s)
+        return [spinstate_label(state, self.num_sites) for state in states]
+
+    def __getitem__(self, item) -> List[int]:
+        return self.get_states(item)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(size: {self.size}, num_sites: {self.num_sites}, " \
+               f"spins: {self.spins})"
