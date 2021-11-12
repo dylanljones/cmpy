@@ -656,19 +656,20 @@ class SpinBasis:
                 self.sectors[s].append(state)
 
     def generate_states(self, s: float = None) -> List[int]:
+        states = range(2 ** self.num_sites)
         if s is None:
-            return list(range(2 ** self.num_sites))
+            return list(states)
 
         n_up = self.num_sites / 2 + s
         n_dn = self.num_sites / 2 - s
         if (n_up % 1 != 0.) or (n_dn % 1 != 0.):
-            raise ValueError(f"Total spin of {s} not realizable with {self.num_sites} states")
+            raise ValueError(f"Total spin of {s} not realizable with {self.num_sites} sites")
 
-        n_up, n_dn = int(n_up), int(n_dn)
-        bitvals = ["0" for _ in range(n_dn)]
-        bitvals += ["1" for _ in range(n_up)]
-        states = set(int("".join(bits), 2) for bits in permutations(bitvals))
-        return list(sorted(states))
+        def func(state):
+            c1 = f"{state:b}".count("1")
+            return c1 == n_up
+
+        return list(filter(func, self.get_states()))
 
     def get_states(self, s: float = None) -> List[int]:
         if s in self.sectors:
