@@ -5,4 +5,5 @@ setuptools
 pytest
 hypothesis
 colorcet
+mpmath
 gftool

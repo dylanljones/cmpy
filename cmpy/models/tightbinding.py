@@ -17,6 +17,60 @@ from lattpy import Lattice
 from .abc import AbstractModel
 
 
+def eigvalsh_chain(num_sites, eps, t):
+    """Computes the eigenvalues of the Hamiltonain of a 1D tight-binding model.
+
+    Parameters
+    ----------
+    num_sites : int
+        The number of lattice sites N in the model.
+    eps : float or (N) np.ndarray
+        The on-site energy of the model
+    t : float
+        The hopping energy of the model.
+
+    Returns
+    -------
+    eigvals : (N) np.ndarray
+        The eigenvalues of the Hamiltonian.
+    eigvecs : (N, N) np.ndarray
+        The eigenvectors of the Hamiltonian.
+    """
+    if isinstance(eps, (float, int, complex)):
+        diag = eps * np.ones(num_sites)
+    else:
+        diag = eps
+    off_diag = t * np.ones(num_sites - 1)
+    return la.eigvalsh_tridiagonal(diag, off_diag)
+
+
+def eigh_chain(num_sites, eps, t):
+    """Computes the eigen-values and -vectors of the Hamiltonain of a 1D tight-binding model.
+
+    Parameters
+    ----------
+    num_sites : int
+        The number of lattice sites N in the model.
+    eps : float or (N) np.ndarray
+        The on-site energy of the model
+    t : float
+        The hopping energy of the model.
+
+    Returns
+    -------
+    eigvals : (N) np.ndarray
+        The eigenvalues of the Hamiltonian.
+    eigvecs : (N, N) np.ndarray
+        The eigenvectors of the Hamiltonian.
+    """
+    if isinstance(eps, (float, int, complex)):
+        diag = eps * np.ones(num_sites)
+    else:
+        diag = eps
+    off_diag = t * np.ones(num_sites - 1)
+    return la.eigh_tridiagonal(diag, off_diag)
+
+
 class AbstractTightBinding(Lattice, AbstractModel):
     """Abstract Tight-binding model based on a lattice.
 
@@ -165,11 +219,11 @@ class AbstractTightBinding(Lattice, AbstractModel):
             The transformed hamiltonian.
         """
         if ham_cell is None:
-            ham_cell = self.hamiltonian_cell()
+            ham_cell = self.hamiltonian_cell(dtype=np.complex64)
         ham = ham_cell.copy()
 
         if self.num_base == 1:
-            ham = np.array([[self.get_energy(0)]])
+            ham = np.array([[self.get_energy(0)]], dtype=np.complex64)
             for distidx in range(self.num_distances):
                 ham += self.get_hopping(distidx) * self.fourier_weights(k, distidx=distidx)
             return ham
@@ -177,11 +231,10 @@ class AbstractTightBinding(Lattice, AbstractModel):
         for alpha in range(self.num_base):
             ham[alpha, alpha] = self.get_energy(alpha)
             for distidx in range(self.num_distances):
-                t = self.get_hopping(distidx)
                 for alpha2 in range(alpha + 1, self.num_base):
                     vecs = self.get_neighbor_vectors_to(alpha, alpha2, distidx)
-                    ham[alpha, alpha2] += t * np.sum(np.exp(1j * np.inner(k, +vecs)))
-                    ham[alpha2, alpha] += t * np.sum(np.exp(1j * np.inner(k, -vecs)))
+                    ham[alpha, alpha2] *= np.sum(np.exp(1j * np.inner(k, +vecs)))
+                    ham[alpha2, alpha] *= np.sum(np.exp(1j * np.inner(k, -vecs)))
 
         return ham
 

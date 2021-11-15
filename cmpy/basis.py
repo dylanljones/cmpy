@@ -14,15 +14,15 @@ import numpy as np
 from itertools import product, permutations
 from dataclasses import dataclass
 from collections import defaultdict
-from typing import Optional, Union, Iterable
+from typing import Union, Iterable, Tuple, List
 
 __all__ = ["UP", "DN", "SPIN_CHARS", "state_label", "binstr", "binarr",
            "binidx", "overlap", "occupations", "create", "annihilate",
-           "SpinState", "State", "Sector", "Basis"]
+           "SpinState", "State", "Sector", "Basis", "SpinBasis", "spinstate_label"]
 
-_BITORDER = +1      # endianess of binary strings (index 0 is of the rhs)
-_ARRORDER = -1      # endianess of binary arrays (index 0 is of the lhs)
-_LABELORDERER = +1  # endianess of state labels (index 0 is of the rhs)
+_BITORDER = +1      # endianess of binary strings (index 0 is on the rhs)
+_ARRORDER = -1      # endianess of binary arrays (index 0 is on the lhs)
+_LABELORDERER = +1  # endianess of state labels (index 0 is on the rhs)
 
 UP, DN = 1, 2   # constants for up/down
 
@@ -33,7 +33,7 @@ UD_CHAR = "⇅"  # "d"
 SPIN_CHARS = {0: EMPTY_CHAR, UP: UP_CHAR, DN: DN_CHAR, 3: UD_CHAR}
 
 
-def state_label(up_num: int, dn_num: int, digits: Optional[int] = None) -> str:
+def state_label(up_num: int, dn_num: int, digits: int = None) -> str:
     """Creates a string representing the spin-up and spin-down basis state.
 
     Parameters
@@ -43,7 +43,7 @@ def state_label(up_num: int, dn_num: int, digits: Optional[int] = None) -> str:
     dn_num : int
         The number representing the binary spin-dn basis state.
     digits : int, optional
-        Minimum number of digits used. The default is ``None`` (no padding).
+        Minimum number of digits used. The default is `None` (no padding).
 
     Returns
     -------
@@ -66,7 +66,7 @@ def state_label(up_num: int, dn_num: int, digits: Optional[int] = None) -> str:
 # =========================================================================
 
 
-def binstr(num: int, width: Optional[int] = 0) -> str:
+def binstr(num: int, width: int = 0) -> str:
     """Returns the binary representation of an integer as string.
 
     Parameters
@@ -74,7 +74,7 @@ def binstr(num: int, width: Optional[int] = 0) -> str:
     num : int
         The number to represent as binary string.
     width : int, optional
-        Minimum number of digits used. The default is ``None`` (no padding).
+        Minimum number of digits used. The default is `None` (no padding).
 
     Returns
     -------
@@ -100,8 +100,7 @@ def binstr(num: int, width: Optional[int] = 0) -> str:
     return f"{num:0{width}b}"[::_BITORDER]
 
 
-def binarr(num: int, width: Optional[int] = None,
-           dtype: Optional[Union[int, str]] = None) -> np.ndarray:
+def binarr(num: int, width: int = None, dtype: Union[int, str] = None) -> np.ndarray:
     """Returns the bits of an integer as a binary array.
 
     Parameters
@@ -109,9 +108,9 @@ def binarr(num: int, width: Optional[int] = None,
     num : int or Spinstate
         The number representing the binary state.
     width : int, optional
-        Minimum number of digits used. The default is ``None`` (no padding).
+        Minimum number of digits used. The default is `None` (no padding).
     dtype : int or str, optional
-        An optional datatype-parameter. The default is ``None``.
+        An optional datatype-parameter. The default is `None`.
 
     Returns
     -------
@@ -138,7 +137,7 @@ def binarr(num: int, width: Optional[int] = None,
     return np.fromiter(f"{num:0{width}b}"[::_ARRORDER], dtype=dtype)
 
 
-def binidx(num, width: Optional[int] = None) -> Iterable[int]:
+def binidx(num, width: int = None) -> Iterable[int]:
     """Returns the indices of bits with the value ``1``.
 
     Parameters
@@ -146,12 +145,12 @@ def binidx(num, width: Optional[int] = None) -> Iterable[int]:
     num : int or Spinstate
         The number representing the binary state.
     width : int, optional
-        Minimum number of digits used. The default is ``None`` (no padding).
+        Minimum number of digits used. The default is `None` (no padding).
 
     Returns
     -------
     binidx : list
-        List of all indices of the bits set to ``1``.
+        List of all indices of the bits set to `1`.
 
     Examples
     --------
@@ -173,8 +172,77 @@ def binidx(num, width: Optional[int] = None) -> Iterable[int]:
     return list(sorted(i for i, char in enumerate(b[::_ARRORDER]) if char == "1"))
 
 
-def overlap(num1: int, num2: int, width: Optional[int] = None,
-            dtype: Optional[Union[int, str]] = None) -> np.ndarray:
+def get_ibit(num: int, index: int, length: int = 1) -> int:
+    """Returns a slice of a binary integer
+
+    Parameters
+    ----------
+    num : int
+        The binary integer.
+    index : int
+        The index of the slice (start).
+    length : int
+        The length of the slice. The default is `1`.
+
+    Returns
+    -------
+    ibit : int
+        The bit-slice of the original integer
+
+    Examples
+    --------
+    >>> get_ibit(0, 0)              # binary:    0000
+    0
+    >>> get_ibit(7, 0)              # binary:    0111
+    1
+    >>> get_ibit(7, 1)              # binary:    0111
+    1
+    >>> get_ibit(7, 3)              # binary:    0111
+    0
+    >>> get_ibit(7, 0, length=2)    # binary:    0111
+    3
+    """
+    mask = 2 ** length - 1
+    return (num >> index) & mask
+
+
+def set_ibit(num: int, index: int, value: int, length: int = 1) -> int:
+    """Replaces a slice of a binary integer with another integer.
+
+    Parameters
+    ----------
+    num : int
+        The binary integer.
+    index : int
+        The index of the slice (start).
+    value : int
+        The binary value to insert into the bitstring of the original integer.
+    length : int
+        The length of the slice. The default is `1`.
+
+    Returns
+    -------
+    ibit : int
+        The new integer.
+
+    Examples
+    --------
+    >>> set_ibit(0, 0, 1)           # binary:    0000
+    1
+    >>> set_ibit(2, 0, 1)           # binary:    0010
+    3
+    >>> set_ibit(2, 2, 1)           # binary:    0010
+    6
+    >>> set_ibit(4, 0, 3, length=2) # binary:    0100
+    7
+    """
+    mask = 2 ** length - 1
+    value = (value & mask) << index
+    mask = mask << index
+    return (num & ~mask) | value
+
+
+def overlap(num1: int, num2: int, width: int = None, dtype: Union[int, str] = None) -> np.ndarray:
     """Computes the overlap of two integers and returns the results as a binary array.
 
     Parameters
@@ -184,9 +252,9 @@ def overlap(num1: int, num2: int, width: Optional[int] = None,
     num2 : int
         The integer representing the second binary state.
     width : int, optional
-        Minimum number of digits used. The default is ``None`` (no padding).
+        Minimum number of digits used. The default is `None` (no padding).
     dtype : int or str, optional
-        An optional datatype-parameter. The default is ``None``.
+        An optional datatype-parameter. The default is `None`.
 
     Returns
     -------
@@ -207,8 +275,7 @@ def overlap(num1: int, num2: int, width: Optional[int] = None,
     return binarr(num1 & num2, width, dtype)
 
 
-def occupations(num: int, width: Optional[int] = None,
-                dtype: Optional[Union[int, str]] = None) -> np.ndarray:
+def occupations(num: int, width: int = None, dtype: Union[int, str] = None) -> np.ndarray:
     """Returns the site occupations of a state as a binary array.
 
     Parameters
@@ -216,20 +283,20 @@ def occupations(num: int, width: Optional[int] = None,
     num : int
         The number representing the binary state.
     width : int, optional
-        Minimum number of digits used. The default is ``None`` (no padding).
+        Minimum number of digits used. The default is `None` (no padding).
     dtype : int or str, optional
-        An optional datatype-parameter. The default is ``None``.
+        An optional datatype-parameter. The default is `None`.
 
     Returns
     -------
     binarr : np.ndarray
-        The binary array representing the bits set to ``1``.
+        The binary array representing the bits set to `1`.
     """
     return binarr(num, width, dtype)
 
 
 def create(num: int, pos: int) -> Union[int, None]:
-    """Creates a particle at ``pos`` if possible and returns the new state.
+    """Creates a particle at `pos` if possible and returns the new state.
 
     Parameters
     ----------
@@ -241,7 +308,7 @@ def create(num: int, pos: int) -> Union[int, None]:
     Returns
     -------
     new : int or None
-        The newly created state. If it is not possible to create the state ``None`` is returned.
+        The newly created state. If it is not possible to create the state `None` is returned.
 
     Examples
     --------
@@ -262,7 +329,7 @@ def create(num: int, pos: int) -> Union[int, None]:
 
 
 def annihilate(num: int, pos: int) -> Union[int, None]:
-    """Annihilates a particle at ``pos`` if possible and returns the new state.
+    """Annihilates a particle at `pos` if possible and returns the new state.
 
     Parameters
     ----------
@@ -274,7 +341,7 @@ def annihilate(num: int, pos: int) -> Union[int, None]:
     Returns
     -------
     new : int or None
-        The newly created state. If it is not possible to annihilate the state ``None`` is returned.
+        The newly created state. If it is not possible to annihilate the state `None` is returned.
 
     Examples
     --------
@@ -306,12 +373,12 @@ class SpinState(int):
         """Total occupation of the state"""
         return bin(self).count("1")
 
-    def binstr(self, width: Optional[int] = None) -> str:
+    def binstr(self, width: int = None) -> str:
         """Returns the binary representation of the state"""
         return binstr(self, width)
 
-    def binarr(self, width: Optional[int] = None,
-               dtype: Optional[Union[int, str]] = None) -> np.ndarray:
+    def binarr(self, width: int = None,
+               dtype: Union[int, str] = None) -> np.ndarray:
         """Returns the bits of the integer as a binary array."""
         return binarr(self, width, dtype)
 
@@ -319,12 +386,11 @@ class SpinState(int):
         """Returns the occupation at index `pos`."""
         return self & (1 << pos)
 
-    def occupations(self, dtype: Optional[Union[int, str]] = None) -> np.ndarray:
+    def occupations(self, dtype: Union[int, str] = None) -> np.ndarray:
         """Returns the site occupations of a state as a binary array."""
         return binarr(self, dtype=dtype)
 
-    def overlap(self, other: Union[int, 'SpinState'],
-                dtype: Optional[Union[int, str]] = None) -> np.ndarray:
+    def overlap(self, other: Union[int, 'SpinState'], dtype: Union[int, str] = None) -> np.ndarray:
         """Computes the overlap with another state and returns the results as a binary array."""
         return overlap(self, other, dtype=dtype)
 
@@ -356,12 +422,12 @@ class State:
     __slots__ = ['up', 'dn', 'num_sites']
 
     def __init__(self, up: Union[int, SpinState], dn: Union[int, SpinState],
-                 num_sites: Optional[int] = None):
+                 num_sites: int = None):
         self.up = SpinState(up)
         self.dn = SpinState(dn)
         self.num_sites = num_sites
 
-    def label(self, width: Optional[int] = None) -> str:
+    def label(self, width: int = None) -> str:
         return state_label(self.up, self.dn, width if width is not None else self.num_sites)
 
     def __repr__(self) -> str:
@@ -376,8 +442,8 @@ class State:
 # =========================================================================
 
 
-def upper_sector(n_up: int, n_dn: int, sigma: int, num_sites: int) -> Union[tuple[int, int], None]:
-    """ Returns the upper sector of a spin-sector if it exists.
+def upper_sector(n_up: int, n_dn: int, sigma: int, num_sites: int) -> Union[Tuple[int, int], None]:
+    """Returns the upper sector of a spin-sector if it exists.
 
     Parameters
     ----------
@@ -402,8 +468,8 @@ def upper_sector(n_up: int, n_dn: int, sigma: int, num_sites: int) -> Union[tupl
     return None
 
 
-def lower_sector(n_up: int, n_dn: int, sigma: int) -> Union[tuple[int, int], None]:
-    """ Returns the lower sector of a spin-sector if it exists.
+def lower_sector(n_up: int, n_dn: int, sigma: int) -> Union[Tuple[int, int], None]:
+    """Returns the lower sector of a spin-sector if it exists.
 
     Parameters
     ----------
@@ -479,7 +545,7 @@ class Basis:
 
     __slots__ = ["size", "num_sites", "num_spinstates", "sectors", "fillings"]
 
-    def __init__(self, num_sites: Optional[int] = 0, init_sectors: Optional[bool] = False):
+    def __init__(self, num_sites: int = 0, init_sectors: bool = False):
         self.size = 0
         self.num_sites = 0
         self.num_spinstates = 0
@@ -487,7 +553,7 @@ class Basis:
         self.fillings = list(range(self.num_sites + 1))
         self.init(num_sites, init_sectors)
 
-    def init(self, num_sites: int, init_sectors: Optional[bool] = False):
+    def init(self, num_sites: int, init_sectors: bool = False):
         self.num_sites = num_sites
         self.num_spinstates = 2 ** num_sites
         self.size = self.num_spinstates ** 2
@@ -511,7 +577,7 @@ class Basis:
         states = set(int("".join(bits), 2) for bits in permutations(bitvals))
         return np.asarray(sorted(states))
 
-    def get_states(self, n: int = None) -> list[int]:
+    def get_states(self, n: int = None) -> List[int]:
         if n in self.sectors:
             # Get cached spin-sector states
             states = self.sectors.get(n, list(range(self.num_spinstates)))
@@ -560,3 +626,68 @@ class Basis:
     def __repr__(self):
         return f"{self.__class__.__name__}(size: {self.size}, num_sites: {self.num_sites}, " \
                f"fillings: {self.fillings})"
+
+
+def spinstate_label(state: int, digits: int = None) -> str:
+    chars = {"0": DN_CHAR, "1": UP_CHAR}
+    return "".join(chars[c] for c in binstr(state, digits))
+
+
+class SpinBasis:
+    """Container class for spin basis states."""
+
+    __slots__ = ["size", "num_sites", "num_spinstates", "sectors", "spins"]
+
+    def __init__(self, num_sites: int = 0):
+        self.size = 0
+        self.num_sites = 0
+        self.sectors = defaultdict(list)
+        self.spins = list()
+        self.init(num_sites)
+
+    def init(self, num_sites: int, init_sectors: bool = False):
+        self.num_sites = num_sites
+        self.size = self.num_sites ** 2
+        self.spins = list(np.arange(-0.5*num_sites, +0.5*num_sites + 0.1, 1))
+        if init_sectors:
+            for state in range(2 ** num_sites):
+                state_str = f"{state:b}"
+                s = 0.5 * (state_str.count("1") - state_str.count("0"))
+                self.sectors[s].append(state)
+
+    def generate_states(self, s: float = None) -> List[int]:
+        states = range(2 ** self.num_sites)
+        if s is None:
+            return list(states)
+
+        n_up = self.num_sites / 2 + s
+        n_dn = self.num_sites / 2 - s
+        if (n_up % 1 != 0.) or (n_dn % 1 != 0.):
+            raise ValueError(f"Total spin of {s} not realizable with {self.num_sites} sites")
+
+        def func(state):
+            c1 = f"{state:b}".count("1")
+            return c1 == n_up
+
+        return list(filter(func, self.get_states()))
+
+    def get_states(self, s: float = None) -> List[int]:
+        if s in self.sectors:
+            # Get cached spin-sector states
+            states = self.sectors.get(s, list(range(self.num_sites)))
+        else:
+            # Compute new spin-sector states and store them
+            states = self.generate_states(s)
+            self.sectors[s] = list(states)
+        return states
+
+    def state_labels(self, s: float = None):
+        states = self.get_states(s)
+        return [spinstate_label(state, self.num_sites) for state in states]
+
+    def __getitem__(self, item) -> List[int]:
+        return self.get_states(item)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(size: {self.size}, num_sites: {self.num_sites}, " \
+               f"spins: {self.spins})"
