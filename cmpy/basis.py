@@ -18,11 +18,11 @@ from typing import Union, Iterable, Tuple, List
 
 __all__ = ["UP", "DN", "SPIN_CHARS", "state_label", "binstr", "binarr",
            "binidx", "overlap", "occupations", "create", "annihilate",
-           "SpinState", "State", "Sector", "Basis", "SpinBasis"]
+           "SpinState", "State", "Sector", "Basis", "SpinBasis", "spinstate_label"]
 
-_BITORDER = +1      # endianess of binary strings (index 0 is of the rhs)
-_ARRORDER = -1      # endianess of binary arrays (index 0 is of the lhs)
-_LABELORDERER = +1  # endianess of state labels (index 0 is of the rhs)
+_BITORDER = +1      # endianess of binary strings (index 0 is on the rhs)
+_ARRORDER = -1      # endianess of binary arrays (index 0 is on the lhs)
+_LABELORDERER = +1  # endianess of state labels (index 0 is on the rhs)
 
 UP, DN = 1, 2   # constants for up/down
 
