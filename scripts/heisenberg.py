@@ -6,15 +6,11 @@
 
 import numpy as np
 from scipy import linalg as la
-from numpy.lib import scimath
 import matplotlib.pyplot as plt
-from cmpy import Matrix
-from lattpy import Lattice, simple_chain, simple_square
-from cmpy.basis import SpinBasis, SpinState, spinstate_label
-from cmpy.models import AbstractSpinModel
+from lattpy import simple_chain
 from cmpy.operators import LinearOperator
 from cmpy.models.heisenberg import HeisenbergModel
-from cmpy.ed.lanczos import lanczos_coeffs, lanczos_ground_state
+from cmpy.lanczos import lanczos_coeffs, lanczos_ground_state
 
 
 def compute_ground_state(ham):
