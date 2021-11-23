@@ -15,7 +15,7 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from collections.abc import MutableMapping
 from typing import Any, Dict, Optional, List, Iterator
-from cmpy.basis import Basis
+from cmpy.basis import Basis, SpinBasis
 from cmpy.operators import LinearOperator, HamiltonOperator
 
 
@@ -135,7 +135,7 @@ class ModelParameters(MutableMapping):
 
 
 class AbstractModel(ModelParameters, ABC):
-    """ Abstract base class for model classes.
+    """Abstract base class for model classes.
 
     The AbstractModel-class derives from ModelParameters.
     All parameters are accessable as attributes or dictionary-items.
@@ -154,12 +154,57 @@ class AbstractModel(ModelParameters, ABC):
     def __str__(self) -> str:
         return f"{self.__class__.__name__}({ModelParameters.__str__(self)})"
 
-    def hamiltonian(self, *args, **kwargs) -> LinearOperator:
+    def hamiltonian(self, *args, **kwargs):
         pass
 
 
+class AbstractSpinModel(AbstractModel):
+
+    def __init__(self, num_sites: Optional[int] = 0, **params):
+        super(AbstractModel, self).__init__(**params)
+        self.basis: SpinBasis = SpinBasis()
+        self.init_basis(num_sites)
+
+    @property
+    def num_sites(self) -> int:
+        return self.basis.num_sites
+
+    @property
+    def spins(self) -> List[int]:
+        return self.basis.spins
+
+    def init_basis(self, num_sites: int, init_sectors: bool = None):
+        self.basis.init(num_sites, init_sectors)
+
+    def get_states(self, s: float = None):
+        return self.basis.get_states(s)
+
+    @abstractmethod
+    def _hamiltonian_data(self, states):
+        pass
+
+    def hamiltonian_data(self, states):
+        rows, cols, data = list(), list(), list()
+        for row, col, val in self._hamiltonian_data(states):
+            rows.append(row)
+            cols.append(col)
+            data.append(val)
+        return data, (rows, cols)
+
+    def hamilton_operator(self, s=None, states=None, dtype=None):
+        if states is None:
+            states = self.get_states(s)
+        size = len(states)
+        data, indices = self.hamiltonian_data(states)
+        return HamiltonOperator(size, data, indices, dtype=dtype)
+
+    def hamiltonian(self, s=None, states=None, dtype=None):
+        hamop = self.hamilton_operator(s, states, dtype)
+        return hamop.array()
+
+
 class AbstractManyBodyModel(AbstractModel):
-    """ Abstract base class for model classes with a state basis.
+    """Abstract base class for model classes with a state basis.
 
     The AbstractModel-class derives from ModelParameters.
     All parameters are accessable as attributes or dictionary-items.

@@ -11,12 +11,41 @@
 import numpy as np
 from typing import Union
 
-
 si = np.eye(2)
 sx = np.array([[0, 1], [1, 0]])
 sy = np.array([[0, -1j], [1j, 0]])
 sz = np.array([[1, 0], [0, -1]])
 pauli = si, sx, sy, sz
+
+
+def kron(*args) -> np.ndarray:
+    """Computes the Kronecker product of two or more arrays.
+
+    Parameters
+    ----------
+    *args : list of array_like or array_like
+        Input arrays.
+
+    Returns
+    -------
+    out : np.ndarray
+        The Kronecker product of the input arrays.
+
+    Examples
+    --------
+    >>> kron([1, 0], [1, 0])
+    array([1, 0, 0, 0])
+    >>> kron([[1, 0], [1, 0]])
+    array([1, 0, 0, 0])
+    >>> kron([1, 0], [1, 0], [1, 0])
+    array([1, 0, 0, 0, 0, 0, 0, 0])
+    """
+    if len(args) == 1:
+        args = args[0]
+    x = 1
+    for arg in args:
+        x = np.kron(x, arg)
+    return x
 
 
 # =========================================================================
@@ -36,20 +65,119 @@ def bose_func(e, mu=0., beta=np.inf):
     return 1 / (np.exp(beta * (e - mu)) - 1)
 
 
-def gaussian(x, x0=0.0, sigma=1.0):
-    return np.exp(-np.power(x - x0, 2.) / (2 * np.power(sigma, 2.)))
+def gaussian(x: np.ndarray, x0: float = 0.0, sigma: float = 1.0) -> np.ndarray:
+    """Gaussian probability distribution
+
+    Parameters
+    ----------
+    x : (N, ) np.ndarray
+        The x-values for evaluating the function.
+    x0 : float, optional
+        The center of the Gaussian function. The default is the origin.
+    sigma : float, optional
+        The width of the probability distribution.
+
+    Returns
+    -------
+    psi : (N, ) np.ndarray
+    """
+    # return np.exp(-np.power(x - x0, 2.) / (2 * np.power(sigma, 2.)))
+    psi = np.exp(-np.power(x - x0, 2.) / (4 * sigma**2))
+    norm = np.sqrt(np.sqrt(2 * np.pi) * sigma)
+    return psi / norm
 
 
-def delta_func(x, x0, width=1, gauss=False):
-    if gauss:
-        sig = np.abs(x[width] - x[0])
-        return np.exp(-np.power(x - x0, 2.) / (2 * np.power(sig, 2.)))
+def delta_func(x: np.ndarray, x0: float = 0) -> np.ndarray:
+    """Delta distribution.
+
+    Parameters
+    ----------
+    x : (N, ) np.ndarray
+        The x-values for evaluating the function.
+    x0 : float, optional
+        The center of the function. The default is the origin.
+    """
+    idx = np.abs(x - x0).argmin()
+    delta = np.zeros_like(x)
+    delta[idx] = 1.
+    return delta
+
+
+def initialize_state(size, index=None, mode="delta", *args, **kwargs):
+    """Initialize the statevector of a state
+
+    Parameters
+    ----------
+    size : int
+        The size of the statevector/Hilbert space.
+    index : int or float, optional
+        The position or site index where the state is localized.
+    mode : str, optional
+        The mode for initializing the state. valid modes are: 'delta' and 'gauss'
+    *args
+        Positional arguments for state function.
+    **kwargs
+        Keyword arguments for the state function.
+
+    Returns
+    -------
+    psi : (N, ) np.ndarray
+    """
+    x = np.arange(size)
+    index = int(size // 2) if index is None else index
+    if mode == "delta":
+        psi = delta_func(x, index)
+    elif mode == "gauss":
+        psi = gaussian(x, index, *args, **kwargs)
     else:
-        idx = np.abs(x - x0).argmin()
-        indices = np.arange(max(idx-width, 0), min(idx+width+1, len(x)-1))
-        delta = np.zeros_like(x)
-        delta[indices] = 1
-        return delta
+        raise ValueError(f"Mode '{mode}' not supported. Valid modes: 'delta', 'gauss'")
+    return psi
+
+
+def tevo_state_eig(eigvals, eigvecs, state, times):
+    """Evolve a state under the given hamiltonian.
+
+    Parameters
+    ----------
+    eigvals : (N) np.ndarray
+    eigvecs : (N, N) np.ndarray
+    state : (N, ) np.ndarray
+    times : float or (M, ) array_like
+
+    Returns
+    -------
+    states : (M, N) np.nd_array or (N, ) np.ndarray
+    """
+    scalar = not hasattr(times, "__len__")
+    if scalar:
+        times = [times]
+    eigvecs_t = eigvecs.T
+
+    # Project initial state into eigenbasis
+    proj = np.inner(eigvecs_t, state)
+    # Evolve projected states
+    proj_t = proj[np.newaxis, ...] * np.exp(-1j * eigvals * times[:, np.newaxis])
+    # Reconstruct the new state in the site-basis
+    states = np.dot(proj_t, eigvecs_t)
+
+    return states[0] if scalar else states
+
+
+def tevo_state(ham, state, times):
+    """Evolve a state under the given hamiltonian.
+
+    Parameters
+    ----------
+    ham : (N, N) np.ndarray
+    state : (N, ) np.ndarray
+    times : float or (M, ) array_like
+
+    Returns
+    -------
+    states : (M, N) np.nd_array or (N, ) np.ndarray
+    """
+    eigvals, eigvecs = np.linalg.eigh(ham)
+    return tevo_state_eig(eigvals, eigvecs, state, times)
 
 
 # =========================================================================
@@ -205,3 +333,10 @@ def density_of_states(disp, bins=None, loc=0.5, normalize=False, counts=False,
         state_counts = np.append(0, np.append(state_counts, 0))
 
     return binvals, state_counts
+
+
+def histogram_median(hist, dp=31.7/2):
+    median = np.percentile(hist, 50, axis=0)
+    hist_up = np.percentile(hist, 100 - dp, axis=0)
+    hist_dn = np.percentile(hist, dp, axis=0)
+    return median, np.abs(median - [hist_dn, hist_up])
