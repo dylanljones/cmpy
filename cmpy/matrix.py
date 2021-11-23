@@ -15,13 +15,14 @@ import numpy as np
 from numpy.lib.stride_tricks import as_strided  # noqa
 from scipy import linalg as la
 import scipy.sparse
+from typing import NamedTuple
 from functools import partial
 from matplotlib import colors
 import matplotlib.pyplot as plt
 import colorcet as cc
 
 __all__ = ["transpose", "matshow", "hermitian", "is_hermitian", "diagonal", "fill_diagonal",
-           "decompose", "reconstruct", "Decomposition", "Matrix"]
+           "decompose", "reconstruct", "Decomposition", "EigenState", "Matrix"]
 
 transpose = partial(np.swapaxes, axis1=-2, axis2=-1)
 
@@ -356,6 +357,14 @@ class Decomposition:
         return f"{self.__class__.__name__}[{self.rv.shape}x{self.xi.shape}x{self.rv_inv.shape}]"
 
 
+class EigenState(NamedTuple):
+
+    energy: float = np.infty
+    state: np.ndarray = None
+    n_up: int = None
+    n_dn: int = None
+
+
 # =============================================================================
 # Matrix object
 # =============================================================================
@@ -676,4 +685,4 @@ class Matrix(np.ndarray):
         """
         shape = (int(self.shape[0] / block[0]), int(self.shape[1] / block[1])) + block
         strides = (block[0] * self.strides[0], block[1] * self.strides[1]) + self.strides
-        return as_strided(self, shape=shape, strides=strides)
+        return as_strided(self, shape=shape, strides=strides)  # noqa

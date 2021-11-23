@@ -74,15 +74,15 @@ def impurity_gf0(z, siam):
     return siam.impurity_gf0(z)
 
 
-def compute_impurity_gf(z, siam, beta=np.inf, ref=False):
+def compute_impurity_gf(z, siam, ref=False):
     if ref:
         return impurity_gf_ref(z, siam.u, siam.v)
-    return siam.impurity_gf(z, beta)
+    return siam.impurity_gf(z)
 
 
-def compute_self_energy(z, siam, beta=np.inf, ref=False):
+def compute_self_energy(z, siam, ref=False):
     gf_imp0 = impurity_gf0(z, siam)
-    gf_imp = compute_impurity_gf(z, siam, beta, ref=ref)
+    gf_imp = compute_impurity_gf(z, siam, ref=ref)
     return self_energy(gf_imp0, gf_imp)
 
 
@@ -93,7 +93,7 @@ def twosite_dmft_half_filling(z, u, t=1., beta=np.inf, mixing=1.0, vtol=1e-6, ma
     u = u
     v = [t]
 
-    siam = SingleImpurityAndersonModel(u, v=v, mu=u / 2)
+    siam = SingleImpurityAndersonModel(u, v=v, mu=u / 2, temp=1/beta)
 
     # Initial hybridization value must be different
     # from the current one or the error will be zero.
@@ -109,7 +109,7 @@ def twosite_dmft_half_filling(z, u, t=1., beta=np.inf, mixing=1.0, vtol=1e-6, ma
 
         # Solve impurity problem to obtain the self energy
         gf_imp0 = impurity_gf0(z, siam)
-        gf_imp = compute_impurity_gf(z, siam, beta, ref=ref)
+        gf_imp = compute_impurity_gf(z, siam, ref=ref)
         sigma = self_energy(gf_imp0, gf_imp)
 
         # Compute new hybridization
@@ -148,7 +148,7 @@ def twosite_dmft_half_filling(z, u, t=1., beta=np.inf, mixing=1.0, vtol=1e-6, ma
     return siam
 
 
-def compute_lattice_greens_function(z, siam, t, beta=np.inf, ref=False):
+def compute_lattice_greens_function(z, siam, t, ref=False):
     mu = siam.mu
-    sigma = compute_self_energy(z, siam, beta, ref)
+    sigma = compute_self_energy(z, siam, ref)
     return bethe_gf_omega(z + mu - sigma, t)

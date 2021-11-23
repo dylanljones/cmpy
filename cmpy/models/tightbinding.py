@@ -165,11 +165,11 @@ class AbstractTightBinding(Lattice, AbstractModel):
             The transformed hamiltonian.
         """
         if ham_cell is None:
-            ham_cell = self.hamiltonian_cell(np.complex)
-        ham = ham_cell.copy().astype(np.complex)
+            ham_cell = self.hamiltonian_cell()
+        ham = ham_cell.copy()
 
         if self.num_base == 1:
-            ham = np.array([[self.get_energy(0)]], dtype=np.complex)
+            ham = np.array([[self.get_energy(0)]])
             for distidx in range(self.num_distances):
                 ham += self.get_hopping(distidx) * self.fourier_weights(k, distidx=distidx)
             return ham

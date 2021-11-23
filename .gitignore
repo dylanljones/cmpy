@@ -3,7 +3,7 @@ __pycache__/
 .idea/
 
 _data/
-
+_tests/.hypothesis
 _plots.py
 
 # Distribution / packaging

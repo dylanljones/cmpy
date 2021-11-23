@@ -11,12 +11,12 @@
 """Base objects for condensed matter models."""
 
 import json
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections import OrderedDict
 from collections.abc import MutableMapping
 from typing import Any, Dict, Optional, List, Iterator
 from cmpy.basis import Basis
-from cmpy.operators import LinearOperator
+from cmpy.operators import LinearOperator, HamiltonOperator
 
 
 class ModelParameters(MutableMapping):
@@ -34,7 +34,6 @@ class ModelParameters(MutableMapping):
         **params: Initial parameters.
         """
         MutableMapping.__init__(self)
-        # super(object, self).__init__()
         self.__params__ = OrderedDict(params)
 
     @property
@@ -191,8 +190,26 @@ class AbstractManyBodyModel(AbstractModel):
     def get_sector(self, n_up=None, n_dn=None):
         return self.basis.get_sector(n_up, n_dn)
 
-    def build_matvec(self, matvec, x, sector):
+    @abstractmethod
+    def _hamiltonian_data(self, up_states, dn_states):
         pass
 
+    def hamiltonian_data(self, up_states, dn_states):
+        rows, cols, data = list(), list(), list()
+        for row, col, val in self._hamiltonian_data(up_states, dn_states):
+            rows.append(row)
+            cols.append(col)
+            data.append(val)
+        return data, (rows, cols)
+
+    def hamilton_operator(self, n_up=None, n_dn=None, sector=None, dtype=None):
+        if sector is None:
+            sector = self.basis.get_sector(n_up, n_dn)
+        up_states, dn_states = sector.up_states, sector.dn_states
+        size = len(up_states) * len(dn_states)
+        data, indices = self.hamiltonian_data(up_states, dn_states)
+        return HamiltonOperator(size, data, indices, dtype=dtype)
+
     def hamiltonian(self, n_up=None, n_dn=None, sector=None, dtype=None):
-        pass
+        hamop = self.hamilton_operator(n_up, n_dn, sector, dtype)
+        return hamop.array()

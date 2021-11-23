@@ -23,7 +23,7 @@ def long_description():
 
 setup(
     name='cmpy',
-    version='0.0.5',
+    version='0.0.6',
     author='Dylan Jones',
     author_email='dylanljones94@gmail.com',
     description='Collection of tools for condensed matter computational physics.',

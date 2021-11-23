@@ -12,13 +12,10 @@ import numpy as np
 from abc import ABC
 from typing import Union, Sequence
 from scipy import sparse
-from _expm_multiply import expm_multiply
-from scipy.sparse.linalg import expm
-from scipy.sparse.linalg import eigsh
-from cmpy.basis import UP, EigenState, Sector
+from cmpy.basis import UP
 from cmpy.operators import (
     project_onsite_energy, project_interaction, project_site_hopping, CreationOperator,
-    LinearOperator, AnnihilationOperator
+    LinearOperator
 )
 from cmpy.greens import GreensFunction
 from .abc import AbstractManyBodyModel
@@ -33,8 +30,7 @@ class HamiltonOperator(LinearOperator):
     def _matvec(self, x):
         matvec = np.zeros_like(x)
         for row, col, val in self.data:
-            # matvec[col] += val * x[row]
-            matvec[row] += val * x[col]
+            matvec[col] += val * x[row]
         return matvec
 
     def _adjoint(self):
@@ -235,84 +231,6 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
             else:
                 eig_cache = dict()
         return gf / part
-
-    def get_sector_gs(self, sector):
-        ham = self.hamiltonian(sector=sector)
-        if ham.shape[0] < 50:
-            eigvals, eigvecs = np.linalg.eigh(ham)
-            gs_idx = np.argmin(eigvals)
-            return eigvals[gs_idx], eigvecs[:, gs_idx], ham
-        energy, vector = eigsh(ham, k=1, which="SA")
-        return energy[0], vector[:,0], ham
-
-    def get_total_gs(self):
-        gs = EigenState(energy=np.infty, vector=None, nup=None, ndn=None, ham=None)
-        for n_up, n_dn in self.iter_fillings():
-            sector = self.get_sector(n_up, n_dn)
-            energy, vector, ham = self.get_sector_gs(sector)
-            if energy < gs.energy:
-                gs = EigenState(energy=energy, vector=vector, nup=n_up, ndn=n_dn, ham=ham)
-        return gs
-
-    def t_evo_gr(self, gs: EigenState, start, stop, num):
-        tt, dt = np.linspace(start, stop, num=num, retstep=True)
-        if gs.nup + 1 > self.num_sites:
-            return tt, np.zeros_like(tt)
-
-        gs_sector = self.get_sector(gs.nup, gs.ndn)
-        gs_up1_sector = self.get_sector(gs.nup+1, gs.ndn)
-        cd_0_up = CreationOperator(gs_sector, gs_up1_sector, pos=0, sigma=UP)
-        ket = cd_0_up.matvec(gs.vector)
-        bra = ket.conj()
-        print(bra, ket)
-
-        tevo_gs_energy = np.exp(1j*gs.energy*dt)
-        # exponential operator exp(-i*H*t):
-        ham = self.hamilton_operator(sector=gs_up1_sector)
-        tevo_op_exp = -1j * ham @ np.eye(*ham.shape) * dt
-        # overlaps = expm_multiply(tevo_op, ket, start=start, stop=stop, num=num) @ bra
-        overlaps = np.zeros(num, dtype=complex)
-        # tevo_ket = expm(tevo_op_exp) @ ket
-        tevo_op = expm(tevo_op_exp)
-
-        factor = -1j
-        overlaps[0] = factor*np.dot(bra, ket)
-        for nn in range(1, num):
-            factor *= tevo_gs_energy
-            ket = tevo_op @ ket
-            overlaps[nn] = np.dot(bra, ket) * factor
-        return tt, overlaps
-
-    def t_evo_ls(self, gs: EigenState, start, stop, num):
-        tt, dt = np.linspace(start, stop, num=num, retstep=True)
-        if gs.nup == 0:
-            print("No up electron to annihilate.")
-            return tt, np.zeros_like(tt)
-
-        gs_sector = self.get_sector(gs.nup, gs.ndn)
-        gs_upm1_sector = self.get_sector(gs.nup-1, gs.ndn)
-        c_0_up = AnnihilationOperator(gs_sector, gs_upm1_sector, pos=0, sigma=UP)
-        ket = c_0_up.matvec(gs.vector)
-        bra = ket.conj()
-
-        tevo_gs_energy = np.exp(-1j*gs.energy*dt)
-        # exponential operator exp(-i*H*t):
-        ham = self.hamilton_operator(sector=gs_upm1_sector)
-        tevo_op_exp = -1j * ham @ np.eye(*ham.shape) * dt
-        # overlaps = expm_multiply(tevo_op, ket, start=start, stop=stop, num=num) @ bra
-        overlaps = np.zeros(num, dtype=complex)
-        # tevo_ket = expm(tevo_op_exp) @ ket
-        tevo_op = expm(tevo_op_exp)
-
-        factor = -1j
-        overlaps[0] = factor*np.dot(bra, ket)
-        for nn in range(1, num):
-            factor *= tevo_gs_energy
-            ket = tevo_op @ ket
-            overlaps[nn] = np.dot(bra, ket) * factor
-        return tt, overlaps
-
-
 
     def pformat(self):
         return f"U={self.u}, ε_i={self.eps_imp}, ε_b={self.eps_bath}, v={self.v}, " \

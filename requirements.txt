@@ -2,6 +2,7 @@ numpy
 matplotlib
 scipy
 setuptools
-colorcet
 pytest
-h5py
+hypothesis
+colorcet
+gftool

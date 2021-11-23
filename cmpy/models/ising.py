@@ -7,8 +7,8 @@
 
 import random
 import numpy as np
-from lattpy import Lattice
-from typing import Optional, Union, Any, Sequence, Dict
+from lattpy import Lattice, LatticeData
+from typing import Optional, Union, Callable, Sequence
 
 
 class HsField:
@@ -67,7 +67,7 @@ class HsField:
         return np.var(self._config)
 
     def reshape(self, shape, order="C"):
-        shape = np.asarray(shape).astype(np.int) + 1
+        shape = np.asarray(shape).astype(np.int64) + 1
         return np.reshape(self.config, shape, order)
 
     def __getitem__(self, item):
@@ -98,23 +98,28 @@ class IsingModel(Lattice):
     def __init__(self, j=1., h=0., temp=0.):
         super().__init__(vectors=np.eye(2))
         self.add_atom()
-        self.calculate_distances(1)
+        self.add_connections(1)
+
         self.field = None
         self.j = j
         self.h = h
         self.temp = temp
 
     def build(self, shape: Union[int, Sequence[int]],
-              inbound: Optional[bool] = True,
-              periodic: Optional[bool] = None,
+              relative: Optional[bool] = False,
               pos: Optional[Union[float, Sequence[float]]] = None,
-              window: Optional[int] = None) -> None:
-        super().build(shape, inbound, pos)
+              check: Optional[bool] = True,
+              num_jobs: Optional[int] = -1,
+              periodic: Optional[Union[int, Sequence[int]]] = None,
+              callback: Optional[Callable] = None,
+              dtype: Union[int, str, np.dtype] = None
+              ) -> LatticeData:
         self.field = HsField(self.num_sites)
+        return super().build(shape, relative, pos, check, num_jobs, periodic, callback, dtype)
 
     def get_energy_element(self, i, unique=False):
         s = self.field.config[i]
-        s_neighbours = [self.field.config[j] for j in self.nearest_neighbours(i, unique=unique)]
+        s_neighbours = [self.field.config[j] for j in self.nearest_neighbors(i, unique=unique)]
         return - self.j * s * np.sum(s_neighbours) - s * self.h
 
     def try_flip(self, i) -> bool:

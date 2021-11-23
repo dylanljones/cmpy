@@ -8,6 +8,8 @@
 # LICENSE file in the root directory and this permission notice shall
 # be included in all copies or substantial portions of the Software.
 
+from ._utils import logger
+
 from .collection import *
 
 from .basis import (
@@ -34,6 +36,7 @@ from .matrix import (
     diagonal,
     fill_diagonal,
     Decomposition,
+    EigenState,
     Matrix
 )
 
@@ -47,12 +50,11 @@ from .operators import (
     project_site_hopping,
     project_hopping,
     LinearOperator,
-    SparseOperator,
+    HamiltonOperator,
     TimeEvolutionOperator,
     CreationOperator,
+    AnnihilationOperator
 )
-
-from .dos import density_of_states
 
 from .models.abc import (
     ModelParameters,
