@@ -31,6 +31,28 @@ transpose = partial(np.swapaxes, axis1=-2, axis2=-1)
 # Plotting
 # =============================================================================
 
+import matplotlib as mpl
+class MidpointNormalize(mpl.colors.Normalize):
+    # https://stackoverflow.com/questions/7404116/defining-the-midpoint-of-a-colormap-in-matplotlib
+    # Taken from answer of icemtel
+    def __init__(self, vmin, vmax, midpoint=0, clip=False):
+        self.midpoint = midpoint
+        mpl.colors.Normalize.__init__(self, vmin, vmax, clip)
+
+    def __call__(self, value, clip=None):
+        # calculates the values of the colors vmin and vmax are assigned to
+        normalized_min = max(0, 1 / 2 * (1 - abs((self.midpoint - self.vmin) /
+                                                 (self.midpoint - self.vmax))))
+        normalized_max = min(1, 1 / 2 * (1 + abs((self.vmax - self.midpoint) /
+                                                 (self.midpoint - self.vmin))))
+        normalized_mid = 0.5
+        result, is_scalar = self.process_value(value)
+        # x: data values
+        # y: color values assigned to data values
+        x, y = [self.vmin, self.midpoint, self.vmax], \
+               [normalized_min, normalized_mid, normalized_max]
+        return np.ma.masked_array(np.interp(value, x, y), mask=result.mask)
+
 
 def matshow(mat, show=True, cmap=cc.m_coolwarm, normoffset=0.2, colorbar=False, values=False,
             xticklabels=None, yticklabels=None, ticklabels=None, xrotation=45, ax=None):
@@ -69,11 +91,13 @@ def matshow(mat, show=True, cmap=cc.m_coolwarm, normoffset=0.2, colorbar=False, 
 
     ax.xaxis.set_label_position('top')
 
-    mat = np.asarray(mat)
-    cmap = cmap or cc.m_coolwarm
-    nlim = np.min(mat), np.max(mat)
-    off = normoffset * abs(nlim[1] - nlim[0])
-    norm = colors.Normalize(vmin=nlim[0] - off, vmax=nlim[1] + off)
+    # mat = np.asarray(mat)
+    # cmap = cmap or cc.m_coolwarm
+    # nlim = np.min(mat), np.max(mat)
+    # off = normoffset * abs(nlim[1] - nlim[0])
+    # norm = colors.Normalize(vmin=nlim[0] - off, vmax=nlim[1] + off)
+
+    norm = MidpointNormalize(vmin=np.min(mat), vmax=np.max(mat), midpoint=0)
 
     im = ax.matshow(mat, cmap=cmap, norm=norm)
 

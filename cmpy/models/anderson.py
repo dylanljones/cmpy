@@ -9,41 +9,11 @@
 # be included in all copies or substantial portions of the Software.
 
 import numpy as np
-from abc import ABC
 from typing import Union, Sequence
-from scipy import sparse
 from cmpy.basis import UP
-from cmpy.operators import (
-    project_onsite_energy, project_interaction, project_site_hopping, CreationOperator,
-    LinearOperator
-)
-from cmpy.greens import GreensFunction
+from cmpy.operators import project_onsite_energy, project_interaction, project_site_hopping
+from cmpy.exactdiag import greens_function_lehmann
 from .abc import AbstractManyBodyModel
-
-
-class HamiltonOperator(LinearOperator):
-
-    def __init__(self, size, data, dtype=None):
-        super().__init__((size, size), dtype=dtype)
-        self.data = list(data)
-
-    def _matvec(self, x):
-        matvec = np.zeros_like(x)
-        for row, col, val in self.data:
-            matvec[col] += val * x[row]
-        return matvec
-
-    def _adjoint(self):
-        return self
-
-    def trace(self):
-        return np.trace(self.array())
-
-    def __rmul__(self, x):
-        """Ensure trace-method in result."""
-        scaled = super().__rmul__(x)
-        scaled.trace = lambda: x*self.trace()
-        return scaled
 
 
 # =========================================================================
@@ -51,13 +21,13 @@ class HamiltonOperator(LinearOperator):
 # =========================================================================
 
 
-class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
+class SingleImpurityAndersonModel(AbstractManyBodyModel):
 
     def __init__(self, u: Union[float, Sequence[float]] = 2.0,
                  eps_imp: Union[float, Sequence[float]] = 0.0,
                  eps_bath: Union[float, Sequence[float]] = 0.0,
                  v: Union[float, Sequence[float]] = 1.0,
-                 mu: float = 0.0,
+                 mu: float = None,
                  temp: float = 0.0):
         r"""Initializes the single impurity Anderson model
 
@@ -72,11 +42,9 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
             The on-site energy of the bath site(s). If a float is given the model
             is set to one bath site, otherwise the number of bath sites is given
             by the number of energy values passed. Note that the bath energy contains
-            the chemical potential.
-            If the SIAM is set to half filling, the bath energy can be fixed at
-            .math:`\epsilon_B \mu = 0`. If `None`is given, one bath site at
-            half filling will be set up.
-            The default is `None` (half filling with one bath site).
+            the chemical potential. If the SIAM is set to half filling, the bath energy
+            can be fixed at .math:`\epsilon_B = 0`.
+            The default is `0` (half filling with one bath site).
         v : float or (N) float np.ndarray
             The hopping energy between the impurity site and the bath site(s).
             The number of hopping parameters must match the number of bath energies
@@ -88,10 +56,16 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
         temp : float, optional
             Optional temperature in kelvin. The default is ``0``.
         """
-        eps_bath = u / 2 if eps_bath is None else eps_bath
         mu = u / 2 if mu is None else mu
-        eps_bath = np.atleast_1d(eps_bath).astype(np.float64)
-        v = np.atleast_1d(v).astype(np.float64)
+        eps_bath = np.atleast_1d(eps_bath)
+        v = np.atleast_1d(v)
+
+        if len(eps_bath) > 1 and len(v) == 1:
+            v = np.ones(len(eps_bath)) * v[0]
+        if len(eps_bath) == 1 and len(v) > 1:
+            eps_bath = np.ones(len(v)) * eps_bath[0]
+        assert len(eps_bath) == len(v), f"Shape of bath on-site energy {len(eps_bath)} doesn't " \
+                                        f"match hybridization {len(v)}!"
         num_sites = len(eps_bath) + 1
         super().__init__(num_sites, u=u, eps_imp=eps_imp, eps_bath=eps_bath, v=v, mu=mu, temp=temp)
 
@@ -104,6 +78,11 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
     def num_sites(self) -> int:
         """The total number of sites."""
         return self.num_bath + 1
+
+    @property
+    def beta(self) -> float:
+        """float : Inverse temperature .math:`1/T`"""
+        return 1 / self.temp
 
     def update_bath_energy(self, eps_bath: (float, np.ndarray)) -> None:
         """Updates the on-site energies `eps_bath` of the bath sites.
@@ -155,82 +134,22 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel, ABC):
         x = z[..., np.newaxis]
         return np.sum(np.square(np.abs(self.v)) / (x - self.eps_bath), axis=-1)
 
-    def hamiltonian_data(self, up_states, dn_states):
+    def _hamiltonian_data(self, up_states, dn_states):
+        """Gets called by the `hamilton_operator`-method of the abstract base class."""
         num_sites = self.num_sites
         u = np.append(self.u, np.zeros(self.num_bath))
-        eps = np.append(self.eps_imp, self.eps_bath) - self.mu
+        eps = np.append(self.eps_imp - self.mu, self.eps_bath)
         hopping = lambda i, j: self.v[j - 1] if i == 0 else 0  # noqa
 
         yield from project_onsite_energy(up_states, dn_states, eps)
         yield from project_interaction(up_states, dn_states, u)
         yield from project_site_hopping(up_states, dn_states, num_sites, hopping, pos=0)
 
-    def hamilton_operator(self, n_up=None, n_dn=None, sector=None, dtype=None):
-        if sector is None:
-            sector = self.basis.get_sector(n_up, n_dn)
-        up_states, dn_states = sector.up_states, sector.dn_states
-        size = len(up_states) * len(dn_states)
-
-        data = list(self.hamiltonian_data(up_states, dn_states))
-        return HamiltonOperator(size, list(data), dtype=dtype)
-
-    def hamiltonian(self, n_up=None, n_dn=None, sector=None, dtype=None, dense=True):
-        if sector is None:
-            sector = self.basis.get_sector(n_up, n_dn)
-        up_states, dn_states = sector.up_states, sector.dn_states
-        size = len(up_states) * len(dn_states)
-
-        rows, cols, data = list(), list(), list()
-        for row, col, value in self.hamiltonian_data(up_states, dn_states):
-            rows.append(row)
-            cols.append(col)
-            data.append(value)
-        ham = sparse.csr_matrix((data, (rows, cols)), shape=(size, size))
-        if dense:
-            ham = ham.toarray()
-        return ham
-
     def impurity_gf0(self, z):
         return 1 / (z + self.mu + self.eps_imp - self.hybridization_func(z))
 
-    def impurity_gf(self, z, beta, sigma=UP):
-        gf = GreensFunction(z, beta)
-        part = 0
-        eig_cache = dict()
-        for n_up, n_dn in self.iter_fillings():
-            # Solve particle sector
-            sector_key = (n_up, n_dn)
-            sector = self.get_sector(n_up, n_dn)
-            if sector_key in eig_cache:
-                eigvals, eigvecs = eig_cache[sector_key]
-            else:
-                ham = self.hamiltonian(sector=sector)
-                eigvals, eigvecs = np.linalg.eigh(ham)
-                eig_cache[sector_key] = [eigvals, eigvecs]
-
-            # Update partition function
-            part += np.sum(np.exp(-beta * eigvals))
-
-            # Check if upper particle sector exists
-            n_up_p1, n_dn_p1 = n_up, n_dn
-            if sigma == UP:
-                n_up_p1 += 1
-            else:
-                n_dn_p1 += 1
-
-            if n_up_p1 in self.basis.fillings and n_dn_p1 in self.basis.fillings:
-                # Solve upper particle sector
-                sector_p1 = self.basis.get_sector(n_up_p1, n_dn_p1)
-                ham_p1 = self.hamiltonian(sector=sector_p1)
-                eigvals_p1, eigvecs_p1 = np.linalg.eigh(ham_p1)
-                eig_cache[(n_up_p1, n_dn_p1)] = [eigvals_p1, eigvecs_p1]
-
-                # Update Greens-function
-                cdag = CreationOperator(sector, sector_p1, sigma=sigma)
-                gf.accumulate(cdag, eigvals, eigvecs, eigvals_p1, eigvecs_p1)
-            else:
-                eig_cache = dict()
-        return gf / part
+    def impurity_gf(self, z, sigma=UP):
+        return greens_function_lehmann(self, z, beta=1/self.temp, pos=0, sigma=sigma).gf
 
     def pformat(self):
         return f"U={self.u}, ε_i={self.eps_imp}, ε_b={self.eps_bath}, v={self.v}, " \
