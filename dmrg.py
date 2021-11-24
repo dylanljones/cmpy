@@ -10,7 +10,7 @@ import numpy as np
 from cmpy.models.abc import AbstractSpinModel
 import lattpy as lp
 import numpy.linalg as la
-from cmpy import kron
+from cmpy import kron, matshow
 
 si = np.eye(2)
 sx = 0.5 * np.array([[0, 1], [1, 0]])
@@ -143,82 +143,119 @@ class DMRG():
         rot_mat = np.flip(densvecs, axis=1)[:, :cutoff]
         print(f"Cutoff error: {1 - np.sum(np.flip(densvals)[:cutoff])}")
         ham_sys = np.matmul(rot_mat.T, np.matmul(ham_sys, rot_mat))
-        sz_sys = np.matmul(rot_mat.T, np.matmul(sz, rot_mat))
-        sp_sys = np.matmul(rot_mat.T, np.matmul(sp, rot_mat))
-        sm_sys = np.matmul(rot_mat.T, np.matmul(sm, rot_mat))
+        sz_sys = np.matmul(rot_mat.T, np.matmul(sz_sys, rot_mat))
+        sp_sys = np.matmul(rot_mat.T, np.matmul(sp_sys, rot_mat))
+        sm_sys = np.matmul(rot_mat.T, np.matmul(sm_sys, rot_mat))
         hamvals, hamvecs = la.eigh(system.ham)
         vector = hamvecs[:, 0]
         print(ham_sysvals, "\n", hamvals)
         return ham_sys, sz_sys, sp_sys, sm_sys
 
+    def init_heis(self, sites=2):
+        latt = lp.simple_chain(a=1)
+        latt.build(sites-1)
+        system = HeisenbergModel(latt)
+        environment = HeisenbergModel(latt)
+        ham_sys = system.hamiltonian()
+        ham_env = environment.hamiltonian()
+        sz_sys = system.spins(system.sz(pos=0))
+        sp_sys = system.spins(system.sp(pos=0))
+        sm_sys = system.spins(system.sm(pos=0))
+        sz_env = environment.spins(system.sz(pos=environment.num_sites - 1))
+        sp_env = environment.spins(system.sp(pos=environment.num_sites - 1))
+        sm_env = environment.spins(system.sm(pos=environment.num_sites - 1))
+        return  ham_sys, sz_sys, sp_sys, sm_sys, \
+                ham_env, sz_env, sp_env, sm_env
 
-def add_site_env(environment):
-    ham_env = (
-            kron(environment.ham, si)
-            + kron(
-        sz,
-        environment.spins(environment.sz(pos=0))
-    )
-            + 0.5 * kron(
-        sm,
-        environment.spins(environment.sp(pos=0))
-    )
-            + 0.5 * kron(
-        sp,
-        environment.spins(environment.sm(pos=0))
-    )
-    )
-    environment.ham = ham_env
-    environment.init_basis(environment.num_sites + 1)
-    return environment
+    def dmrg_iter(self, ham_sys, sz_sys, sp_sys, sm_sys,
+                  ham_env, sz_env, sp_env, sm_env):
+        size_sys = ham_sys.shape[0]
+        size_env = ham_env.shape[0]
+        ham = (
+                kron(ham_sys, np.eye(size_env))
+                + kron(np.eye(size_sys), ham_env)
+                + kron(sz_sys, sz_env)
+                + 0.5 * kron(sp_sys, sm_env)
+                + 0.5 * kron(sm_sys, sp_env)
+        )
+        # matrix.matshow(ham_sys)
+        ham_sysvals, ham_sysvecs = la.eigh(ham_sys)
+
+        # determine ground state
+        hamvals, hamvecs = la.eigh(ham)
+        vector = hamvecs[:, 0]
+
+        # compute density matrix and its eigenvalues, eigenvectors
+        psi_mat = vector.reshape((size_sys, size_env))
+        dens_mat = np.matmul(psi_mat, psi_mat.T)
+        densvals, densvecs = la.eigh(dens_mat)
+        # matrix.matshow(dens_mat)
+
+        # calculate and apply rotation and reduction matrix
+        cutoff = round(0.7 * size_sys)
+        rot_mat = np.flip(densvecs, axis=1)[:, :cutoff]
+        print(f"Cutoff error: {1 - np.sum(np.flip(densvals)[:cutoff])}")
+        ham_sys = np.matmul(rot_mat.T, np.matmul(ham_sys, rot_mat))
+        sz_sys = np.matmul(rot_mat.T, np.matmul(sz_sys, rot_mat))
+        sp_sys = np.matmul(rot_mat.T, np.matmul(sp_sys, rot_mat))
+        sm_sys = np.matmul(rot_mat.T, np.matmul(sm_sys, rot_mat))
+        hamvals, hamvecs = la.eigh(ham_sys)
+        print(ham_sysvals, "\n", hamvals)
+        return ham_sys, sz_sys, sp_sys, sm_sys
+
+    def dmrg_loop(self):
+        matrices = self.init_heis(sites=2)
+        i = 0
+        while i < 10:
+            reduced = self.dmrg_iter(*matrices)
+            ham_sysadd = add_site_sys(*reduced)
+            ham_envadd = add_site_env(*reduced)
+            matrices = ham_sysadd, *create_linker_sys(reduced[0]), \
+                        ham_envadd, *create_linker_env(reduced[0])
+            print(len(matrices))
+            i += 1
 
 
-def add_site_sys(system):
-    latt = lp.simple_chain(a=1)
-    latt.build(system.num_sites-1)
-    sys_red = HeisenbergModel(latt)
-    ham_add = (
-            kron(system.ham, si)
-            + kron(
-        sys_red.spins(sys_red.sz(pos=0)),
-        sz
-    )
-            + 0.5 * kron(
-        sys_red.spins(sys_red.sp(pos=0)),
-        sm
-    )
-            + 0.5 * kron(
-        sys_red.spins(sys_red.sm(pos=0)),
-        sp
-    )
-    )
-    latt.build(system.num_sites)
-    sys_new = HeisenbergModel(latt)
-    sys_new.ham = ham_add
-    return sys_new
 
-def add_site_sys(ham_sys):
-    ham_add = (
+def add_site_sys(ham_sys, sz_sys, sp_sys, sm_sys):
+    ham_sysadd = (
             kron(ham_sys, si)
-            + kron()
-            + 0.5 * kron()
-            + 0.5 * kron()
+            + kron(sz_sys, sz)
+            + 0.5 * kron(sp_sys, sm)
+            + 0.5 * kron(sm_sys, sp)
     )
-    latt.build(system.num_sites)
-    sys_new = HeisenbergModel(latt)
-    sys_new.ham = ham_add
-    return sys_new
+    return ham_sysadd
 
+def add_site_env(ham_sys, sz_sys, sp_sys, sm_sys):
+    ham_envadd = (
+            kron(si, ham_sys)
+            + kron(sz, sz_sys)
+            + 0.5 * kron(sm, sp_sys)
+            + 0.5 * kron(sp, sm_sys)
+    )
+    return ham_envadd
 
-# def update_link():
+def create_linker_sys(ham_sys):
+    size_sys = ham_sys.shape[0]
+    sz_sys = kron(np.eye(size_sys), sz)
+    sp_sys = kron(np.eye(size_sys), sp)
+    sm_sys = kron(np.eye(size_sys), sm)
+    return sz_sys, sp_sys, sm_sys
 
+def create_linker_env(ham_sys):
+    size_sys = ham_sys.shape[0]
+    sz_sys = kron(sz, np.eye(size_sys))
+    sp_sys = kron(sp, np.eye(size_sys))
+    sm_sys = kron(sm, np.eye(size_sys))
+    return sz_sys, sp_sys, sm_sys
 
 latt = lp.simple_chain(a=1, neighbors=1)
-latt.build(1)
+latt.build(2)
 heis = HeisenbergModel(latt)
 ssz = heis.spins(heis.sz(pos=0))
 print(sz)
 dmrg = DMRG()
 # ham_sys, sz_sys, sp_sys, sm_sys = dmrg.one_cycle(heis, heis)
-sys_new = add_site_sys(dmrg.one_cycle(heis, heis))
-# matrix.matshow(system.ham)
+# sys_new = add_site_sys(*dmrg.one_cycle(heis, heis))
+# matshow(sys_new)
+dmrg.dmrg_loop()
