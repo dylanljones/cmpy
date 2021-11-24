@@ -358,9 +358,9 @@ class Decomposition:
             Optional eigenvalues to compute the matrix. If ``None`` the eigenvalues of the
             decomposition are used. The default is ``None``.
         method : str, optional
-        The mode for reconstructing the matrix. If mode is 'full' the original matrix
-        is reconstructed, if mode is 'diag' only the diagonal elements are computed.
-        The default is 'full'.
+            The mode for reconstructing the matrix. If mode is 'full' the original matrix
+            is reconstructed, if mode is 'diag' only the diagonal elements are computed.
+            The default is 'full'.
 
         Returns
         -------
