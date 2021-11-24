@@ -61,7 +61,7 @@ class MidpointNormalize(colors.Normalize):
 
 def matshow(mat, show=True, cmap=cc.m_coolwarm, colorbar=False, values=False,
             xticklabels=None, yticklabels=None, ticklabels=None, xrotation=45,
-            normoffset=0.2, normcenter=0, ax=None):
+            normoffset=0.2, normcenter=0., ax=None):
     """Plots a two dimensional array.
 
     Parameters
