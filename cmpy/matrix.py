@@ -31,9 +31,37 @@ transpose = partial(np.swapaxes, axis1=-2, axis2=-1)
 # Plotting
 # =============================================================================
 
+class MidpointNormalize(colors.Normalize):
 
-def matshow(mat, show=True, cmap=cc.m_coolwarm, normoffset=0.2, colorbar=False, values=False,
-            xticklabels=None, yticklabels=None, ticklabels=None, xrotation=45, ax=None):
+    """Mid-point colormap normalization
+
+    References
+    ----------
+    https://stackoverflow.com/a/50003503
+    """
+
+    def __init__(self, vmin, vmax, midpoint=0, clip=False):
+        self.midpoint = midpoint
+        colors.Normalize.__init__(self, vmin, vmax, clip)
+
+    def __call__(self, value, clip=None):
+        # calculates the values of the colors vmin and vmax are assigned to
+        normalized_min = max(0, 1 / 2 * (1 - abs((self.midpoint - self.vmin) /
+                                                 (self.midpoint - self.vmax))))
+        normalized_max = min(1, 1 / 2 * (1 + abs((self.vmax - self.midpoint) /
+                                                 (self.midpoint - self.vmin))))
+        normalized_mid = 0.5
+        result, is_scalar = self.process_value(value)
+        # data values
+        x = [self.vmin, self.midpoint, self.vmax]
+        # color values assigned to data values
+        y = [normalized_min, normalized_mid, normalized_max]
+        return np.ma.masked_array(np.interp(value, x, y), mask=result.mask)
+
+
+def matshow(mat, show=True, cmap=cc.m_coolwarm, colorbar=False, values=False,
+            xticklabels=None, yticklabels=None, ticklabels=None, xrotation=45,
+            normoffset=0.2, normcenter=0, ax=None):
     """Plots a two dimensional array.
 
     Parameters
@@ -59,21 +87,28 @@ def matshow(mat, show=True, cmap=cc.m_coolwarm, normoffset=0.2, colorbar=False, 
         Amount of rotation of the x-labels, default: 45
     normoffset : float, optional
         Offset of norm used for colormap.
+    normcenter : float or None, optional
+        The center of the colormap norm. If `None`, the colormap will not be centered!
     ax : plt.Axes, optional
         Axes item
     """
+    mat = np.asarray(mat)
+
     if ax is None:
         fig, ax = plt.subplots()
     else:
         fig = ax.get_figure()
 
-    ax.xaxis.set_label_position('top')
+    ax.xaxis.set_label_position("top")
 
-    mat = np.asarray(mat)
     cmap = cmap or cc.m_coolwarm
     nlim = np.min(mat), np.max(mat)
     off = normoffset * abs(nlim[1] - nlim[0])
-    norm = colors.Normalize(vmin=nlim[0] - off, vmax=nlim[1] + off)
+    vmin, vmax = nlim[0] - off, nlim[1] + off
+    if normcenter is None:
+        norm = colors.Normalize(vmin=vmin, vmax=vmax)
+    else:
+        norm = MidpointNormalize(vmin=vmin, vmax=vmax, midpoint=normcenter)
 
     im = ax.matshow(mat, cmap=cmap, norm=norm)
 
