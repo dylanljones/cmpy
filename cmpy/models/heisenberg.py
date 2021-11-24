@@ -47,5 +47,6 @@ class HeisenbergModel(AbstractSpinModel):
         shape = len(states), len(states)
         ham = np.zeros(shape, dtype)
         for i, j, val in self._hamiltonian_data(states):
-            ham[i, j] += val
+            ham[i, j] = val
         return ham
+
