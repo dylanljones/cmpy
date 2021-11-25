@@ -41,12 +41,3 @@ class HeisenbergModel(AbstractSpinModel):
                         s2 = tmp ^ op2              # create new state with XOR
                         idx2 = states.index(s2)     # get index of new state
                         yield idx1, idx2, self.j / 4
-
-    def hamiltonian2(self, s=None, states=None, dtype=None):
-        if states is None:
-            states = self.get_states(s)
-        shape = len(states), len(states)
-        ham = np.zeros(shape, dtype)
-        for i, j, val in self._hamiltonian_data(states):
-            ham[i, j] += val
-        return ham
