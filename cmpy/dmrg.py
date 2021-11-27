@@ -13,6 +13,7 @@ import numpy.linalg as la
 from cmpy import kron, matshow
 import matplotlib.pyplot as plt
 import time
+import colorcet as cc
 
 si = np.eye(2)
 sx = 0.5 * np.array([[0, 1], [1, 0]])
@@ -90,6 +91,7 @@ class HeisenbergModel(AbstractSpinModel):
         return self.ham
 
     def spins(self, spingenerator):
+        self.hilbert = np.zeros_like(self.hilbert)
         for i, j, val in spingenerator:
             self.hilbert[i, j] = val
         return self.hilbert
@@ -113,21 +115,20 @@ class DMRG():
         self.iter = 0
         self.cutoff = cutoff
 
-    def init_heis(self, sites=2):
+    def init_heis(self):
         latt = lp.simple_chain(a=1)
-        latt.build(sites - 1)
+        latt.build(self.sites - 2)
         system = HeisenbergModel(latt)
-        environment = HeisenbergModel(latt)
         ham_sys = system.hamiltonian()
-        ham_env = environment.hamiltonian()
-        sz_sys = system.spins(system.sz(pos=0))
-        sp_sys = system.spins(system.sp(pos=0))
-        sm_sys = system.spins(system.sm(pos=0))
-        sz_env = environment.spins(system.sz(pos=environment.num_sites - 1))
-        sp_env = environment.spins(system.sp(pos=environment.num_sites - 1))
-        sm_env = environment.spins(system.sm(pos=environment.num_sites - 1))
+        id_sys = np.eye(int(ham_sys.shape[0] / 2))
+        sz_sys = np.kron(id_sys, sz)
+        sp_sys = np.kron(id_sys, sp)
+        sm_sys = np.kron(id_sys, sm)
+        sz_env = np.kron(sz, id_sys)
+        sp_env = np.kron(sp, id_sys)
+        sm_env = np.kron(sm, id_sys)
         return ham_sys, sz_sys, sp_sys, sm_sys, \
-               ham_env, sz_env, sp_env, sm_env
+               ham_sys, sz_env, sp_env, sm_env
 
     def dmrg_iter(self, ham_sys, sz_sys, sp_sys, sm_sys,
                   ham_env, sz_env, sp_env, sm_env):
@@ -157,7 +158,7 @@ class DMRG():
         # cutoff = round(0.7 * size_sys)
         cutoff = np.sum(densvals > self.cutoff)
         rot_mat = np.flip(densvecs, axis=1)[:, :cutoff]
-        print(f"Cutoff error: {1 - np.sum(densvals[::-1][:cutoff])}")
+        # print(f"Cutoff error: {1 - np.sum(densvals[::-1][:cutoff])}")
         ham_sys = np.matmul(rot_mat.T, np.matmul(ham_sys, rot_mat))
         sz_sys = np.matmul(rot_mat.T, np.matmul(sz_sys, rot_mat))
         sp_sys = np.matmul(rot_mat.T, np.matmul(sp_sys, rot_mat))
@@ -167,9 +168,10 @@ class DMRG():
         return ham_sys, sz_sys, sp_sys, sm_sys
 
     def dmrg_loop(self):
-        matrices = self.init_heis(sites=self.sites / 2)
+        matrices = self.init_heis()
         ediff = np.inf
         e_previous = 100
+        print(matrices[0].shape)
         while ediff > self.e_conv and (self.iter < self.max_iter):
             self.sites += 2
             reduced = self.dmrg_iter(*matrices)
@@ -177,13 +179,12 @@ class DMRG():
             ham_envadd = add_site_env(*reduced)
             matrices = ham_sysadd, *create_linker_sys(reduced[0]), \
                        ham_envadd, *create_linker_env(reduced[0])
-            print("--------------- end of iteration ----------------")
             ediff = abs(e_previous - self.gs_energies[self.iter])
             e_previous = self.gs_energies[self.iter]
             self.iter += 1
-        fig, ax = plt.subplots()
-        ax.plot(self.gs_energies[1:self.iter])
-        plt.show()
+            # print(f"\r {self.iter}", end="")
+
+        print(f"converged after {self.iter} cycles to a GS energy of {self.gs_energies[self.iter - 1]}")
 
 
 def add_site_sys(ham_sys, sz_sys, sp_sys, sm_sys):
@@ -221,6 +222,7 @@ def create_linker_env(ham_sys):
     sm_sys = kron(sm, np.eye(size_sys))
     return sz_sys, sp_sys, sm_sys
 
+
 def XXZ_Ham(J, Jz, L):
     Sigx = 0.5 * np.array([[0., 1.], [1., 0.]])
     Sigy = 0.5j * np.array([[0., -1.], [1., 0.]])
@@ -245,43 +247,38 @@ def XXZ_Ham(J, Jz, L):
 
 class firat_dmrg:
 
-    def __init__(self, sites=2, max_iter=500, e_conv=1e-5, cutoff=1e-6, J=1, Jz=1) -> None:
+    def __init__(self, sites=2, max_iter=500, e_conv=1e-5, cutoff=1e-6, J=1, Jz=1, plot=False) -> None:
         self.gs_energies = np.zeros(max_iter)
         self.max_iter = max_iter
         self.sites = sites
         self.e_conv = e_conv
         self.iter = 0
         self.cutoff = cutoff
-
-    J = 1.
-    Jz = 1.
-    L = sites
-    HA = XXZ_Ham(J, Jz, L)
-    HB = HA
-
-    Sigx = 0.5 * np.array([[0., 1.], [1., 0.]])
-    Sigy = 0.5j * np.array([[0., -1.], [1., 0.]])
-    Sigz = 0.5 * np.array([[1., 0.], [0., -1.]])
-
-    SxL, SyL, SzL, SxR, SyR, SzR = Sigx, Sigy, Sigz, Sigx, Sigy, Sigz
-    error = 100.
-    MaxIteration = 1000
-    eint = 100
-    eA = 100
-    energies = np.zeros((MaxIteration - L,), dtype='double')
-    i0 = 0
+        self.J = J
+        self.Jz = Jz
+        self.Sigx = 0.5 * np.array([[0., 1.], [1., 0.]])
+        self.Sigy = 0.5j * np.array([[0., -1.], [1., 0.]])
+        self.Sigz = 0.5 * np.array([[1., 0.], [0., -1.]])
+        self.plot = plot
 
     def Enlarge2Site(self, HA, HB, SxL, SyL, SzL, SxR, SyR, SzR, Jz, cutoff, i0):
-        Sigx = 0.5 * np.array([[0., 1.], [1., 0.]])
-        Sigy = 0.5j * np.array([[0., -1.], [1., 0.]])
-        Sigz = 0.5 * np.array([[1., 0.], [0., -1.]])
+
+        if self.plot:
+            fig, axs = plt.subplots(4, 6, figsize=(12, 11))
+            matshow(HA.real, ax=axs[0][0], title=f"HA{HA.shape}", show=False)
+            matshow(HB.real, ax=axs[0][1], title=f"HB{HB.shape}", show=False)
+            matshow(SxL.real, ax=axs[0][2], title=f"SxL{SxL.shape}", show=False)
+            matshow(SxR.real, ax=axs[0][3], title=f"SxR{SxR.shape}", show=False)
+            matshow(np.zeros((2,2)), ax=axs[0][4], title="", show=False, cmap=cc.m_gray)
+            matshow(np.zeros((2,2)), ax=axs[0][5], title="", show=False, cmap=cc.m_gray)
+            # matshow(SyL.imag, ax=axs[0][3], title=f"SyL{SyL.shape}", show=False)
+            # matshow(SzL.real, ax=axs[0][4], title=f"SzL{SzL.shape}", show=False)
 
         ## (1)
-        HAL = kron(SxL, Sigx) + kron(SyL, Sigy) + Jz * kron(SzL, Sigz)
-        HRB = kron(Sigx, SxL) + kron(Sigy, SyL) + Jz * kron(Sigz, SzL)
-
+        HAL = kron(SxL, self.Sigx) + kron(SyL, self.Sigy) + Jz * kron(SzL, self.Sigz)
+        HRB = kron(self.Sigx, SxL) + kron(self.Sigy, SyL) + Jz * kron(self.Sigz, SzL)
         ## (2)
-        HLR_local = kron(Sigx, Sigx) + kron(Sigy, Sigy) + Jz * kron(Sigz, Sigz)
+        HLR_local = kron(self.Sigx, self.Sigx) + kron(self.Sigy, self.Sigy) + Jz * kron(self.Sigz, self.Sigz)
         HLR = kron(kron(np.eye(int(HA.shape[0])), HLR_local), np.eye(int(HB.shape[0])))
 
         ## (3)
@@ -289,16 +286,37 @@ class firat_dmrg:
         HApAp = kron(HA, np.eye(2)) + kron(np.eye(int(HA.shape[0] / dimSxL)), HAL)
         HBpBp = kron(np.eye(2), HA) + kron(HRB, np.eye(int(HB.shape[0] / dimSxL)))
 
+        if self.plot:
+            matshow(HAL.real, ax=axs[1][0], title=f"HAL{HAL.shape}", show=False)
+            matshow(HRB.real, ax=axs[1][1], title=f"HRB{HRB.shape}", show=False)
+            matshow(HLR_local.real, ax=axs[1][2], title=f"HLR_local{HLR_local.shape}", show=False)
+            matshow(HLR.real, ax=axs[1][3], title=f"HLR{HLR.shape}", show=False)
+            matshow(HApAp.real, ax=axs[1][4], title=f"HApAp{HApAp.shape}", show=False)
+            matshow(HBpBp.real, ax=axs[1][5], title=f"HBpBp{HBpBp.shape}", show=False)
+
         ## (4)
-        SxL = kron(np.eye(int(HA.shape[0])), Sigx)
-        SyL = kron(np.eye(int(HA.shape[0])), Sigy)
-        SzL = kron(np.eye(int(HA.shape[0])), Sigz)
-        SxR = kron(Sigx, np.eye(int(HB.shape[0])))
-        SyR = kron(Sigy, np.eye(int(HB.shape[0])))
-        SzR = kron(Sigz, np.eye(int(HB.shape[0])))
+        SxL = kron(np.eye(int(HA.shape[0])), self.Sigx)
+        SyL = kron(np.eye(int(HA.shape[0])), self.Sigy)
+        SzL = kron(np.eye(int(HA.shape[0])), self.Sigz)
+        SxR = kron(self.Sigx, np.eye(int(HB.shape[0])))
+        SyR = kron(self.Sigy, np.eye(int(HB.shape[0])))
+        SzR = kron(self.Sigz, np.eye(int(HB.shape[0])))
+
 
         ## (5)
         H = kron(HApAp, np.eye(int(HBpBp.shape[0]))) + kron(np.eye(int(HApAp.shape[0])), HBpBp) + HLR
+
+        if self.plot:
+            matshow(H.real, ax=axs[2][0], title=f"H{H.shape}", show=False)
+            matshow(SxL.real, ax=axs[2][1], title=f"SxL{SxL.shape}", show=False)
+            matshow(SxR.real, ax=axs[2][2], title=f"SxR{SxR.shape}", show=False)
+            matshow(np.zeros((2, 2)), ax=axs[2][3], title="", show=False, cmap=cc.m_gray)
+            matshow(np.zeros((2, 2)), ax=axs[2][4], title="", show=False, cmap=cc.m_gray)
+            matshow(np.zeros((2,2)), ax=axs[2][5], title="", show=False, cmap=cc.m_gray)
+            # matshow(SyL.imag, ax=axs[2][1], title=f"SyL{SyL.shape}", show=False)
+            # matshow(SzL.real, ax=axs[2][2], title=f"SzL{SzL.shape}", show=False)
+            # matshow(SyR.imag, ax=axs[2][4], title=f"SyR{SyR.shape}", show=False)
+            # matshow(SzR.real, ax=axs[2][5], title=f"SzR{SzR.shape}", show=False)
 
         ei, vi = la.eigh(H)
         ndee1 = np.argsort(ei)
@@ -332,28 +350,55 @@ class firat_dmrg:
         SyR = np.dot(np.conj(UTr.T), np.dot(SyR, UTr))
         SzR = np.dot(np.conj(UTr.T), np.dot(SzR, UTr))
 
+        if self.plot:
+            matshow(UTr.real, ax=axs[3][0], title=f"UTr{UTr.shape}", show=False)
+            matshow(HA.real, ax=axs[3][1], title=f"HA{HA.shape}", show=False)
+            matshow(HB.real, ax=axs[3][2], title=f"HB{HB.shape}", show=False)
+            matshow(SxL.real, ax=axs[3][3], title=f"SxL{SxL.shape}", show=False)
+            # matshow(SyL.imag, ax=axs[3][3], title=f"SyL{SyL.shape}", show=False)
+            # matshow(SzL.real, ax=axs[3][4], title=f"SzL{SzL.shape}", show=False)
+            matshow(SxR.real, ax=axs[3][4], title=f"SxR{SxR.shape}", show=False)
+            matshow(np.zeros((2, 2)), ax=axs[3][5], title="", show=False, cmap=cc.m_gray)
+            plt.show()
+
         return HA, HB, SxL, SyL, SzL, SxR, SyR, SzR, ei[0] / (2 * i0 + 6.), eA[0]
 
     def firat_loop(self):
-        while (error > e_conv) and (i0 < MaxIteration - self.sites):
-            HA, HB, SxL, SyL, SzL, SxR, SyR, SzR, energies[i0], eA = Enlarge2Site(HA, HB, SxL, SyL, SzL, SxR, SyR, SzR, Jz,
-                                                                                  cutoff, i0)
-            error = abs((eint - energies[i0]))
-            eint = energies[i0]
-            i0 = i0 + 1
-            print(f"\r {i0}", end="")
-            # (H.shape, HAL.shape,HBR.shape,SxR.shape,SxL.shape,vATr.shape,indMax)
+        HA = XXZ_Ham(self.J, self.Jz, self.sites)
+        HB = HA
+        SxL, SyL, SzL, SxR, SyR, SzR = self.Sigx, self.Sigy, self.Sigz, self.Sigx, self.Sigy, self.Sigz
+        error = 100.
+        MaxIteration = 1000
+        eint = 100
+        eA = 100
+        self.iter = 0
+        while (error > self.e_conv) and (self.iter < self.max_iter):
+            HA, HB, SxL, SyL, SzL, SxR, SyR, SzR, self.gs_energies[self.iter], eA = \
+                self.Enlarge2Site(HA, HB, SxL, SyL, SzL, SxR, SyR, SzR, self.Jz, self.cutoff, self.iter)
+            error = abs((eint - self.gs_energies[self.iter]))
+            eint = self.gs_energies[self.iter]
+            self.iter = self.iter + 1
+            # print(f"\r {self.iter}", end="")
+        print(f"converged after {self.iter} cycles to a GS energy of {self.gs_energies[self.iter - 1]}")
+
+        # (H.shape, HAL.shape,HBR.shape,SxR.shape,SxL.shape,vATr.shape,indMax)
 
 
 def main():
-    dmrg = DMRG(sites=2, e_conv=1e-5, cutoff=3e-5)
-    start = time.process_time()
-    dmrg.dmrg_loop()
-    print(time.process_time() - start)
+    # dmrg = DMRG(sites=2, e_conv=1e-3, cutoff=3e-5)
+    # start = time.process_time()
+    # dmrg.dmrg_loop()
+    # print(time.process_time() - start)
 
     start = time.process_time()
-    firat(sites=2, e_conv=1e-5, cutoff=3e-5)
+    firat = firat_dmrg(sites=2, e_conv=1e-3, cutoff=3e-4, plot=True)
+    firat.firat_loop()
     print(time.process_time() - start)
+
+    fig, ax = plt.subplots()
+    # ax.plot(dmrg.gs_energies[1:dmrg.iter])
+    ax.plot(firat.gs_energies[1:firat.iter])
+    plt.show()
 
 
 if __name__ == "__main__":

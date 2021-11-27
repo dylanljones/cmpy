@@ -507,6 +507,7 @@ class HamiltonOperator(LinearOperator):
         matvec = np.zeros_like(x)
         for (row, col), val in zip(self.indices, self.data):
             matvec[col] += val * x[row]
+            # matvec[row] += val * x[col]
         return matvec
 
     def _adjoint(self) -> "HamiltonOperator":

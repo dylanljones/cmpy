@@ -55,7 +55,7 @@ class MidpointNormalize(mpl.colors.Normalize):
 
 
 def matshow(mat, show=True, cmap=cc.m_coolwarm, normoffset=0.2, colorbar=False, values=False,
-            xticklabels=None, yticklabels=None, ticklabels=None, xrotation=45, ax=None):
+            xticklabels=None, yticklabels=None, ticklabels=None, xrotation=45, ax=None, title=None):
     """Plots a two dimensional array.
 
     Parameters
@@ -88,7 +88,8 @@ def matshow(mat, show=True, cmap=cc.m_coolwarm, normoffset=0.2, colorbar=False, 
         fig, ax = plt.subplots()
     else:
         fig = ax.get_figure()
-
+    if title is not None:
+        ax.set_title(title)
     ax.xaxis.set_label_position('top')
 
     # mat = np.asarray(mat)
@@ -128,7 +129,7 @@ def matshow(mat, show=True, cmap=cc.m_coolwarm, normoffset=0.2, colorbar=False, 
     if show:
         plt.show()
 
-    return ax
+    # return ax
 
 
 # =============================================================================
