@@ -250,10 +250,8 @@ class AbstractManyBodyModel(AbstractModel):
     def hamilton_operator(self, n_up=None, n_dn=None, sector=None, dtype=None):
         if sector is None:
             sector = self.basis.get_sector(n_up, n_dn)
-            print(sector)
         up_states, dn_states = sector.up_states, sector.dn_states
         size = len(up_states) * len(dn_states)
-        print(up_states, dn_states, size)
         data, indices = self.hamiltonian_data(up_states, dn_states)
         return HamiltonOperator(size, data, indices, dtype=dtype)
 
