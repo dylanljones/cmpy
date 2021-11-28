@@ -12,7 +12,7 @@ from cmpy.models import hubbard
 
 fig, ax = plt.subplots()
 
-sites = 6
+sites = 4
 u = [0.5]*sites
 eps = [-1.]*sites
 t = 1.

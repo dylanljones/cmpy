@@ -53,13 +53,19 @@ def gf0_lehmann(*args, z: Union[complex, np.ndarray], mu: float = 0., mode="diag
 
     if mode == "full":
         subscript_str = "ik,...k,kj->...ij"
+        subscript_str_new = "ik,jk,km->ijm"
     elif mode == "diag":
         subscript_str = "ij,...j,ji->...i"
+        subscript_str_new = "ik,jk,kj->ij"
     elif mode == "total":
         subscript_str = "ij,...j,ji->..."
+        subscript_str_new = "ik,jk,kj->i"
     else:
         raise ValueError(f"Mode '{mode}' not supported. Valid modes are 'full', 'diag' or 'total'")
     arg = np.subtract.outer(z + mu, eigvals)
+    old_str = np.einsum(subscript_str, eigvecs_adj, 1 / arg, eigvecs)
+    new_str = np.einsum(subscript_str_new,  1 / arg, eigvecs_adj, eigvecs)
+    print(np.all(old_str==new_str))
     return np.einsum(subscript_str, eigvecs_adj, 1 / arg, eigvecs)
 
 
