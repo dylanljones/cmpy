@@ -17,6 +17,7 @@ from scipy import linalg as la
 import scipy.sparse
 from typing import NamedTuple
 from functools import partial
+from abc import ABC, abstractmethod
 from matplotlib import colors
 import matplotlib.pyplot as plt
 import colorcet as cc
@@ -31,9 +32,37 @@ transpose = partial(np.swapaxes, axis1=-2, axis2=-1)
 # Plotting
 # =============================================================================
 
+class MidpointNormalize(colors.Normalize):
 
-def matshow(mat, show=True, cmap=cc.m_coolwarm, normoffset=0.2, colorbar=False, values=False,
-            xticklabels=None, yticklabels=None, ticklabels=None, xrotation=45, ax=None):
+    """Mid-point colormap normalization
+
+    References
+    ----------
+    https://stackoverflow.com/a/50003503
+    """
+
+    def __init__(self, vmin, vmax, midpoint=0, clip=False):
+        self.midpoint = midpoint
+        colors.Normalize.__init__(self, vmin, vmax, clip)
+
+    def __call__(self, value, clip=None):
+        # calculates the values of the colors vmin and vmax are assigned to
+        normalized_min = max(0, 1 / 2 * (1 - abs((self.midpoint - self.vmin) /
+                                                 (self.midpoint - self.vmax))))
+        normalized_max = min(1, 1 / 2 * (1 + abs((self.vmax - self.midpoint) /
+                                                 (self.midpoint - self.vmin))))
+        normalized_mid = 0.5
+        result, is_scalar = self.process_value(value)
+        # data values
+        x = [self.vmin, self.midpoint, self.vmax]
+        # color values assigned to data values
+        y = [normalized_min, normalized_mid, normalized_max]
+        return np.ma.masked_array(np.interp(value, x, y), mask=result.mask)
+
+
+def matshow(mat, show=True, cmap=cc.m_coolwarm, colorbar=False, values=False,
+            xticklabels=None, yticklabels=None, ticklabels=None, xrotation=45,
+            normoffset=0.2, normcenter=0., ax=None):
     """Plots a two dimensional array.
 
     Parameters
@@ -59,21 +88,28 @@ def matshow(mat, show=True, cmap=cc.m_coolwarm, normoffset=0.2, colorbar=False, 
         Amount of rotation of the x-labels, default: 45
     normoffset : float, optional
         Offset of norm used for colormap.
+    normcenter : float or None, optional
+        The center of the colormap norm. If `None`, the colormap will not be centered!
     ax : plt.Axes, optional
         Axes item
     """
+    mat = np.asarray(mat)
+
     if ax is None:
         fig, ax = plt.subplots()
     else:
         fig = ax.get_figure()
 
-    ax.xaxis.set_label_position('top')
+    ax.xaxis.set_label_position("top")
 
-    mat = np.asarray(mat)
     cmap = cmap or cc.m_coolwarm
     nlim = np.min(mat), np.max(mat)
     off = normoffset * abs(nlim[1] - nlim[0])
-    norm = colors.Normalize(vmin=nlim[0] - off, vmax=nlim[1] + off)
+    vmin, vmax = nlim[0] - off, nlim[1] + off
+    if normcenter is None:
+        norm = colors.Normalize(vmin=vmin, vmax=vmax)
+    else:
+        norm = MidpointNormalize(vmin=vmin, vmax=vmax, midpoint=normcenter)
 
     im = ax.matshow(mat, cmap=cmap, norm=norm)
 
@@ -209,6 +245,10 @@ def fill_diagonal(mat, val, offset=0):
     else:
         np.fill_diagonal(mat, val)
 
+# =============================================================================
+# Matrix decompositions
+# =============================================================================
+
 
 def decompose(arr, h=None):
     """Computes the eigen-decomposition of a matrix.
@@ -219,10 +259,10 @@ def decompose(arr, h=None):
     Parameters
     ----------
     arr : (N, N) array_like
-        A complex or real matrix whose eigenvalues and eigenvectors will be computed.
+        A complex or real matrix whose eigenvalues and -vectors will be computed.
     h : bool, optional
-        Flag if matrix is hermitian. If ``None`` the matrix is checked. This determines the
-        scipy method used for computing the eigenvalue problem.
+        Flag if matrix is hermitian. If ``None`` the matrix is checked.
+        This determines the scipy method used for computing the eigenvalue problem.
 
     Returns
     -------
@@ -276,7 +316,120 @@ def reconstruct(rv, xi, rv_inv, method='full'):
     return arr
 
 
-class Decomposition:
+def decompose_qr(mat):
+    """Computes a QR decomposition of a matrix.
+
+    Calculate the decomposition `A = Q R` where `Q` is unitary/orthogonal and
+    `R` upper triangular.
+
+    Parameters
+    ----------
+    mat : (N, M) array_like
+        The matrix to be decomposed
+
+    Returns
+    -------
+    q: float or complex (N, N) ndarray
+        Unitary/Orhtogonal matrix Q.
+    r : float or complex (N, M) ndarray
+        Upper right triangular matrix R.
+    """
+    return np.linalg.qr(mat)
+
+
+def reconstruct_qr(q, r):
+    """Reconstructs the original matrix from the QR decomposition matrices.
+
+    Parameters
+    ----------
+    q: float or complex (N, N) ndarray
+        Unitary/Orhtogonal matrix Q.
+    r : float or complex (N, M) ndarray
+        Upper right triangular matrix R.
+
+    Returns
+    -------
+    a : (N, M) np.ndarray
+        The reconstructed matrix.
+    """
+    return np.dot(q, r)
+
+
+def decompose_svd(mat, full_matrices=True):
+    """Computes the decomposition of a matrix and initializes a `SVD`-instance.
+
+    Factorizes the matrix a into two unitary matrices `U` and `Vh`, and
+    a 1-D array `s` of singular values (real, non-negative) such that
+    `a == U @ S @ Vh`, where `S` is a suitably shaped matrix of zeros
+    with main diagonal `s`.
+
+    Parameters
+    ----------
+    mat : float or complex (N, M) array_like
+        The matrix to be decomposed
+    full_matrices : bool, optional
+        If True (default), the full matrices of U and Vh are computed.
+
+    Returns
+    -------
+    u : (N, N) np.ndarray
+        Unitary matrix having left singular vectors as columns.
+    s : (M, ) np.ndarray
+        The singular values, sorted in non-increasing order.
+    vh : (M, M) np.ndarray
+        Unitary matrix having right singular vectors as rows.
+    """
+    return np.linalg.svd(mat, full_matrices=full_matrices)
+
+
+def reconstruct_svd(u, s, vh):
+    """Reconstructs the original matrix from the Singular Value Decomposition matrices.
+
+    Parameters
+    ----------
+    u : (N, N) np.ndarray
+        Unitary matrix having left singular vectors as columns.
+    s : (M, ) np.ndarray
+        The singular values, sorted in non-increasing order.
+    vh : (M, M) np.ndarray
+        Unitary matrix having right singular vectors as rows.
+
+    Returns
+    -------
+    a : (N, M) np.ndarray
+        The reconstructed matrix.
+    """
+    if u.shape[0] == u.shape[1]:
+        sigma = la.diagsvd(s, u.shape[0], s.shape[0])
+    else:
+        sigma = np.diag(s)
+    return np.dot(u, np.dot(sigma, vh))
+
+
+class MatrixDecomposition(ABC):
+
+    @classmethod
+    @abstractmethod
+    def decompose(cls, mat):
+        """Computes the decomposition of a matrix."""
+        pass
+
+    @abstractmethod
+    def reconstruct(self):
+        """Reconstructs the matrix from the decomposition."""
+        pass
+
+    @abstractmethod
+    def __iter__(self):
+        """Returns the decomposition parts."""
+        pass
+
+    def __str__(self):
+        shapestr = "x".join(str(x.shape) for x in self.__iter__())
+        return f"{self.__class__.__name__}[{shapestr}]"
+
+
+class Decomposition(MatrixDecomposition):
     """Eigen-decomposition of a matrix.
 
     Parameters
@@ -297,15 +450,15 @@ class Decomposition:
 
     @classmethod
     def decompose(cls, arr, h=None):
-        """Computes the decomposition of a matrix and initializes a ``Decomposition``-instance.
+        """Computes the rigrn-decomposition of a matrix.
 
         Parameters
         ----------
         arr : (N, N) array_like
-            A complex or real matrix whose eigenvalues and eigenvectors will be computed.
+            A complex or real matrix whose eigenvalues and -vectors will be computed.
         h : bool, optional
-            Flag if matrix is hermitian. If ``None`` the matrix is checked. This determines the
-            scipy method used for computing the eigenvalue problem.
+            Flag if matrix is hermitian. If ``None`` the matrix is checked.
+            This determines the scipy method used for computing the eigenvalue problem.
 
         Returns
         -------
@@ -314,7 +467,7 @@ class Decomposition:
         rv, xi, rv_inv = decompose(arr, h)
         return cls(rv, xi, rv_inv)
 
-    def reconstrunct(self, xi=None, method='full'):
+    def reconstruct(self, xi=None, method='full'):
         """Computes a matrix from the eigen-decomposition.
 
         Parameters
@@ -323,9 +476,9 @@ class Decomposition:
             Optional eigenvalues to compute the matrix. If ``None`` the eigenvalues of the
             decomposition are used. The default is ``None``.
         method : str, optional
-        The mode for reconstructing the matrix. If mode is 'full' the original matrix
-        is reconstructed, if mode is 'diag' only the diagonal elements are computed.
-        The default is 'full'.
+            The mode for reconstructing the matrix. If mode is 'full' the original matrix
+            is reconstructed, if mode is 'diag' only the diagonal elements are computed.
+            The default is 'full'.
 
         Returns
         -------
@@ -353,8 +506,183 @@ class Decomposition:
         self.rv = rv
         self.rv_inv = np.linalg.inv(rv)
 
-    def __str__(self):
-        return f"{self.__class__.__name__}[{self.rv.shape}x{self.xi.shape}x{self.rv_inv.shape}]"
+    def __iter__(self):
+        return self.rv, self.xi, self.rv_inv
+
+
+class SVD(MatrixDecomposition):
+    """Singular Value Decomposition of a matrix.
+
+    Parameters
+    ----------
+    u : np.ndarray
+        Unitary matrix having left singular vectors as columns.
+        Of shape `(M, M)` or `(M, K)`.
+    s : np.ndarray
+        The singular values, sorted in non-increasing order.
+        Of shape `(K,)`, with `K = min(M, N)`.
+    vh : np.ndarray
+        Unitary matrix having right singular vectors as rows.
+        Of shape `(N, N)` or `(K, N)`.
+    """
+
+    __slots__ = ('u', 's', 'vh')
+
+    def __init__(self, u, s, vh):
+        self.u = u
+        self.s = s
+        self.vh = vh
+
+    @property
+    def v(self):
+        """np.ndarray : The hermitian of the matrix `vh`."""
+        return np.conj(self.vh).T
+
+    @property
+    def sigma(self):
+        """np.ndarray : The S-matrix in the singular value decomposition."""
+        if self.u.shape[0] == self.u.shape[1]:
+            sigma = la.diagsvd(self.s, self.u.shape[0], self.s.shape[0])
+        else:
+            sigma = np.diag(self.s)
+        return sigma
+
+    @classmethod
+    def decompose(cls, arr, full_matrices=True):
+        """Computes the decomposition of a matrix and initializes a `SVD`-instance.
+
+        Parameters
+        ----------
+        arr : (N, M) array_like
+            A complex or real matrix to decompose.
+        full_matrices : bool, optional
+            If True (default), the full matrices of U and Vh are computed.
+
+        Returns
+        -------
+        decomposition : SVD
+        """
+        u, s, vh = np.linalg.svd(arr, full_matrices=full_matrices)
+        return cls(u, s, vh)
+
+    def reconstruct(self):
+        """Reconstructs the original matrix.
+
+        Returns
+        -------
+        a : (N, M) np.ndarray
+            The reconstructed matrix.
+        """
+        return reconstruct_svd(self.u, self.s, self.vh)
+
+    def __iter__(self):
+        return self.u, self.s, self.vh
+
+
+class QR(MatrixDecomposition):
+    """QR decomposition of a matrix.
+
+    Parameters
+    ----------
+    q : np.ndarray
+        Unitary and orthogonal matrix of shape ``(M, M)``, or ``(M, K)``.
+    r : np.ndarray
+        Upper triangular matrix of shape ``(M, N)``, or ``(K, N)``
+        with ``K = min(M, N)``.
+    p : np.ndarray, optional
+        Of shape ``(N,)`` for ``pivoting=True``.
+    """
+
+    __slots__ = ('q', 'r', 'p')
+
+    def __init__(self, q, r, p=None):
+        self.q = q
+        self.r = r
+        self.p = p
+
+    @classmethod
+    def decompose(cls, arr, pivoting=False):
+        """Computes the decomposition of a matrix and initializes a `SVD`-instance.
+
+        Parameters
+        ----------
+        arr : (N, M) array_like
+            A complex or real matrix to decompose.
+        pivoting : bool, optional
+            Whether or not factorization should include pivoting for rank-revealing
+            qr decomposition. If pivoting, compute the decomposition
+            ``A P = Q R`` as above, but where P is chosen such that the diagonal
+            of R is non-increasing.
+
+        Returns
+        -------
+        decomposition : QR
+        """
+        args = la.qr(arr, pivoting=pivoting)
+        return cls(*args)
+
+    def reconstruct(self):
+        """Reconstructs the original matrix from the QR decomposition matrices.
+
+        Returns
+        -------
+        a : (N, M) np.ndarray
+            The reconstructed matrix.
+        """
+        if self.p is not None:
+            raise NotImplementedError("Reconstruting a QR-decomposition with pivoting "
+                                      "is not yet implemented!")
+        return np.dot(self.q, self.r)
+
+    def update(self, u, v, check_finite=True):
+        """Rank-k QR update of the QR-decomposition.
+
+        Parameters
+        ----------
+        u : (M,) or (M, K) array_like
+            Left update vector.
+        v : (N,) or (N, K) array_like
+            Right update vector.
+        check_finite : bool, optional
+            Whether to check that the input matrix contains only finite numbers.
+
+        Returns
+        -------
+        qr : QR
+            The updated QR-decomposition.
+        """
+        q, r = la.qr_update(self.q, self.r, u, v, check_finite=check_finite)
+        return QR(q, r)
+
+    def insert(self, u, k, which="row", check_finite=True):
+        """Rank-k QR update of the QR-decomposition.
+
+        Parameters
+        ----------
+        u : (N,), (p, N), (M,), or (M, p) array_like
+            Rows or columns to insert.
+        k : int
+            Index before which ``u`` is to be inserted.
+        which: {‘row’, ‘col’}, optional
+            Determines if rows or columns will be inserted, defaults to ‘row’
+        check_finite : bool, optional
+            Whether to check that the input matrix contains only finite numbers.
+
+        Returns
+        -------
+        qr : QR
+            The updated QR-decomposition.
+        """
+        q, r = la.qr_insert(self.q, self.r, u, k, which, check_finite=check_finite)
+        return QR(q, r)
+
+    def __iter__(self):
+        return self.q, self.r
+
+
+# =============================================================================
+# Matrix object
+# =============================================================================
 
 
 class EigenState(NamedTuple):
@@ -363,11 +691,6 @@ class EigenState(NamedTuple):
     state: np.ndarray = None
     n_up: int = None
     n_dn: int = None
-
-
-# =============================================================================
-# Matrix object
-# =============================================================================
 
 
 class Matrix(np.ndarray):
@@ -603,11 +926,11 @@ class Matrix(np.ndarray):
         return self.eig(check_hermitian)[1]
 
     def decompose(self):
-        """ Decomposes the matrix into it's eigen-decomposition (eigenvalues and eigenvectors).
+        """Decomposes the matrix into it's eigen-decomposition.
 
         Returns
         -------
-        decomposition: Decomposition
+        decomposition : Decomposition
         """
         return Decomposition.decompose(self)
 

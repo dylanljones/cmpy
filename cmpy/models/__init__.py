@@ -11,6 +11,7 @@
 from .abc import (
     ModelParameters,
     AbstractModel,
+    AbstractSpinModel,
     AbstractManyBodyModel
 )
 

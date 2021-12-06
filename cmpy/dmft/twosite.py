@@ -16,7 +16,7 @@ from .utils import IterationStats, self_energy, quasiparticle_weight, mix_values
 # approaches to the Mott transition'
 
 
-def impurity_params_ref(u: float, v: float) -> tuple[float, float, float, float]:
+def impurity_params_ref(u: float, v: float):
     r"""Poles and residues of the two-site SIAM  Greens function at half filling and T=0.
 
     Parameters
