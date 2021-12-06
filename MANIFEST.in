@@ -1,3 +1,6 @@
+# Include license
+include LICENSE
+
 # Include the requirements file
 include *.txt
 

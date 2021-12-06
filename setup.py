@@ -9,6 +9,7 @@
 # be included in all copies or substantial portions of the Software.
 
 from setuptools import setup, find_packages
+import versioneer
 
 
 def requirements():
@@ -23,7 +24,8 @@ def long_description():
 
 setup(
     name='cmpy',
-    version='0.0.6',
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     author='Dylan Jones',
     author_email='dylanljones94@gmail.com',
     description='Collection of tools for condensed matter computational physics.',
