@@ -926,11 +926,11 @@ class Matrix(np.ndarray):
         return self.eig(check_hermitian)[1]
 
     def decompose(self):
-        """ Decomposes the matrix into it's eigen-decomposition (eigenvalues and eigenvectors).
+        """Decomposes the matrix into it's eigen-decomposition.
 
         Returns
         -------
-        decomposition: Decomposition
+        decomposition : Decomposition
         """
         return Decomposition.decompose(self)
 
