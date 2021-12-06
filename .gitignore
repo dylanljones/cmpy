@@ -1,10 +1,13 @@
+_data/
+_plots.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 .idea/
 
-_data/
-_tests/.hypothesis
-_plots.py
+# Test cache
+*.hypothesis/
+.pytest_cache/
 
 # Distribution / packaging
 .Python
