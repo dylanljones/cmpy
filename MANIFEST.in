@@ -5,4 +5,5 @@ include LICENSE
 include *.txt
 
 # Include the README file
-include *.md
+include *.mdinclude versioneer.py
+include cmpy/_version.py
