@@ -435,6 +435,9 @@ class State:
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}: {self.label()}"
+        
+    def __eq__(self, other) -> bool:
+    	return self.up == other.up and self.dn == other.dn
 
 
 # =========================================================================
