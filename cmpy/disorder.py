@@ -14,8 +14,9 @@ import numpy as np
 from typing import Union, Sequence
 
 
-def create_subst_array(size: int, values: Sequence[float],
-                       conc: Union[float, Sequence[float]]) -> np.ndarray:
+def create_subst_array(
+    size: int, values: Sequence[float], conc: Union[float, Sequence[float]]
+) -> np.ndarray:
     """Creates an (ordered) array of values.
 
     Parameters
@@ -23,8 +24,8 @@ def create_subst_array(size: int, values: Sequence[float],
     size : int
         The size of the output array.
     values : Sequence of float
-        The values for filling the array. The size must match the size of the concentrations.
-        If one concentration is given the value-array must be of size 2.
+        The values for filling the array. The size must match the size of the
+        concentrations. If one concentration is given the value-array must be of size 2.
     conc : float or Sequence of float
         The concentrations of the values. If a single concentration is given
         it is interpreted as the concentration of the first of two values.
@@ -36,7 +37,7 @@ def create_subst_array(size: int, values: Sequence[float],
     """
     # Get sizes of sub-arrays
     if isinstance(conc, float):
-        conc = [conc, 1-conc]
+        conc = [conc, 1 - conc]
     if sum(conc) != 1:
         raise ValueError("Fractions have to add up to 1!")
     sizes = (size * np.array(conc)).astype(np.int64)
@@ -47,7 +48,9 @@ def create_subst_array(size: int, values: Sequence[float],
     return np.concatenate(arrays)
 
 
-def random_permutations(arr: Sequence[float], size: int, replace: bool = False, seed: int = None):
+def random_permutations(
+    arr: Sequence[float], size: int, replace: bool = False, seed: int = None
+):
     """Creates (optionally unique) permutations of a given array.
 
     Parameters
@@ -95,8 +98,14 @@ def random_permutations(arr: Sequence[float], size: int, replace: bool = False, 
             count += 1
 
 
-def disorder_generator(size: int, values: Sequence[float], conc: Union[float, Sequence[float]],
-                       samples: int, replace: bool = False, seed=None):
+def disorder_generator(
+    size: int,
+    values: Sequence[float],
+    conc: Union[float, Sequence[float]],
+    samples: int,
+    replace: bool = False,
+    seed=None,
+):
     """Generates (optionally unique) random samples from a given 1-D array.
 
     See Also
@@ -108,8 +117,8 @@ def disorder_generator(size: int, values: Sequence[float], conc: Union[float, Se
     size : int
         The size of the output array.
     values : Sequence of float
-        The values for filling the array. The size must match the size of the concentrations.
-        If one concentration is given the value-array must be of size 2.
+        The values for filling the array. The size must match the size of the
+        concentrations. If one concentration is given the value-array must be of size 2.
     conc : float or Sequence of float
         The concentrations of the values. If a single concentration is given
         it is interpreted as the concentration of the first of two values.

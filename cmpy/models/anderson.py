@@ -59,13 +59,13 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel):
         mu = u / 2 if mu is None else mu
         eps_bath = np.atleast_1d(eps_bath)
         v = np.atleast_1d(v)
-
-        if len(eps_bath) > 1 and len(v) == 1:
+        num_bath = len(eps_bath)
+        if num_bath > 1 and len(v) == 1:
             v = np.ones(len(eps_bath)) * v[0]
-        if len(eps_bath) == 1 and len(v) > 1:
+        if num_bath == 1 and len(v) > 1:
             eps_bath = np.ones(len(v)) * eps_bath[0]
-        assert len(eps_bath) == len(v), f"Shape of bath on-site energy {len(eps_bath)} doesn't " \
-                                        f"match hybridization {len(v)}!"
+        assert len(eps_bath) == len(v), f"Shape of bath on-site energy {num_bath} " \
+                                        f"doesn't match hybridization {len(v)}!"
         num_sites = len(eps_bath) + 1
         super().__init__(num_sites, u=u, eps_imp=eps_imp, eps_bath=eps_bath, v=v, mu=mu, temp=temp)
 

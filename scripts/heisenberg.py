@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from lattpy import simple_chain
 from cmpy.operators import LinearOperator
 from cmpy.models.heisenberg import HeisenbergModel
-from cmpy.lanczos import lanczos_coeffs, lanczos_ground_state
+from cmpy.exactdiag import lanczos_coeffs, lanczos_ground_state
 
 
 def compute_ground_state(ham):

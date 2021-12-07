@@ -1,12 +1,18 @@
 # coding: utf-8
 #
 # This code is part of cmpy.
-# 
-# Copyright (c) 2021, Dylan Jones
+#
+# Copyright (c) 2020, Dylan Jones
+#
+# This code is licensed under the MIT License. The copyright notice in the
+# LICENSE file in the root directory and this permission notice shall
+# be included in all copies or substantial portions of the Software.
+
 
 import logging
 import numpy as np
 from itertools import product
+import scipy.linalg as la
 import scipy.sparse.linalg as sla
 import gftool as gt
 from .operators import CreationOperator, AnnihilationOperator, project_up, project_dn
@@ -54,34 +60,34 @@ def compute_groundstate(model, thresh=50):
     return gs
 
 
-def occupation_up(sector, eigvals, eigvecs, beta, min_energy=0., pos=0):
-    occ = 0.
+def occupation_up(sector, eigvals, eigvecs, beta, min_energy=0.0, pos=0):
+    occ = 0.0
     for up_idx, up in enumerate(sector.up_states):
         if up & (1 << pos):  # state occupied
             indices = project_up(up_idx, sector.num_dn, np.arange(sector.num_dn))
-            overlap = np.sum(abs(eigvecs[indices, :])**2, axis=0)
+            overlap = np.sum(abs(eigvecs[indices, :]) ** 2, axis=0)
             occ += np.sum(np.exp(-beta * (eigvals - min_energy)) * overlap)
     return occ
 
 
-def occupation_dn(sector, eigvals, eigvecs, beta, min_energy=0., pos=0):
-    occ = 0.
+def occupation_dn(sector, eigvals, eigvecs, beta, min_energy=0.0, pos=0):
+    occ = 0.0
     for dn_idx, dn in enumerate(sector.dn_states):
         if dn & (1 << pos):  # state occupied
             indices = project_dn(dn_idx, sector.num_dn, np.arange(sector.num_up))
-            overlap = np.sum(abs(eigvecs[indices, :])**2, axis=0)
+            overlap = np.sum(abs(eigvecs[indices, :]) ** 2, axis=0)
             occ += np.sum(np.exp(-beta * (eigvals - min_energy)) * overlap)
     return occ
 
 
-def occupation(sector, eigvals, eigvecs, beta, min_energy=0., pos=0, sigma=UP):
+def occupation(sector, eigvals, eigvecs, beta, min_energy=0.0, pos=0, sigma=UP):
     if sigma == UP:
         return occupation_up(sector, eigvals, eigvecs, beta, min_energy, pos)
     return occupation_dn(sector, eigvals, eigvecs, beta, min_energy, pos)
 
 
-def double_occupation(sector, eigvals, eigvecs, beta, min_energy=0., pos=0):
-    occ = 0.
+def double_occupation(sector, eigvals, eigvecs, beta, min_energy=0.0, pos=0):
+    occ = 0.0
     for idx, (up, dn) in enumerate(product(sector.up_states, sector.dn_states)):
         if up & dn & (1 << pos):
             overlap = abs(eigvecs[idx, :]) ** 2
@@ -89,7 +95,9 @@ def double_occupation(sector, eigvals, eigvecs, beta, min_energy=0., pos=0):
     return occ
 
 
-def accumulate_gf(gf, z, cdag, eigvals, eigvecs, eigvals_p1, eigvecs_p1, beta, min_energy=0.):
+def accumulate_gf(
+    gf, z, cdag, eigvals, eigvecs, eigvals_p1, eigvecs_p1, beta, min_energy=0.0
+):
     cdag_vec = cdag.matmat(eigvecs)
     overlap = abs(eigvecs_p1.T.conj() @ cdag_vec) ** 2
 
@@ -107,7 +115,6 @@ def accumulate_gf(gf, z, cdag, eigvals, eigvecs, eigvals_p1, eigvecs_p1, beta, m
 
 
 class GreensFunctionMeasurement:
-
     def __init__(self, z, beta, pos=0, sigma=UP, dtype=None):
         self.z = z
         self.beta = beta
@@ -116,12 +123,12 @@ class GreensFunctionMeasurement:
         self._part = 0
         self._gs_energy = np.infty
         self._gf = np.zeros_like(z, dtype=dtype)
-        self._occ = 0.
-        self._occ_double = 0.
+        self._occ = 0.0
+        self._occ_double = 0.0
 
     @property
     def part(self):
-        return self._part  * np.exp(-self.beta*self._gs_energy)
+        return self._part * np.exp(-self.beta * self._gs_energy)
 
     @property
     def gf(self):
@@ -139,32 +146,42 @@ class GreensFunctionMeasurement:
     def gs_energy(self):
         return self._gs_energy
 
-    def _acc_part(self, eigvals, factor=1.):
+    def _acc_part(self, eigvals, factor=1.0):
         self._part *= factor
         self._part += np.sum(np.exp(-self.beta * (eigvals - self._gs_energy)))
 
-    def _acc_gf(self, sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1, factor):
-        if factor != 1.:
+    def _acc_gf(
+        self, sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1, factor
+    ):
+        if factor != 1.0:
             self._gf *= factor
 
         cdag = CreationOperator(sector, sector_p1, pos=self.pos, sigma=self.sigma)
         z = self.z
         beta = self.beta
         e0 = self._gs_energy
-        accumulate_gf(self._gf, z, cdag, eigvals, eigvecs, eigvals_p1, eigvecs_p1, beta, e0)
+        accumulate_gf(
+            self._gf, z, cdag, eigvals, eigvecs, eigvals_p1, eigvecs_p1, beta, e0
+        )
 
     def _acc_occ(self, sector, eigvals, eigvecs, factor):
         self._occ *= factor
-        self._occ += occupation(sector, eigvals, eigvecs, self.beta, self._gs_energy,
-                                self.pos, self.sigma)
+        self._occ += occupation(
+            sector, eigvals, eigvecs, self.beta, self._gs_energy, self.pos, self.sigma
+        )
 
     def _acc_occ_double(self, sector, eigvals, eigvecs, factor):
         self._occ_double *= factor
-        self._occ_double += double_occupation(sector, eigvals, eigvecs, self.beta,
-                                              self._gs_energy, self.pos)
+        self._occ_double += double_occupation(
+            sector, eigvals, eigvecs, self.beta, self._gs_energy, self.pos
+        )
 
-    def _accumulate(self, sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1, factor):
-        self._acc_gf(sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1, factor)
+    def _accumulate(
+        self, sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1, factor
+    ):
+        self._acc_gf(
+            sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1, factor
+        )
         self._acc_occ(sector, eigvals, eigvecs, factor)
         self._acc_occ_double(sector, eigvals, eigvecs, factor)
 
@@ -177,7 +194,9 @@ class GreensFunctionMeasurement:
             logger.debug("Found new ground state energy: E_0=%.4f", min_energy)
 
         self._acc_part(eigvals, factor)
-        self._accumulate(sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1, factor)
+        self._accumulate(
+            sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1, factor
+        )
 
 
 def greens_function_lehmann(model, z, beta, pos=0, sigma=UP, eig_cache=None):
@@ -194,7 +213,7 @@ def greens_function_lehmann(model, z, beta, pos=0, sigma=UP, eig_cache=None):
         else:
             eig_cache.clear()
 
-    logger.debug("-"*40)
+    logger.debug("-" * 40)
     logger.debug("gs-energy:  %+.4f", data.gs_energy)
     logger.debug("occupation:  %.4f", data.occ)
     logger.debug("double-occ:  %.4f", data.occ_double)
@@ -215,7 +234,7 @@ def greens_greater(model, gs, start, stop, num=1000, pos=0, sigma=UP):
 
     cop_dag = CreationOperator(sector, sector_p1, pos=pos, sigma=sigma)
     top_ket = cop_dag.matvec(gs.state)  # T|gs>
-    bra_top = top_ket.conj()            # <gs|T
+    bra_top = top_ket.conj()  # <gs|T
 
     hamop = -1j * model.hamilton_operator(sector=sector_p1)
     top_e0 = np.exp(+1j * gs.energy * dt)
@@ -243,7 +262,7 @@ def greens_lesser(model, gs, start, stop, num=1000, pos=0, sigma=UP):
 
     cop = AnnihilationOperator(sector, sector_m1, pos=pos, sigma=sigma)
     top_ket = cop.matvec(gs.state)  # T|gs>
-    bra_top = top_ket.conj()        # <gs|T
+    bra_top = top_ket.conj()  # <gs|T
 
     hamop = +1j * model.hamilton_operator(sector=sector_m1)
     top_e0 = np.exp(-1j * gs.energy * dt)
@@ -271,3 +290,61 @@ def fourier_t2z(times, gf_t, omegas, delta=1e-2, eta=None):
     z = omegas + 1j * eta
     gf_w = gt.fourier.tt2z(times, gf_t, z)
     return z, gf_w
+
+
+# =========================================================================
+# Lanczos diagonalization
+# =========================================================================
+
+def iter_lanczos_coeffs(ham, size=10):
+    # Initial guess of wavefunction
+    psi = np.random.uniform(0, 1, size=len(ham))
+    # First iteration only contains diagonal coefficient
+    a = np.dot(psi, np.dot(ham, psi)) / np.dot(psi, psi)
+    yield a, None
+    # Compute new wavefunction:
+    # |ψ_1⟩ = H |ψ_0⟩ - a_0 |ψ_0⟩
+    psi_new = np.dot(ham, psi) - a * psi
+    psi_prev = psi
+    psi = psi_new
+    # Continue iterations
+    for n in range(1, size):
+        # Compute coefficients a_n, b_n^2
+        a = np.dot(psi, np.dot(ham, psi)) / np.dot(psi, psi)
+        b2 = np.dot(psi, psi) / np.dot(psi_prev, psi_prev)
+        # Compute new wavefunction
+        # |ψ_{n+1}⟩ = H |ψ_n⟩ - a_n |ψ_n⟩ - b_n^2 |ψ_{n-1}⟩
+        psi_new = np.dot(ham, psi) - a * psi - b2 * psi_prev
+        # Save coefficients and update wave functions
+        b = np.sqrt(b2)
+        yield a, b
+        psi_prev = psi
+        psi = psi_new
+
+
+def lanczos_coeffs(ham, size=10):
+    a_coeffs = list()
+    b_coeffs = list()
+    for a, b in iter_lanczos_coeffs(ham, size):
+        a_coeffs.append(a)
+        b_coeffs.append(b)
+    # remove None from b_coeffs
+    b_coeffs.pop(0)
+    return a_coeffs, b_coeffs
+
+
+def lanczos_matrix(a_coeffs, b_coeffs):
+    mat = np.diag(a_coeffs)
+    np.fill_diagonal(mat[1:], b_coeffs)
+    np.fill_diagonal(mat[:, 1:], b_coeffs)
+    return mat
+
+
+def lanczos_ground_state(a_coeffs, b_coeffs, max_eig=3):
+    xi, vi = la.eigh_tridiagonal(
+        a_coeffs, b_coeffs, select="i", select_range=(0, max_eig)
+    )
+    idx = np.argmin(xi)
+    e_gs = xi[idx]
+    gs = vi[:, idx]
+    return e_gs, gs

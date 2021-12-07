@@ -391,7 +391,7 @@ class SpinState(int):
         return binarr(self, dtype=dtype)
 
     def overlap(self, other: Union[int, 'SpinState'], dtype: Union[int, str] = None) -> np.ndarray:
-        """Computes the overlap with another state and returns the results as a binary array."""
+        """Computes the overlap with another state as a binary array."""
         return overlap(self, other, dtype=dtype)
 
     def create(self, pos: int) -> Union['SpinState', None]:
@@ -428,7 +428,8 @@ class State:
         self.num_sites = num_sites
 
     def label(self, width: int = None) -> str:
-        return state_label(self.up, self.dn, width if width is not None else self.num_sites)
+        width = width if width is not None else self.num_sites
+        return state_label(self.up, self.dn, width)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.up}, {self.dn})"
@@ -437,7 +438,7 @@ class State:
         return f"{self.__class__.__name__}: {self.label()}"
         
     def __eq__(self, other) -> bool:
-    	return self.up == other.up and self.dn == other.dn
+        return self.up == other.up and self.dn == other.dn
 
 
 # =========================================================================
@@ -462,7 +463,7 @@ def upper_sector(n_up: int, n_dn: int, sigma: int, num_sites: int) -> Union[Tupl
     Returns
     -------
     fillings_p1 : tuple or None
-        The incremented fillings. ``None`` is returned if the upper sector does not exist.
+        The incremented fillings. `None` is returned if the upper sector does not exist.
     """
     if sigma == UP and n_up < num_sites:
         return n_up + 1, n_dn
@@ -486,7 +487,7 @@ def lower_sector(n_up: int, n_dn: int, sigma: int) -> Union[Tuple[int, int], Non
     Returns
     -------
     fillings_p1 : tuple or None
-        The decremented fillings. ``None`` is returned if the lower sector does not exist.
+        The decremented fillings. `None` is returned if the lower sector does not exist.
     """
     if sigma == UP and n_up > 0:
         return n_up - 1, n_dn
@@ -496,7 +497,7 @@ def lower_sector(n_up: int, n_dn: int, sigma: int) -> Union[Tuple[int, int], Non
 
 
 class Sector:
-    """Container class for the spin-up and spin-down states of a sector of the full basis."""
+    """Container class for the spin-up and -down states of the full basis(-sector)."""
 
     __slots__ = ['num_sites', 'n_up', 'n_dn', 'up_states', 'dn_states']
 
@@ -627,8 +628,8 @@ class Basis:
         return self.get_states(item)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(size: {self.size}, num_sites: {self.num_sites}, " \
-               f"fillings: {self.fillings})"
+        return f"{self.__class__.__name__}(size: {self.size}, " \
+               f"num_sites: {self.num_sites}, fillings: {self.fillings})"
 
 
 def spinstate_label(state: int, digits: int = None) -> str:
@@ -666,7 +667,8 @@ class SpinBasis:
         n_up = self.num_sites / 2 + s
         n_dn = self.num_sites / 2 - s
         if (n_up % 1 != 0.) or (n_dn % 1 != 0.):
-            raise ValueError(f"Total spin of {s} not realizable with {self.num_sites} sites")
+            raise ValueError(f"Total spin of {s} not realizable with "
+                             f"{self.num_sites} sites")
 
         def func(state):
             c1 = f"{state:b}".count("1")
@@ -692,5 +694,5 @@ class SpinBasis:
         return self.get_states(item)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(size: {self.size}, num_sites: {self.num_sites}, " \
-               f"spins: {self.spins})"
+        return f"{self.__class__.__name__}(size: {self.size}, " \
+               f"num_sites: {self.num_sites}, spins: {self.spins})"

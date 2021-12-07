@@ -12,7 +12,6 @@
 
 import numpy as np
 from scipy import optimize
-import matplotlib.pyplot as plt
 from functools import partial
 
 
@@ -32,8 +31,8 @@ def gf_cpa_loop(z, eps, con, hilbert, thresh=1e-5, maxiter=1000):
         # Dyson equation:
         # G_i = 1 / (E - H_0 - eps_i)
         gf_i = 1 / (sigma[..., np.newaxis] - eps + gf_avrg_inv[..., np.newaxis])
-        gf_avrg = np.sum(con * gf_i, axis=-1)   # <G> = c_1 G_1 + ... + c_n G_n
-        sigma = gf0_inv - 1 / gf_avrg           # Σ = G_0^{-1} - <G>^{-1}
+        gf_avrg = np.sum(con * gf_i, axis=-1)  # <G> = c_1 G_1 + ... + c_n G_n
+        sigma = gf0_inv - 1 / gf_avrg  # Σ = G_0^{-1} - <G>^{-1}
 
         diff = np.trapz(abs(sigma - sigma_old), z.real)
         errs.append(diff)
@@ -73,7 +72,7 @@ def sigma_root_restricted(sigma, z, eps, con, hilbert):
 
     # Compute root equation and enlarge residues
     root = np.asarray(sigma_root(sigma, z, eps, con, hilbert))
-    root[mask] *= (1 + offset)
+    root[mask] *= 1 + offset
 
     # Remove invalid roots
     root.real[mask] += 1e-3 * offset * np.where(root.real[mask] >= 0, 1, -1)

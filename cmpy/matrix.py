@@ -22,8 +22,19 @@ from matplotlib import colors
 import matplotlib.pyplot as plt
 import colorcet as cc
 
-__all__ = ["transpose", "matshow", "hermitian", "is_hermitian", "diagonal", "fill_diagonal",
-           "decompose", "reconstruct", "Decomposition", "EigenState", "Matrix"]
+__all__ = [
+    "transpose",
+    "matshow",
+    "hermitian",
+    "is_hermitian",
+    "diagonal",
+    "fill_diagonal",
+    "decompose",
+    "reconstruct",
+    "Decomposition",
+    "EigenState",
+    "Matrix",
+]
 
 transpose = partial(np.swapaxes, axis1=-2, axis2=-1)
 
@@ -31,6 +42,7 @@ transpose = partial(np.swapaxes, axis1=-2, axis2=-1)
 # =============================================================================
 # Plotting
 # =============================================================================
+
 
 class MidpointNormalize(colors.Normalize):
 
@@ -60,9 +72,20 @@ class MidpointNormalize(colors.Normalize):
         return np.ma.masked_array(np.interp(value, x, y), mask=result.mask)
 
 
-def matshow(mat, show=True, cmap=cc.m_coolwarm, colorbar=False, values=False,
-            xticklabels=None, yticklabels=None, ticklabels=None, xrotation=45,
-            normoffset=0.2, normcenter=0., ax=None):
+def matshow(
+    mat,
+    show=True,
+    cmap=cc.m_coolwarm,
+    colorbar=False,
+    values=False,
+    xticklabels=None,
+    yticklabels=None,
+    ticklabels=None,
+    xrotation=45,
+    normoffset=0.2,
+    normcenter=0.0,
+    ax=None,
+):
     """Plots a two dimensional array.
 
     Parameters
@@ -245,6 +268,7 @@ def fill_diagonal(mat, val, offset=0):
     else:
         np.fill_diagonal(mat, val)
 
+
 # =============================================================================
 # Matrix decompositions
 # =============================================================================
@@ -283,7 +307,7 @@ def decompose(arr, h=None):
     return vr, xi, vl
 
 
-def reconstruct(rv, xi, rv_inv, method='full'):
+def reconstruct(rv, xi, rv_inv, method="full"):
     """Computes a matrix from an eigen-decomposition.
 
     The matrix is reconstructed using eigenvalues and left and right eigenvectors.
@@ -307,9 +331,9 @@ def reconstruct(rv, xi, rv_inv, method='full'):
         The reconstructed matrix.
     """
     method = method.lower()
-    if 'diag'.startswith(method):
+    if "diag".startswith(method):
         arr = ((transpose(rv_inv) * rv) @ xi[..., np.newaxis])[..., 0]
-    elif 'full'.startswith(method):
+    elif "full".startswith(method):
         arr = (rv * xi[..., np.newaxis, :]) @ rv_inv
     else:
         arr = np.einsum(method, rv, xi, rv_inv)
@@ -441,7 +465,8 @@ class Decomposition(MatrixDecomposition):
     rv_inv : (N, N) np.ndarray
         The left eigenvectors of a matrix.
     """
-    __slots__ = ('rv', 'xi', 'rv_inv')
+
+    __slots__ = ("rv", "xi", "rv_inv")
 
     def __init__(self, rv, xi, rv_inv):
         self.rv = rv
@@ -467,18 +492,18 @@ class Decomposition(MatrixDecomposition):
         rv, xi, rv_inv = decompose(arr, h)
         return cls(rv, xi, rv_inv)
 
-    def reconstruct(self, xi=None, method='full'):
+    def reconstruct(self, xi=None, method="full"):
         """Computes a matrix from the eigen-decomposition.
 
         Parameters
         ----------
         xi : (N, ) array_like, optional
-            Optional eigenvalues to compute the matrix. If ``None`` the eigenvalues of the
-            decomposition are used. The default is ``None``.
+            Optional eigenvalues to compute the matrix. If ``None`` the eigenvalues
+            of the decomposition are used. The default is ``None``.
         method : str, optional
-            The mode for reconstructing the matrix. If mode is 'full' the original matrix
-            is reconstructed, if mode is 'diag' only the diagonal elements are computed.
-            The default is 'full'.
+            The mode for reconstructing the matrix. If mode is 'full' the original
+            matrix is reconstructed, if mode is 'diag' only the diagonal elements
+            are computed. The default is 'full'.
 
         Returns
         -------
@@ -526,7 +551,7 @@ class SVD(MatrixDecomposition):
         Of shape `(N, N)` or `(K, N)`.
     """
 
-    __slots__ = ('u', 's', 'vh')
+    __slots__ = ("u", "s", "vh")
 
     def __init__(self, u, s, vh):
         self.u = u
@@ -593,7 +618,7 @@ class QR(MatrixDecomposition):
         Of shape ``(N,)`` for ``pivoting=True``.
     """
 
-    __slots__ = ('q', 'r', 'p')
+    __slots__ = ("q", "r", "p")
 
     def __init__(self, q, r, p=None):
         self.q = q
@@ -630,8 +655,10 @@ class QR(MatrixDecomposition):
             The reconstructed matrix.
         """
         if self.p is not None:
-            raise NotImplementedError("Reconstruting a QR-decomposition with pivoting "
-                                      "is not yet implemented!")
+            raise NotImplementedError(
+                "Reconstruting a QR-decomposition with pivoting "
+                "is not yet implemented!"
+            )
         return np.dot(self.q, self.r)
 
     def update(self, u, v, check_finite=True):
@@ -696,8 +723,8 @@ class EigenState(NamedTuple):
 class Matrix(np.ndarray):
     """Matrix-object based on ``np.ndarray``."""
 
-    def __new__(cls, inputarr, dtype=None) -> 'Matrix':
-        """ Initialize Matrix
+    def __new__(cls, inputarr, dtype=None) -> "Matrix":
+        """Initialize Matrix
 
         Parameters
         ----------
@@ -710,11 +737,13 @@ class Matrix(np.ndarray):
             inputarr = inputarr.toarray()
         self = np.asarray(inputarr, dtype).view(cls)
         if len(self.shape) != 2:
-            raise ValueError(f"Inputarray must be 2 dimensional, not {len(self.shape)}D!")
+            raise ValueError(
+                f"Inputarray must be 2 dimensional, not {len(self.shape)}D!"
+            )
         return self
 
     @classmethod
-    def zeros(cls, *shape, dtype=None) -> 'Matrix':
+    def zeros(cls, *shape, dtype=None) -> "Matrix":
         """Initializes the ``Matrix`` filled with zeros.
 
         Parameters
@@ -731,7 +760,7 @@ class Matrix(np.ndarray):
         return cls(np.zeros(shape), dtype)
 
     @classmethod
-    def zeros_like(cls, a, dtype=None) -> 'Matrix':
+    def zeros_like(cls, a, dtype=None) -> "Matrix":
         """Initializes the ``Matrix`` filled with zeros based on the given array.
 
         Parameters
@@ -744,7 +773,7 @@ class Matrix(np.ndarray):
         return cls(np.zeros_like(a), dtype)
 
     @classmethod
-    def full(cls, *shape, value=1.0, dtype=None) -> 'Matrix':
+    def full(cls, *shape, value=1.0, dtype=None) -> "Matrix":
         """Initializes the ``Matrix`` filled with a specific value
 
         Parameters
@@ -763,7 +792,7 @@ class Matrix(np.ndarray):
         return cls(np.full(shape, value), dtype)
 
     @classmethod
-    def eye(cls, n, dtype=None) -> 'Matrix':
+    def eye(cls, n, dtype=None) -> "Matrix":
         """Initializes the `` Matrix`` as identity matrix.
 
         Parameters
@@ -776,7 +805,7 @@ class Matrix(np.ndarray):
         return cls(np.eye(n), dtype)
 
     @classmethod
-    def uniform(cls, *shape, low=0., high=1., dtype=None) -> 'Matrix':
+    def uniform(cls, *shape, low=0.0, high=1.0, dtype=None) -> "Matrix":
         """Initialize the ``Matrix`` filled with random values.
 
         Parameters
@@ -797,7 +826,7 @@ class Matrix(np.ndarray):
         return cls(np.random.uniform(low, high, shape), dtype)
 
     def show(self, show=True, **kwargs) -> plt.Axes:
-        """ Plot the matrix using the MatrixPlot object.
+        """Plot the matrix using the MatrixPlot object.
 
         See Also
         --------
@@ -826,7 +855,7 @@ class Matrix(np.ndarray):
     # =========================================================================
 
     @property
-    def h(self) -> 'Matrix':
+    def h(self) -> "Matrix":
         """Returns the conplex conjugate of the mtrix."""
         return np.conj(self).T
 
@@ -839,13 +868,14 @@ class Matrix(np.ndarray):
         """Checks if the matrix is equal to an other array."""
         return np.array_equal(self, other)
 
-    def almost_equal(self, other, rtol: float = 1e-5, atol: float = 1e-8,
-                     equal_nan: bool = False) -> bool:
+    def almost_equal(
+        self, other, rtol: float = 1e-5, atol: float = 1e-8, equal_nan: bool = False
+    ) -> bool:
         """Checks if the matrix is almost equal to an other array."""
         return np.allclose(self, other, rtol, atol, equal_nan)
 
-    def inv(self) -> 'Matrix':
-        """ Matrix: Inverse of the Matrix """
+    def inv(self) -> "Matrix":
+        """Matrix: Inverse of the Matrix"""
         return self.__class__(la.inv(self))
 
     def diag(self, offset=0):
@@ -915,14 +945,14 @@ class Matrix(np.ndarray):
         return la.eigh(self)
 
     def eigvals(self, check_hermitian=True, num_range=None):
-        """ np.ndarray: The eigenvalues of the matrix """
+        """np.ndarray: The eigenvalues of the matrix"""
         if check_hermitian and self.is_hermitian:
             return la.eigvalsh(self, eigvals=num_range)
         else:
             return la.eigvals(self)
 
     def eigvecs(self, check_hermitian=True):
-        """ np.ndarray: The eigenvectors of the matrix """
+        """np.ndarray: The eigenvectors of the matrix"""
         return self.eig(check_hermitian)[1]
 
     def decompose(self):
@@ -935,11 +965,11 @@ class Matrix(np.ndarray):
         return Decomposition.decompose(self)
 
     @classmethod
-    def reconstruct(cls, decomposition, xi=None, method='full'):
+    def reconstruct(cls, decomposition, xi=None, method="full"):
         return cls(decomposition.reconstrunct(xi, method))
 
     def insert(self, i, j, array):
-        """ Insert subarray starting at index (i, j)
+        """Insert subarray starting at index (i, j)
 
         Parameters
         ----------
@@ -957,7 +987,7 @@ class Matrix(np.ndarray):
         self[i:i + size_x, j:j + size_y] = array
 
     def add(self, i, j, array):
-        """ Add subarray starting at index (i, j)
+        """Add subarray starting at index (i, j)
 
         Parameters
         ----------
@@ -1007,5 +1037,8 @@ class Matrix(np.ndarray):
         block_array: np.ndarray
         """
         shape = (int(self.shape[0] / block[0]), int(self.shape[1] / block[1])) + block
-        strides = (block[0] * self.strides[0], block[1] * self.strides[1]) + self.strides
+        strides = (
+            block[0] * self.strides[0],
+            block[1] * self.strides[1],
+        ) + self.strides
         return as_strided(self, shape=shape, strides=strides)  # noqa

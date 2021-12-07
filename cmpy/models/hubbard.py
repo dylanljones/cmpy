@@ -8,12 +8,12 @@
 # LICENSE file in the root directory and this permission notice shall
 # be included in all copies or substantial portions of the Software.
 
-import numpy as np
-from typing import Optional, Union, Any, Sequence, Dict
+from typing import Optional, Union, Sequence
 from .abc import AbstractModel
 
 
 class HubbardModel(AbstractModel):
+    """Model class for the Hubbard model."""
 
     def __init__(self, u: Union[float, Sequence[Union[float]]] = 2.0,
                  eps: Union[float, Sequence[float]] = 0.0,

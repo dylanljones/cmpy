@@ -45,7 +45,7 @@ def eigvalsh_chain(num_sites, eps, t):
 
 
 def eigh_chain(num_sites, eps, t):
-    """Computes the eigen-values and -vectors of the Hamiltonain of a 1D tight-binding model.
+    """Computes the eigen-values and -vectors of the Hamiltonain of a 1D model.
 
     Parameters
     ----------
@@ -122,7 +122,7 @@ class AbstractTightBinding(Lattice, AbstractModel):
         self.finalize()
 
     def finalize(self):
-        """Gets called after analyzing the lattice. Default values should be initialized here."""
+        """Called after analyzing the lattice. Parameters should be initialized here."""
         pass
 
     def hamiltonian_cell(self, dtype=None):
@@ -225,7 +225,9 @@ class AbstractTightBinding(Lattice, AbstractModel):
         if self.num_base == 1:
             ham = np.array([[self.get_energy(0)]], dtype=np.complex64)
             for distidx in range(self.num_distances):
-                ham += self.get_hopping(distidx) * self.fourier_weights(k, distidx=distidx)
+                ham += self.get_hopping(distidx) * self.fourier_weights(
+                    k, distidx=distidx
+                )
             return ham
 
         for alpha in range(self.num_base):
@@ -238,7 +240,7 @@ class AbstractTightBinding(Lattice, AbstractModel):
 
         return ham
 
-    def dispersion(self, k, mu=0., sort=False):
+    def dispersion(self, k, mu=0.0, sort=False):
         """Computes the energy dispersion for one or multiple points in frequency-space.
 
         Parameters
@@ -266,7 +268,7 @@ class AbstractTightBinding(Lattice, AbstractModel):
             disp[i] = eigvals
         return (disp[0] if len(k) == 1 else disp) - mu
 
-    def bands(self, nums=100, mu=0., sort=False, offset=0.0, check=True):
+    def bands(self, nums=100, mu=0.0, sort=False, offset=0.0, check=True):
         brillouin = self.brillouin_zone()
         k_ranges = brillouin.linspace(nums, offset)
         lengths = [len(k) for k in k_ranges]
@@ -286,7 +288,6 @@ class AbstractTightBinding(Lattice, AbstractModel):
 
 
 class BaseTightBindingModel(AbstractTightBinding):
-
     def __init__(self, vectors):
         super().__init__(vectors)
 
