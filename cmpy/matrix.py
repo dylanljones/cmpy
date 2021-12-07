@@ -31,7 +31,13 @@ __all__ = [
     "fill_diagonal",
     "decompose",
     "reconstruct",
+    "decompose_svd",
+    "reconstruct_svd",
+    "decompose_qr",
+    "reconstruct_qr",
     "Decomposition",
+    "QR",
+    "SVD",
     "EigenState",
     "Matrix",
 ]
