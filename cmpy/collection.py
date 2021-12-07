@@ -15,6 +15,8 @@ si = np.eye(2)
 sx = np.array([[0, 1], [1, 0]])
 sy = np.array([[0, -1j], [1j, 0]])
 sz = np.array([[1, 0], [0, -1]])
+sp = 0.5 * (sx + 1j * sy)
+sm = 0.5 * (sx - 1j * sy)
 pauli = si, sx, sy, sz
 
 
@@ -46,6 +48,35 @@ def kron(*args) -> np.ndarray:
     for arg in args:
         x = np.kron(x, arg)
     return x
+
+
+def density_matrix(psi: np.ndarray) -> np.ndarray:
+    r"""Computes the density matrix ρ of a given state-vector |ψ>.
+    .. math::
+        ρ = |ψ><ψ|
+    Parameters
+    ----------
+    psi: (N) np.ndarray
+        The input state-vector ψ.
+    Returns
+    -------
+    rho : (N, N) np.ndarray
+        The density matrix ρ.
+    Examples
+    --------
+    >>> density_matrix(np.array([1, 0]))
+    array([[1, 0],
+           [0, 0]])
+    >>> density_matrix(np.array([1, 0]))
+    array([[1, 0],
+           [0, 0]])
+    >>> density_matrix(np.array([1j, 0]))
+    array([[1.+0.j, 0.+0.j],
+           [0.+0.j, 0.+0.j]])
+    """
+    psiv = np.atleast_2d(psi).T
+    # psiv = psi[:, np.newaxis]
+    return np.dot(psiv, np.conj(psiv.T))
 
 
 # =========================================================================
