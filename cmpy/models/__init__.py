@@ -15,15 +15,7 @@ from .abc import (
     AbstractManyBodyModel
 )
 
-from .tightbinding import (
-    AbstractTightBinding,
-    BaseTightBindingModel
-)
-
-from .hubbard import (
-    HubbardModel
-)
-
-from .anderson import (
-    SingleImpurityAndersonModel,
-)
+from .tightbinding import AbstractTightBinding, BaseTightBindingModel
+from .hubbard import HubbardModel
+from .heisenberg import HeisenbergModel
+from .anderson import SingleImpurityAndersonModel

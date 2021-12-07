@@ -22,6 +22,7 @@ class HeisenbergModel(AbstractSpinModel):
 
     def _hamiltonian_data(self, states):
         neighbors = [self.latt.neighbors(pos1) for pos1 in range(self.num_sites)]
+        factor = 0.25
         for idx1, s1 in enumerate(states):
             for pos1 in range(self.num_sites):
                 for pos2 in neighbors[pos1]:
@@ -29,7 +30,7 @@ class HeisenbergModel(AbstractSpinModel):
                     b1 = (s1 >> pos1) & 1        # Bit at index `pos1`
                     b2 = (s1 >> pos2) & 1        # Bit at index `pos2`
                     sign = (-1)**b1 * (-1)**b2   # Sign +1 if bits are equal, -1 else
-                    yield idx1, idx1, sign * self.jz / 8
+                    yield idx1, idx1, sign * factor * self.jz
                     # Off-diagonal
                     op = 1 << pos1               # bit-operator at `pos1`
                     occ = s1 & op                # bit value of bit  at `pos1`
@@ -40,4 +41,4 @@ class HeisenbergModel(AbstractSpinModel):
                         tmp = s1 ^ op            # Annihilate or create state at `pos1`
                         s2 = tmp ^ op2           # create new state with XOR
                         idx2 = states.index(s2)  # get index of new state
-                        yield idx1, idx2, self.j / 4
+                        yield idx1, idx2, factor * self.j / 2
