@@ -16,18 +16,18 @@ from collections import OrderedDict
 from collections.abc import MutableMapping
 from typing import Any, Dict, Optional, List, Iterator
 from cmpy.basis import Basis, SpinBasis
-from cmpy.operators import LinearOperator, HamiltonOperator
+from cmpy.operators import HamiltonOperator
 
 
 class ModelParameters(MutableMapping):
-    """ Parameter class for storing parameters of physical models.
+    """Parameter class for storing parameters of physical models.
 
-     The parameters can be accessed as attributes or dict-entries.
-     This class is usually used as a base-class for model-classes.
-     """
+    The parameters can be accessed as attributes or dict-entries.
+    This class is usually used as a base-class for model-classes.
+    """
 
     def __init__(self, **params):
-        """ Initializes the ModelParameters-instance.
+        """Initializes the ModelParameters-instance.
 
         Parameters
         ----------
@@ -38,7 +38,7 @@ class ModelParameters(MutableMapping):
 
     @property
     def params(self) -> Dict[str, Any]:
-        """ dict: Returns a dictionary of all parameters. """
+        """dict: Returns a dictionary of all parameters."""
         return self.__params__
 
     def set_param(self, key: str, value: Any) -> None:
@@ -95,7 +95,7 @@ class ModelParameters(MutableMapping):
         return iter(self.__params__)
 
     def __getattr__(self, key: str) -> Any:
-        """ Make parameters accessable as attributes. """
+        """Make parameters accessable as attributes."""
         key = str(key)
         if not key.startswith("__") and key in self.__params__.keys():
             return self.__params__[key]
@@ -103,7 +103,7 @@ class ModelParameters(MutableMapping):
             return super().__getattribute__(key)
 
     def __setattr__(self, key: str, value: Any) -> None:
-        """ Make parameters accessable as attributes. """
+        """Make parameters accessable as attributes."""
         key = str(key)
         if not key.startswith("__") and key in self.__params__.keys():
             self.__params__[key] = value
@@ -142,7 +142,7 @@ class AbstractModel(ModelParameters, ABC):
     """
 
     def __init__(self, **params):
-        """ Initializes the AbstractModel-instance with the given initial parameters.
+        """Initializes the AbstractModel-instance with the given initial parameters.
 
         Parameters
         ----------
@@ -159,6 +159,7 @@ class AbstractModel(ModelParameters, ABC):
 
 
 class AbstractSpinModel(AbstractModel):
+    """Abstract base class for spin-models (e.g. Ising or Heisenberg)."""
 
     def __init__(self, num_sites: Optional[int] = 0, **params):
         super(AbstractModel, self).__init__(**params)

@@ -53,13 +53,13 @@ def kron(*args) -> np.ndarray:
 # =========================================================================
 
 
-def fermi_func(e, mu=0., beta=np.inf):
+def fermi_func(e, mu=0.0, beta=np.inf):
     if beta == np.inf:
         return np.heaviside(mu - e, 0)
     return 1 / (np.exp(beta * (e - mu)) + 1)
 
 
-def bose_func(e, mu=0., beta=np.inf):
+def bose_func(e, mu=0.0, beta=np.inf):
     if beta == np.inf:
         return np.zeros_like(e)
     return 1 / (np.exp(beta * (e - mu)) - 1)
@@ -82,7 +82,7 @@ def gaussian(x: np.ndarray, x0: float = 0.0, sigma: float = 1.0) -> np.ndarray:
     psi : (N, ) np.ndarray
     """
     # return np.exp(-np.power(x - x0, 2.) / (2 * np.power(sigma, 2.)))
-    psi = np.exp(-np.power(x - x0, 2.) / (4 * sigma**2))
+    psi = np.exp(-np.power(x - x0, 2.0) / (4 * sigma ** 2))
     norm = np.sqrt(np.sqrt(2 * np.pi) * sigma)
     return psi / norm
 
@@ -99,7 +99,7 @@ def delta_func(x: np.ndarray, x0: float = 0) -> np.ndarray:
     """
     idx = np.abs(x - x0).argmin()
     delta = np.zeros_like(x)
-    delta[idx] = 1.
+    delta[idx] = 1.0
     return delta
 
 
@@ -185,8 +185,12 @@ def tevo_state(ham, state, times):
 # =========================================================================
 
 
-def get_bin_borders(amin: float, amax: float, bins: Union[int, float],
-                    padding: Union[float, tuple] = 0.0) -> np.ndarray:
+def get_bin_borders(
+    amin: float,
+    amax: float,
+    bins: Union[int, float],
+    padding: Union[float, tuple] = 0.0,
+) -> np.ndarray:
     """Creates an array of bin-borders, seperating the region of each bin.
 
     Parameters
@@ -260,8 +264,9 @@ def get_bins(borders: np.ndarray, loc: float = 0.5) -> np.ndarray:
     return delta * loc + borders[0] + np.append(0, np.cumsum(np.diff(borders))[:-1])
 
 
-def density_of_states(disp, bins=None, loc=0.5, normalize=False, counts=False,
-                      border=False, padding=0.):
+def density_of_states(
+    disp, bins=None, loc=0.5, normalize=False, counts=False, border=False, padding=0.0
+):
     """Computes the density of states.
 
     Parameters
@@ -269,14 +274,15 @@ def density_of_states(disp, bins=None, loc=0.5, normalize=False, counts=False,
     disp : array_like
         Array of the single or multi-band dispersion.
     bins : int or float, optional
-        Bin argument. The argument is interpreted as number of bins (int) or binwidth (float).
-        The default is the number of samples divided by 100.
+        Bin argument. The argument is interpreted as number of bins (int)
+        or binwidth (float). The default is the number of samples divided by 100.
     loc : float, optional
         Relative location of the value of the bin. The default is the center.
     normalize : bool, optional
-        Flag if the density of states is normalized to `1`. The default is ``False``.
+        Flag if the density of states is normalized to `1`. The default is `False`.
     counts : bool, optional
-        Flag if the counts of the density of states are returned. The default is ``False``.
+        Flag if the counts of the density of states are returned.
+        The default is `False`.
     border : bool, optional
         If ``True`` a zero is added to both sides of the dos.
     padding : float or array_like, optional
@@ -287,7 +293,7 @@ def density_of_states(disp, bins=None, loc=0.5, normalize=False, counts=False,
     bins: (N) np.ndarray
         The bin positions of the density of states.
     dos: (N) np.ndarray
-        The density of states normed according to the given arguments (normalize, counts).
+        The density of states normed according to the arguments (normalize, counts).
     """
     # Prepare dispersion data
     disp = np.atleast_2d(disp)
@@ -320,7 +326,7 @@ def density_of_states(disp, bins=None, loc=0.5, normalize=False, counts=False,
     if normalize:
         norm = np.sum(state_counts)
     elif counts:
-        norm = 1.
+        norm = 1.0
     else:  # Actual norm of dos
         domega = binvals[1] - binvals[0]
         norm = num_disp * domega
@@ -335,7 +341,7 @@ def density_of_states(disp, bins=None, loc=0.5, normalize=False, counts=False,
     return binvals, state_counts
 
 
-def histogram_median(hist, dp=31.7/2):
+def histogram_median(hist, dp=31.7 / 2):
     median = np.percentile(hist, 50, axis=0)
     hist_up = np.percentile(hist, 100 - dp, axis=0)
     hist_dn = np.percentile(hist, dp, axis=0)

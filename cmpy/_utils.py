@@ -20,12 +20,12 @@ _stream_handler.setLevel(logging.DEBUG)
 
 # _frmt_str = "[%(asctime)s] %(levelname)-8s - %(name)s - %(funcName)s - %(message)s"
 _frmt_str = "[%(asctime)s] %(name)s:%(levelname)-8s - %(message)s"
-_formatter = logging.Formatter(_frmt_str, datefmt='%H:%M:%S')
+_formatter = logging.Formatter(_frmt_str, datefmt="%H:%M:%S")
 
-_stream_handler.setFormatter(_formatter)    # Add formatter to stream handler
-logger.addHandler(_stream_handler)          # Add stream handler to package logger
+_stream_handler.setFormatter(_formatter)  # Add formatter to stream handler
+logger.addHandler(_stream_handler)  # Add stream handler to package logger
 
-logger.setLevel(logging.WARNING)            # Set initial logging level
+logger.setLevel(logging.WARNING)  # Set initial logging level
 logging.root.setLevel(logging.NOTSET)
 
 
@@ -103,7 +103,7 @@ class Plot:
         return getattr(self.ax, item)
 
     def set_equal_aspect(self):
-        self.ax.set_aspect('equal')
+        self.ax.set_aspect("equal")
 
     def grid(self, b=None, which="major", axis="both", below=True, **kwargs):
         self.ax.set_axisbelow(below)
@@ -120,7 +120,7 @@ class Plot:
         self.fig.tight_layout()
 
     def save(self, *relpaths, dpi=600, frmt=None, rasterized=True):
-        return save_figure(self.fig, *relpaths, dpi=dpi, frmt=frmt, rasterized=rasterized)
+        return save_figure(self.fig, *relpaths, dpi, frmt, rasterized)
 
     def show(self, tight=True, block=True):
         if tight:
@@ -128,7 +128,7 @@ class Plot:
         plt.show(block=block)
 
     @staticmethod
-    def pause(interval=0.):
+    def pause(interval=0.0):
         plt.pause(interval)
 
     def draw(self, pause=1e-10):

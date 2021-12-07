@@ -58,7 +58,9 @@ def lanczos_matrix(a_coeffs, b_coeffs):
 
 
 def lanczos_ground_state(a_coeffs, b_coeffs, max_eig=3):
-    xi, vi = la.eigh_tridiagonal(a_coeffs, b_coeffs, select="i", select_range=(0, max_eig))
+    xi, vi = la.eigh_tridiagonal(
+        a_coeffs, b_coeffs, select="i", select_range=(0, max_eig)
+    )
     idx = np.argmin(xi)
     e_gs = xi[idx]
     gs = vi[:, idx]

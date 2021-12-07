@@ -18,14 +18,26 @@ from typing import Union, Callable, Iterable, Sequence
 from cmpy.basis import occupations, overlap, UP, SPIN_CHARS
 from cmpy.matrix import Matrix, Decomposition
 
-__all__ = ["LinearOperator", "HamiltonOperator", "CreationOperator", "AnnihilationOperator",
-           "project_up", "project_dn", "project_elements_up", "project_elements_dn",
-           "project_interaction", "project_onsite_energy",
-           "project_site_hopping", "project_hopping", "TimeEvolutionOperator"]
+__all__ = [
+    "LinearOperator",
+    "HamiltonOperator",
+    "CreationOperator",
+    "AnnihilationOperator",
+    "project_up",
+    "project_dn",
+    "project_elements_up",
+    "project_elements_dn",
+    "project_interaction",
+    "project_onsite_energy",
+    "project_site_hopping",
+    "project_hopping",
+    "TimeEvolutionOperator",
+]
 
 
-def project_up(up_idx: int, num_dn_states: int,
-               dn_indices: Union[int, np.ndarray]) -> np.ndarray:
+def project_up(
+    up_idx: int, num_dn_states: int, dn_indices: Union[int, np.ndarray]
+) -> np.ndarray:
     """Projects a spin-up state onto the full basis(-sector).
 
     Parameters
@@ -54,8 +66,9 @@ def project_up(up_idx: int, num_dn_states: int,
     return np.atleast_1d(up_idx * num_dn_states + dn_indices)
 
 
-def project_dn(dn_idx: int, num_dn_states: int,
-               up_indices: Union[int, np.ndarray]) -> np.ndarray:
+def project_dn(
+    dn_idx: int, num_dn_states: int, up_indices: Union[int, np.ndarray]
+) -> np.ndarray:
     """Projects a spin-down state onto the full basis(-sector).
 
     Parameters
@@ -84,11 +97,14 @@ def project_dn(dn_idx: int, num_dn_states: int,
     return np.atleast_1d(up_indices * num_dn_states + dn_idx)
 
 
-def project_elements_up(up_idx: int, num_dn_states: int,
-                        dn_indices: Union[int, np.ndarray],
-                        value: Union[complex, float, np.ndarray],
-                        target: Union[int, np.ndarray] = None):
-    """Projects a value for a spin-up state onto the elements of the full basis(-sector).
+def project_elements_up(
+    up_idx: int,
+    num_dn_states: int,
+    dn_indices: Union[int, np.ndarray],
+    value: Union[complex, float, np.ndarray],
+    target: Union[int, np.ndarray] = None,
+):
+    """Projects a value for a spin-up state onto the full basis(-sector).
 
     Parameters
     ----------
@@ -151,11 +167,14 @@ def project_elements_up(up_idx: int, num_dn_states: int,
         yield row, col, value
 
 
-def project_elements_dn(dn_idx: int, num_dn_states: int,
-                        up_indices: Union[int, np.ndarray],
-                        value: Union[complex, float, np.ndarray],
-                        target: Union[int, np.ndarray] = None):
-    """Projects a value for a spin-down state onto the elements of the full basis(-sector).
+def project_elements_dn(
+    dn_idx: int,
+    num_dn_states: int,
+    up_indices: Union[int, np.ndarray],
+    value: Union[complex, float, np.ndarray],
+    target: Union[int, np.ndarray] = None,
+):
+    """Projects a value for a spin-down state onto the full basis(-sector).
 
     Parameters
     ----------
@@ -223,7 +242,9 @@ def project_elements_dn(dn_idx: int, num_dn_states: int,
 # =========================================================================
 
 
-def project_onsite_energy(up_states: Sequence[int], dn_states: Sequence[int], eps: Sequence[float]):
+def project_onsite_energy(
+    up_states: Sequence[int], dn_states: Sequence[int], eps: Sequence[float]
+):
     """Projects the on-site energy of a many-body Hamiltonian onto full basis(-sector).
 
     Parameters
@@ -249,17 +270,19 @@ def project_onsite_energy(up_states: Sequence[int], dn_states: Sequence[int], ep
 
     for up_idx, up in enumerate(up_states):
         weights = occupations(up)
-        energy = np.sum(eps[:weights.size] * weights)
+        energy = np.sum(eps[: weights.size] * weights)
         yield from project_elements_up(up_idx, num_dn, all_dn, energy)
 
     for dn_idx, dn in enumerate(dn_states):
         weights = occupations(dn)
-        energy = np.sum(eps[:weights.size] * weights)
+        energy = np.sum(eps[: weights.size] * weights)
         yield from project_elements_dn(dn_idx, num_dn, all_up, energy)
 
 
-def project_interaction(up_states: Sequence[int], dn_states: Sequence[int], u: Sequence[float]):
-    """Projects the on-site interaction of a many-body Hamiltonian onto full basis(-sector).
+def project_interaction(
+    up_states: Sequence[int], dn_states: Sequence[int], u: Sequence[float]
+):
+    """Projects the on-site interaction of a many-body Hamiltonian onto the full basis.
 
     Parameters
     ----------
@@ -283,12 +306,11 @@ def project_interaction(up_states: Sequence[int], dn_states: Sequence[int], u: S
     for up_idx, up in enumerate(up_states):
         for dn_idx, dn in enumerate(dn_states):
             weights = overlap(up, dn)
-            interaction = np.sum(u[:weights.size] * weights)
+            interaction = np.sum(u[: weights.size] * weights)
             yield from project_elements_up(up_idx, num_dn, dn_idx, interaction)
 
 
 def _hopping_candidates(num_sites, state, pos):
-    # TODO: Not sure if signs are correct
     results = []
     op = 1 << pos
     occ = state & op
@@ -298,7 +320,7 @@ def _hopping_candidates(num_sites, state, pos):
     for pos2 in range(num_sites):
         if pos >= pos2:
             continue
-        op2 = (1 << pos2)
+        op2 = 1 << pos2
         occ2 = state & op2
 
         # Hopping from `pos` to `pos2` possible
@@ -329,9 +351,14 @@ def _compute_hopping(num_sites, states, pos, hopping):
                 yield i, j, value
 
 
-def project_site_hopping(up_states: Sequence[int], dn_states: Sequence[int], num_sites: int,
-                         hopping: Union[Callable, Iterable, float], pos: int):
-    """Projects the hopping of a single site of a many-body Hamiltonian onto full basis(-sector).
+def project_site_hopping(
+    up_states: Sequence[int],
+    dn_states: Sequence[int],
+    num_sites: int,
+    hopping: Union[Callable, Iterable, float],
+    pos: int,
+):
+    """Projects the hopping of a single site of a many-body Hamiltonian onto full basis.
 
     Parameters
     ----------
@@ -367,9 +394,13 @@ def project_site_hopping(up_states: Sequence[int], dn_states: Sequence[int], num
         yield from project_elements_dn(dn_idx, num_dn, all_up, amp, target=target)
 
 
-def project_hopping(up_states: Sequence[int], dn_states: Sequence[int], num_sites: int,
-                    hopping: Union[Callable, Iterable, float]):
-    """Projects the hopping of all sites of a many-body Hamiltonian onto full basis(-sector).
+def project_hopping(
+    up_states: Sequence[int],
+    dn_states: Sequence[int],
+    num_sites: int,
+    hopping: Union[Callable, Iterable, float],
+):
+    """Projects the hopping of all sites of a many-body Hamiltonian onto full basis.
 
     Parameters
     ----------
@@ -425,10 +456,10 @@ class LinearOperator(sla.LinearOperator, abc.ABC):
         Implementing _matmat automatically implements _matvec (using a naive algorithm).
 
     _adjoint(): Hermitian adjoint.
-        Returns the Hermitian adjoint of self, aka the Hermitian conjugate or Hermitian transpose.
-        For a complex matrix, the Hermitian adjoint is equal to the conjugate transpose.
-        Can be abbreviated self.H instead of self.adjoint().
-        As with _matvec and _matmat, implementing either _rmatvec or _adjoint implements the
+        Returns the Hermitian adjoint of self, aka the Hermitian conjugate or Hermitian
+        transpose. For a complex matrix, the Hermitian adjoint is equal to the conjugate
+        transpose. Can be abbreviated self.H instead of self.adjoint(). As with
+        _matvec and _matmat, implementing either _rmatvec or _adjoint implements the
         other automatically. Implementing _adjoint is preferable!
 
     _trace(): Trace of operator.
@@ -487,12 +518,14 @@ class LinearOperator(sla.LinearOperator, abc.ABC):
             pass
         return scaled
 
+
 # =========================================================================
 # Hamilton-operator
 # =========================================================================
 
 
 class HamiltonOperator(LinearOperator):
+    """Hamiltonian as LinearOperator."""
 
     def __init__(self, size, data, indices, dtype=None):
         data = np.asarray(data)
@@ -520,12 +553,14 @@ class HamiltonOperator(LinearOperator):
         # Return sum of diagonal elements
         return float(np.sum(self.data[indices]))
 
+
 # =========================================================================
 # Creation- and Annihilation-Operators
 # =========================================================================
 
 
 class CreationOperator(LinearOperator):
+    """Fermionic creation operator as LinearOperator."""
 
     def __init__(self, sector, sector_p1, pos=0, sigma=UP):
         dim_origin = sector.size
@@ -587,6 +622,7 @@ class CreationOperator(LinearOperator):
 
 
 class AnnihilationOperator(LinearOperator):
+    """Fermionic annihilation operator as LinearOperator."""
 
     def __init__(self, sector, sector_m1, pos=0, sigma=UP):
         dim_origin = sector.size
@@ -653,19 +689,20 @@ class AnnihilationOperator(LinearOperator):
 
 
 class TimeEvolutionOperator(LinearOperator):
+    """Time evolution operator as LinearOperator."""
 
-    def __init__(self, operator, t=0., t0=0., dtype=None):
+    def __init__(self, operator, t=0.0, t0=0.0, dtype=None):
         super().__init__(operator.shape, dtype=dtype)
         self.decomposition = Decomposition.decompose(operator)
         self.t = t - t0
 
-    def reconstruct(self, xi=None, method='full'):
-        return self.decomposition.reconstrunct(xi, method)
+    def reconstruct(self, xi=None, method="full"):
+        return self.decomposition.reconstruct(xi, method)
 
     def set_eigenbasis(self, operator):
         self.decomposition = Decomposition.decompose(operator)
 
-    def set_time(self, t, t0=0.):
+    def set_time(self, t, t0=0.0):
         self.t = t - t0
 
     def _matvec(self, x):

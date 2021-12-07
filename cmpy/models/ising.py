@@ -10,15 +10,14 @@ import itertools
 import numpy as np
 import scipy.interpolate
 from scipy.sparse import csr_matrix
-from typing import Optional, Union, Callable, Sequence, Iterator
-from lattpy import Lattice, LatticeData
+from typing import Optional, Union, Sequence
+from lattpy import Lattice
 
 logger = logging.getLogger(__name__)
 
 
 class HsField:
-
-    """ Configuration class representing the discrete Hubbard-Stratonovich (HS) field."""
+    """Configuration class representing the discrete Hubbard-Stratonovich field."""
 
     def __init__(self, num_sites, time_steps=0, array=None, dtype=np.int8):
         self.dtype = dtype
@@ -38,7 +37,7 @@ class HsField:
         return np.all(self._config == other._config)  # noqa
 
     def copy(self):
-        """ Creates a (deep) copy of the 'Configuration' instance
+        """Creates a (deep) copy of the 'Configuration' instance
         Returns
         -------
         config: Configuration
@@ -46,14 +45,14 @@ class HsField:
         return HsField(self.n_sites, self.time_steps, array=self._config.copy())
 
     def initialize(self):
-        """ Initializes the configuration with a random distribution of -1 and +1 """
+        """Initializes the configuration with a random distribution of -1 and +1"""
         # Create an array of random 0 and 1 and scale array to -1 and 1
         time_steps = max(1, self.time_steps)
         field = 2 * np.random.randint(0, 2, size=(self.n_sites, time_steps)) - 1
         self._config = field.astype(self.dtype)
 
     def update(self, i, t=0):
-        """ Update element of array by flipping its spin-value
+        """Update element of array by flipping its spin-value
         Parameters
         ----------
         i: int
@@ -64,11 +63,11 @@ class HsField:
         self._config[i, t] *= -1
 
     def mean(self):
-        """ float: Computes the Monte-Carlo sample mean """
+        """float: Computes the Monte-Carlo sample mean"""
         return np.mean(self._config)
 
     def var(self):
-        """ float: Computes the Monte-Carlo sample variance """
+        """float: Computes the Monte-Carlo sample variance"""
         return np.var(self._config)
 
     def reshape(self, shape, order="C"):
@@ -106,7 +105,6 @@ def check_spin_flip(de, temp):
 
 
 class GridInterpolation:
-
     def __init__(self, positions, padding=0.5, step=1.0, method="nearest"):
         # Set up a regular grid of interpolation points
         x, y = positions.T
@@ -119,7 +117,9 @@ class GridInterpolation:
         self._grid = xi, yi
 
     def interpolate(self, z):
-        zi = scipy.interpolate.griddata(self._positions, z, self._grid, method=self._method)
+        zi = scipy.interpolate.griddata(
+            self._positions, z, self._grid, method=self._method
+        )
         xi, yi = self._grid
         return xi, yi, zi
 
@@ -129,7 +129,9 @@ class GridInterpolation:
 
 def get_neighbor_chains(latt, i, num_pair=2):
     if 2 > num_pair or num_pair > 5:
-        raise ValueError(f"Number of neighbor pairs must be in [2, 5], but is {num_pair}.")
+        raise ValueError(
+            f"Number of neighbor pairs must be in [2, 5], but is {num_pair}."
+        )
 
     neighbors = list()
     for distidx, indices in latt.iter_neighbors(i):
@@ -146,8 +148,7 @@ def get_neighbor_chains(latt, i, num_pair=2):
 
 
 class IsingModel(Lattice):
-
-    def __init__(self, vectors, inter=None, j1=0, j2=-1.0, temp=0.):
+    def __init__(self, vectors, inter=None, j1=0, j2=-1.0, temp=0.0):
         super().__init__(vectors)
         self._inter = inter
         self.j1 = j1
@@ -179,7 +180,7 @@ class IsingModel(Lattice):
         if p is None:
             p = [0.5, 0.5]
         elif isinstance(p, float):
-            p = [p, 1-p]
+            p = [p, 1 - p]
         spins = np.random.choice([-1, +1], p=p, size=self.num_sites)
         self._config = spins
 
@@ -197,7 +198,7 @@ class IsingModel(Lattice):
         inters = list()
         inters.append([i, self._inter[0]])
 
-        for num_inter in range(2, max_num_inter+1):
+        for num_inter in range(2, max_num_inter + 1):
             for indices, dists in self.get_neighbor_chains(i, num_inter):
                 energy = self.get_interaction(i, indices, dists)
                 inters.append([indices, energy])
@@ -258,18 +259,19 @@ class IsingModel(Lattice):
             np.random.shuffle(indices)
         else:
             num = min(num, self.num_sites)
-            indices = np.random.choice(indices, size=num, repeat=False)
+            indices = np.random.choice(indices, size=num, replace=False)
 
         for i in indices:
             de = delta_e[i]
             if check_spin_flip(de, self.temp):
                 self.flip_spins(i)
-                # If a spin is flipped the energy difference of the site needs to be flipped
-                # and the energy differences of the neighbors need to be updated
-                delta_e[i] = - de
+                # If a spin is flipped the energy difference of the site needs
+                # to be flipped and the energy differences of the neighbors
+                # need to be updated
+                delta_e[i] = -de
                 for j in self.nearest_neighbors(i):
                     try:
-                        delta_e[j] = - self.site_energy(j)
+                        delta_e[j] = -self.site_energy(j)
                     except IndexError:
                         pass
         return delta_e
