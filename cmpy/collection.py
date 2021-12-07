@@ -11,13 +11,14 @@
 import numpy as np
 from typing import Union
 
-si = np.eye(2)
-sx = np.array([[0, 1], [1, 0]])
-sy = np.array([[0, -1j], [1j, 0]])
-sz = np.array([[1, 0], [0, -1]])
-sp = 0.5 * (sx + 1j * sy)
-sm = 0.5 * (sx - 1j * sy)
-pauli = si, sx, sy, sz
+sigi = np.eye(2)
+sigx = np.array([[0, 1], [1, 0]])
+sigy = np.array([[0, -1j], [1j, 0]])
+sigz = np.array([[1, 0], [0, -1]])
+sigp = 0.5 * (sigx + 1j * sigy)
+sigm = 0.5 * (sigx - 1j * sigy)
+
+pauli = sigi, sigx, sigy, sigz
 
 
 def kron(*args) -> np.ndarray:
