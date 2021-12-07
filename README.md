@@ -1,12 +1,22 @@
-# cmpy 0.0.6
+# cmpy
 
-NOTE: This project is still under development and might change significantly!
+![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/dylanljones/cmpy)
+![GitHub](https://img.shields.io/github/license/dylanljones/cmpy)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-`cmpy` is a collection of tools for condensed matter computational physics.
+Collection of tools for condensed matter physics written in Python.
+
+*NOTE*: This project is still under development and might contain errors or change significantly in the future!
+
 
 ## Installation
 
-Download package and install via pip
+Install via `pip` from github:
+```commandline
+pip install git+git://github.com/dylanljones/cmpy.git@v0.0.6
+```
+
+or download/clone the package, navigate to the root directory and install via
 ````commandline
 pip install -e <folder path>
 ````
@@ -23,9 +33,14 @@ python setup.py install
 | Module | Description  |
 |:-------|:-----|
 | basis | Tools for many-body basis representations  |
+| collection | Collection of helpful methods and constants |
+| cpa | Coherent potantial approximation (on-site disorder) |
+| disorder | Methods for constructing disorder | 
+| exactdiag | Exact diagonalization methods |
+| greens | Some implementations for the computation of Green's functions |
 | matrix | Matrix tools and np.ndarray-wrapper  |
 | operators | Abstract linear operator, sparse implementation and other tools |
-| collection | Collection of random functions and constants |
+
 
 ### Models
 
@@ -34,10 +49,11 @@ Collection of common condensed matter models (unstable, might change significant
 | Module | Description | Lattice support |
 |:-------|:-----|:-------|
 | abc | Model-Parameter container and abstract base classes  |  - |
-| anderson | Anderson imurity models | no |
-| ising | Ising model | yes |
-| hubbard | Hubbard model | no |
-| tightbinding | Thight-Binding model | yes |
+| anderson | Anderson imurity models | :x: |
+| ising | Ising model | :heavy_check_mark: |
+| heisenberg | Heisenberg model | :heavy_check_mark: |
+| hubbard | Hubbard model | :x: |
+| tightbinding | Thight-Binding model | :heavy_check_mark: |
 
 
 ## Usage
