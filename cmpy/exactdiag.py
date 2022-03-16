@@ -2,12 +2,7 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2020, Dylan Jones
-#
-# This code is licensed under the MIT License. The copyright notice in the
-# LICENSE file in the root directory and this permission notice shall
-# be included in all copies or substantial portions of the Software.
-
+# Copyright (c) 2022, Dylan Jones
 
 import logging
 import numpy as np
@@ -43,7 +38,7 @@ def compute_groundstate(model, thresh=50):
     logger.debug("Computing ground-state:")
     for n_up, n_dn in model.basis.iter_fillings():
         hamop = model.hamilton_operator(n_up=n_up, n_dn=n_dn, dtype=np.float64)
-        logger.debug(f"Sector (%d, %d), size: %d", n_up, n_dn, hamop.shape[0])
+        logger.debug("Sector (%d, %d), size: %d", n_up, n_dn, hamop.shape[0])
 
         if hamop.shape[0] <= thresh:
             ham = hamop.array()
@@ -56,7 +51,7 @@ def compute_groundstate(model, thresh=50):
 
         if energy < gs.energy:
             gs = EigenState(energy, state, n_up, n_dn)
-            logger.debug(f"gs-energy: %.6f", gs.energy)
+            logger.debug("gs-energy: %.6f", gs.energy)
     return gs
 
 
@@ -200,7 +195,7 @@ class GreensFunctionMeasurement:
 
 
 def greens_function_lehmann(model, z, beta, pos=0, sigma=UP, eig_cache=None):
-    logger.debug(f"Accumulating lehmann GF")
+    logger.debug("Accumulating lehmann GF")
     data = GreensFunctionMeasurement(z, beta, pos, sigma)
     eig_cache = eig_cache if eig_cache is not None else dict()
     for n_up, n_dn in model.iter_fillings():
@@ -224,7 +219,7 @@ def greens_function_lehmann(model, z, beta, pos=0, sigma=UP, eig_cache=None):
 def greens_greater(model, gs, start, stop, num=1000, pos=0, sigma=UP):
     n_up, n_dn = gs.n_up, gs.n_dn
     sector = model.basis.get_sector(n_up, n_dn)
-    logger.debug(f"Computing greater GF (Sector: %d, %d; num: %d)", n_up, n_dn, num)
+    logger.debug("Computing greater GF (Sector: %d, %d; num: %d)", n_up, n_dn, num)
 
     times, dt = np.linspace(start, stop, num, retstep=True)
     sector_p1 = model.basis.upper_sector(n_up, n_dn, sigma)
@@ -252,7 +247,7 @@ def greens_greater(model, gs, start, stop, num=1000, pos=0, sigma=UP):
 def greens_lesser(model, gs, start, stop, num=1000, pos=0, sigma=UP):
     n_up, n_dn = gs.n_up, gs.n_dn
     sector = model.basis.get_sector(n_up, n_dn)
-    logger.debug(f"Computing lesser GF (Sector: %d, %d; num: %d)", n_up, n_dn, num)
+    logger.debug("Computing lesser GF (Sector: %d, %d; num: %d)", n_up, n_dn, num)
 
     times, dt = np.linspace(start, stop, num, retstep=True)
     sector_m1 = model.basis.lower_sector(n_up, n_dn, sigma)
@@ -295,6 +290,7 @@ def fourier_t2z(times, gf_t, omegas, delta=1e-2, eta=None):
 # =========================================================================
 # Lanczos diagonalization
 # =========================================================================
+
 
 def iter_lanczos_coeffs(ham, size=10):
     # Initial guess of wavefunction

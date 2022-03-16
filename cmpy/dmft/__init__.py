@@ -1,8 +1,8 @@
 # coding: utf-8
 #
 # This code is part of cmpy.
-# 
-# Copyright (c) 2021, Dylan Jones
+#
+# Copyright (c) 2022, Dylan Jones
 
 from .utils import (
     IterationStats,
@@ -11,5 +11,5 @@ from .utils import (
     mix_values,
     plot_dos,
     plot_dos_contour,
-    plot_quasiparticle_weight
+    plot_quasiparticle_weight,
 )

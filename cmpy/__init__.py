@@ -2,18 +2,16 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2021, Dylan Jones
-#
-# This code is licensed under the MIT License. The copyright notice in the
-# LICENSE file in the root directory and this permission notice shall
-# be included in all copies or substantial portions of the Software.
+# Copyright (c) 2022, Dylan Jones
 
 from ._utils import logger, Plot, setup_plot
 
 from .collection import *
 
 from .basis import (
-    UP, DN, SPIN_CHARS,
+    UP,
+    DN,
+    SPIN_CHARS,
     state_label,
     binstr,
     binarr,
@@ -37,7 +35,7 @@ from .matrix import (
     fill_diagonal,
     Decomposition,
     EigenState,
-    Matrix
+    Matrix,
 )
 
 from .operators import (
@@ -53,14 +51,11 @@ from .operators import (
     HamiltonOperator,
     TimeEvolutionOperator,
     CreationOperator,
-    AnnihilationOperator
+    AnnihilationOperator,
 )
 
-from .models.abc import (
-    ModelParameters,
-    AbstractModel,
-    AbstractManyBodyModel
-)
+from .models.abc import ModelParameters, AbstractModel, AbstractManyBodyModel
 
 from . import _version
-__version__ = _version.get_versions()['version']
+
+__version__ = _version.get_versions()["version"]

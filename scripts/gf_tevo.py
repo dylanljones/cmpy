@@ -1,8 +1,8 @@
 # coding: utf-8
 #
 # This code is part of cmpy.
-# 
-# Copyright (c) 2021, Dylan Jones
+#
+# Copyright (c) 2022, Dylan Jones
 
 import logging
 import numpy as np
@@ -19,7 +19,7 @@ def main():
     u = 4
     eps_imp = 0
     eps_bath = 0 * np.random.uniform(size=num_bath)
-    siam = SingleImpurityAndersonModel(u, eps_imp, eps_bath, v=1., mu=None)
+    siam = SingleImpurityAndersonModel(u, eps_imp, eps_bath, v=1.0, mu=None)
     # hamop = siam.hamilton_operator()
     # hamop.show()
 

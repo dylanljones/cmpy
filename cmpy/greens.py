@@ -2,11 +2,7 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2021, Dylan Jones
-#
-# This code is licensed under the MIT License. The copyright notice in the
-# LICENSE file in the root directory and this permission notice shall
-# be included in all copies or substantial portions of the Software.
+# Copyright (c) 2022, Dylan Jones
 
 """Tools for Green's functions."""
 
@@ -159,5 +155,5 @@ def gf_z_square(
         The local Green's function.
     """
     z_rel_inv = half_bandwidth / z
-    elliptic = _u_ellipk(z_rel_inv ** 2)
+    elliptic = _u_ellipk(z_rel_inv**2)
     return 2.0 / np.pi / half_bandwidth * z_rel_inv * elliptic

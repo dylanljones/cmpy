@@ -2,16 +2,16 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2021, Dylan Jones
-#
-# This code is licensed under the MIT License. The copyright notice in the
-# LICENSE file in the root directory and this permission notice shall
-# be included in all copies or substantial portions of the Software.
+# Copyright (c) 2022, Dylan Jones
 
 import numpy as np
 from typing import Union, Sequence
 from cmpy.basis import UP
-from cmpy.operators import project_onsite_energy, project_interaction, project_site_hopping
+from cmpy.operators import (
+    project_onsite_energy,
+    project_interaction,
+    project_site_hopping,
+)
 from cmpy.exactdiag import greens_function_lehmann
 from .abc import AbstractManyBodyModel
 
@@ -22,13 +22,15 @@ from .abc import AbstractManyBodyModel
 
 
 class SingleImpurityAndersonModel(AbstractManyBodyModel):
-
-    def __init__(self, u: Union[float, Sequence[float]] = 2.0,
-                 eps_imp: Union[float, Sequence[float]] = 0.0,
-                 eps_bath: Union[float, Sequence[float]] = 0.0,
-                 v: Union[float, Sequence[float]] = 1.0,
-                 mu: float = None,
-                 temp: float = 0.0):
+    def __init__(
+        self,
+        u: Union[float, Sequence[float]] = 2.0,
+        eps_imp: Union[float, Sequence[float]] = 0.0,
+        eps_bath: Union[float, Sequence[float]] = 0.0,
+        v: Union[float, Sequence[float]] = 1.0,
+        mu: float = None,
+        temp: float = 0.0,
+    ):
         r"""Initializes the single impurity Anderson model
 
         Parameters
@@ -64,10 +66,14 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel):
             v = np.ones(len(eps_bath)) * v[0]
         if num_bath == 1 and len(v) > 1:
             eps_bath = np.ones(len(v)) * eps_bath[0]
-        assert len(eps_bath) == len(v), f"Shape of bath on-site energy {num_bath} " \
-                                        f"doesn't match hybridization {len(v)}!"
+        assert len(eps_bath) == len(v), (
+            f"Shape of bath on-site energy {num_bath} "
+            f"doesn't match hybridization {len(v)}!"
+        )
         num_sites = len(eps_bath) + 1
-        super().__init__(num_sites, u=u, eps_imp=eps_imp, eps_bath=eps_bath, v=v, mu=mu, temp=temp)
+        super().__init__(
+            num_sites, u=u, eps_imp=eps_imp, eps_bath=eps_bath, v=v, mu=mu, temp=temp
+        )
 
     @property
     def num_bath(self) -> int:
@@ -95,8 +101,10 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel):
         """
         eps_bath = np.atleast_1d(eps_bath).astype(np.float64)
         if eps_bath.shape[0] != self.num_bath:
-            raise ValueError(f"Dimension of the new bath energy {eps_bath.shape} "
-                             f"does not match number of baths {self.num_bath}")
+            raise ValueError(
+                f"Dimension of the new bath energy {eps_bath.shape} "
+                f"does not match number of baths {self.num_bath}"
+            )
         self.eps_bath = eps_bath  # noqa
 
     def update_hybridization(self, v: (float, np.ndarray)) -> None:
@@ -110,8 +118,10 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel):
         """
         v = np.atleast_1d(v).astype(np.float64)
         if v.shape[0] != self.num_bath:
-            raise ValueError(f"Dimension of the new hybridization {v.shape} "
-                             f"does not match number of baths {self.num_bath}")
+            raise ValueError(
+                f"Dimension of the new hybridization {v.shape} "
+                f"does not match number of baths {self.num_bath}"
+            )
         self.v = v  # noqa
 
     def hybridization_func(self, z: np.ndarray) -> np.ndarray:
@@ -149,8 +159,12 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel):
         return 1 / (z + self.mu + self.eps_imp - self.hybridization_func(z))
 
     def impurity_gf(self, z, sigma=UP):
-        return greens_function_lehmann(self, z, beta=1/self.temp, pos=0, sigma=sigma).gf
+        return greens_function_lehmann(
+            self, z, beta=1 / self.temp, pos=0, sigma=sigma
+        ).gf
 
     def pformat(self):
-        return f"U={self.u}, ε_i={self.eps_imp}, ε_b={self.eps_bath}, v={self.v}, " \
-               f"μ={self.mu}, T={self.temp}"
+        return (
+            f"U={self.u}, ε_i={self.eps_imp}, ε_b={self.eps_bath}, v={self.v}, "
+            f"μ={self.mu}, T={self.temp}"
+        )

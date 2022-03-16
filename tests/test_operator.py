@@ -2,14 +2,9 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2020, Dylan Jones
-#
-# This code is licensed under the MIT License. The copyright notice in the
-# LICENSE file in the root directory and this permission notice shall
-# be included in all copies or substantial portions of the Software.
+# Copyright (c) 2022, Dylan Jones
 
 import numpy as np
-from pytest import mark
 from hypothesis import given, strategies as st
 from numpy.testing import assert_array_equal
 from cmpy.basis import Basis

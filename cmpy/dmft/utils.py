@@ -1,8 +1,8 @@
 # coding: utf-8
 #
 # This code is part of cmpy.
-# 
-# Copyright (c) 2021, Dylan Jones
+#
+# Copyright (c) 2022, Dylan Jones
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -64,7 +64,6 @@ def plot_quasiparticle_weight(u, qp_weight, title="", fig=None, ax=None):
 
 
 class IterationStats(Sequence):
-
     def __init__(self, *labels):
         super().__init__()
         self._errors = list()
@@ -107,8 +106,15 @@ class IterationStats(Sequence):
         self.success = True
         self.status = f"{name} converged to {value:.{dec}f}"
 
-    def plot(self, show=True, grid="both", xlabel="Iteration", ylabel="Error",
-             fig=None, ax=None):
+    def plot(
+        self,
+        show=True,
+        grid="both",
+        xlabel="Iteration",
+        ylabel="Error",
+        fig=None,
+        ax=None,
+    ):
         if ax is None:
             fig, ax = plt.subplots()
         arrays = self.history
@@ -139,7 +145,9 @@ class IterationStats(Sequence):
         return self._errors[i]
 
     def errorstr(self, frmt=".2e"):
-        return ", ".join([f"{label}={err:{frmt}}" for label, err in zip(self.labels, self.errors)])
+        return ", ".join(
+            [f"{label}={err:{frmt}}" for label, err in zip(self.labels, self.errors)]
+        )
 
     def __str__(self):
         reset = Fore.RESET
@@ -147,12 +155,12 @@ class IterationStats(Sequence):
         lines = list()
         lines.append(f"Success:    {self.success}")
         lines.append(f"Iterations: {self.iteration}")
-        lines.append(f"Errors:     " + self.errorstr(".1e"))
+        lines.append("Errors:     " + self.errorstr(".1e"))
         lines.append(f"Status:     {col + self.status + reset}")
         return "\n".join(lines)
 
 
-def mix_values(old, new, mixing=1.):
+def mix_values(old, new, mixing=1.0):
     """Update a parameter using mixing.
 
     Parameters
@@ -177,8 +185,9 @@ def mix_values(old, new, mixing=1.):
     return new * mixing + old * (1.0 - mixing)
 
 
-def self_energy(gf_imp0: (float, np.ndarray),
-                gf_imp: (float, np.ndarray)) -> (float, np.ndarray):
+def self_energy(
+    gf_imp0: (float, np.ndarray), gf_imp: (float, np.ndarray)
+) -> (float, np.ndarray):
     r"""Computes the self energy .math:`\Sigma(z)`.
 
     The self energy is defined as:
@@ -199,7 +208,7 @@ def self_energy(gf_imp0: (float, np.ndarray),
     sigma: float or (N) np.ndarray
         The array containing the self energy.
     """
-    return 1/gf_imp0 - 1/gf_imp
+    return 1 / gf_imp0 - 1 / gf_imp
 
 
 def bethe_gf_omega(z: (complex, np.ndarray), t: float) -> (complex, np.ndarray):
@@ -221,8 +230,9 @@ def bethe_gf_omega(z: (complex, np.ndarray), t: float) -> (complex, np.ndarray):
     return z_rel * (1 - np.sqrt(1 - 1 / (z_rel * z_rel))) / t
 
 
-def quasiparticle_weight(omegas: np.ndarray, sigma: np.ndarray,
-                         thresh: float = 1e-5) -> np.ndarray:
+def quasiparticle_weight(
+    omegas: np.ndarray, sigma: np.ndarray, thresh: float = 1e-5
+) -> np.ndarray:
     r"""Computes the quasiparticle .math:`z_{qp}` weight.
 
     The quasiparticle weight is defined via the derivative of the self energy

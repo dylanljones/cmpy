@@ -2,11 +2,7 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2021, Dylan Jones
-#
-# This code is licensed under the MIT License. The copyright notice in the
-# LICENSE file in the root directory and this permission notice shall
-# be included in all copies or substantial portions of the Software.
+# Copyright (c) 2022, Dylan Jones
 
 """Tools for handling and representing (fermionic) Fock basis-states."""
 
@@ -16,15 +12,31 @@ from dataclasses import dataclass
 from collections import defaultdict
 from typing import Union, Iterable, Tuple, List
 
-__all__ = ["UP", "DN", "SPIN_CHARS", "state_label", "binstr", "binarr",
-           "binidx", "overlap", "occupations", "create", "annihilate",
-           "SpinState", "State", "Sector", "Basis", "SpinBasis", "spinstate_label"]
+__all__ = [
+    "UP",
+    "DN",
+    "SPIN_CHARS",
+    "state_label",
+    "binstr",
+    "binarr",
+    "binidx",
+    "overlap",
+    "occupations",
+    "create",
+    "annihilate",
+    "SpinState",
+    "State",
+    "Sector",
+    "Basis",
+    "SpinBasis",
+    "spinstate_label",
+]
 
-_BITORDER = +1      # endianess of binary strings (index 0 is on the rhs)
-_ARRORDER = -1      # endianess of binary arrays (index 0 is on the lhs)
+_BITORDER = +1  # endianess of binary strings (index 0 is on the rhs)
+_ARRORDER = -1  # endianess of binary arrays (index 0 is on the lhs)
 _LABELORDERER = +1  # endianess of state labels (index 0 is on the rhs)
 
-UP, DN = 1, 2   # constants for up/down
+UP, DN = 1, 2  # constants for up/down
 
 EMPTY_CHAR = "."
 UP_CHAR = "↑"
@@ -202,7 +214,7 @@ def get_ibit(num: int, index: int, length: int = 1) -> int:
     >>> get_ibit(7, 0, length=2)    # binary:    0111
     3
     """
-    mask = 2 ** length - 1
+    mask = 2**length - 1
     return (num >> index) & mask
 
 
@@ -236,13 +248,15 @@ def set_ibit(num: int, index: int, value: int, length: int = 1) -> int:
     >>> set_ibit(4, 0, 3, length=2) # binary:    0100
     7
     """
-    mask = 2 ** length - 1
+    mask = 2**length - 1
     value = (value & mask) << index
     mask = mask << index
     return (num & ~mask) | value
 
 
-def overlap(num1: int, num2: int, width: int = None, dtype: Union[int, str] = None) -> np.ndarray:
+def overlap(
+    num1: int, num2: int, width: int = None, dtype: Union[int, str] = None
+) -> np.ndarray:
     """Computes the overlap of two integers and returns the results as a binary array.
 
     Parameters
@@ -275,7 +289,9 @@ def overlap(num1: int, num2: int, width: int = None, dtype: Union[int, str] = No
     return binarr(num1 & num2, width, dtype)
 
 
-def occupations(num: int, width: int = None, dtype: Union[int, str] = None) -> np.ndarray:
+def occupations(
+    num: int, width: int = None, dtype: Union[int, str] = None
+) -> np.ndarray:
     """Returns the site occupations of a state as a binary array.
 
     Parameters
@@ -308,7 +324,8 @@ def create(num: int, pos: int) -> Union[int, None]:
     Returns
     -------
     new : int or None
-        The newly created state. If it is not possible to create the state `None` is returned.
+        The newly created state. If it is not possible to create the state `None`
+        is returned.
 
     Examples
     --------
@@ -341,7 +358,8 @@ def annihilate(num: int, pos: int) -> Union[int, None]:
     Returns
     -------
     new : int or None
-        The newly created state. If it is not possible to annihilate the state `None` is returned.
+        The newly created state. If it is not possible to annihilate the state `None`
+        is returned.
 
     Examples
     --------
@@ -367,7 +385,6 @@ def annihilate(num: int, pos: int) -> Union[int, None]:
 
 
 class SpinState(int):
-
     @property
     def n(self) -> int:
         """Total occupation of the state"""
@@ -377,8 +394,7 @@ class SpinState(int):
         """Returns the binary representation of the state"""
         return binstr(self, width)
 
-    def binarr(self, width: int = None,
-               dtype: Union[int, str] = None) -> np.ndarray:
+    def binarr(self, width: int = None, dtype: Union[int, str] = None) -> np.ndarray:
         """Returns the bits of the integer as a binary array."""
         return binarr(self, width, dtype)
 
@@ -390,18 +406,20 @@ class SpinState(int):
         """Returns the site occupations of a state as a binary array."""
         return binarr(self, dtype=dtype)
 
-    def overlap(self, other: Union[int, 'SpinState'], dtype: Union[int, str] = None) -> np.ndarray:
+    def overlap(
+        self, other: Union[int, "SpinState"], dtype: Union[int, str] = None
+    ) -> np.ndarray:
         """Computes the overlap with another state as a binary array."""
         return overlap(self, other, dtype=dtype)
 
-    def create(self, pos: int) -> Union['SpinState', None]:
+    def create(self, pos: int) -> Union["SpinState", None]:
         """Creates a particle at `pos` if possible and returns the new state."""
         num = create(self, pos)
         if num is None:
             return None
         return self.__class__(num)
 
-    def annihilate(self, pos: int) -> Union['SpinState', None]:
+    def annihilate(self, pos: int) -> Union["SpinState", None]:
         """Annihilates a particle at `pos` if possible and returns the new state."""
         num = annihilate(self, pos)
         if num is None:
@@ -419,10 +437,14 @@ class SpinState(int):
 class State:
     """Container class for a state consisting of a spin-up and spin-down basis state."""
 
-    __slots__ = ['up', 'dn', 'num_sites']
+    __slots__ = ["up", "dn", "num_sites"]
 
-    def __init__(self, up: Union[int, SpinState], dn: Union[int, SpinState],
-                 num_sites: int = None):
+    def __init__(
+        self,
+        up: Union[int, SpinState],
+        dn: Union[int, SpinState],
+        num_sites: int = None,
+    ):
         self.up = SpinState(up)
         self.dn = SpinState(dn)
         self.num_sites = num_sites
@@ -436,7 +458,7 @@ class State:
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}: {self.label()}"
-        
+
     def __eq__(self, other) -> bool:
         return self.up == other.up and self.dn == other.dn
 
@@ -446,7 +468,9 @@ class State:
 # =========================================================================
 
 
-def upper_sector(n_up: int, n_dn: int, sigma: int, num_sites: int) -> Union[Tuple[int, int], None]:
+def upper_sector(
+    n_up: int, n_dn: int, sigma: int, num_sites: int
+) -> Union[Tuple[int, int], None]:
     """Returns the upper sector of a spin-sector if it exists.
 
     Parameters
@@ -499,7 +523,7 @@ def lower_sector(n_up: int, n_dn: int, sigma: int) -> Union[Tuple[int, int], Non
 class Sector:
     """Container class for the spin-up and -down states of the full basis(-sector)."""
 
-    __slots__ = ['num_sites', 'n_up', 'n_dn', 'up_states', 'dn_states']
+    __slots__ = ["num_sites", "n_up", "n_dn", "up_states", "dn_states"]
 
     def __init__(self, up_states, dn_states, n_up=None, n_dn=None, num_sites=0):
         self.num_sites = num_sites
@@ -534,8 +558,10 @@ class Sector:
 
     def __repr__(self):
         filling = f"[{self.n_up}, {self.n_dn}]"
-        return f"{self.__class__.__name__}(size: {self.size}, " \
-               f"num_sites: {self.num_sites}, filling: {filling})"
+        return (
+            f"{self.__class__.__name__}(size: {self.size}, "
+            f"num_sites: {self.num_sites}, filling: {filling})"
+        )
 
     def __str__(self):
         return f"{self.__class__.__name__}({self.n_up}, {self.n_dn}, size: {self.size})"
@@ -559,23 +585,23 @@ class Basis:
 
     def init(self, num_sites: int, init_sectors: bool = False):
         self.num_sites = num_sites
-        self.num_spinstates = 2 ** num_sites
-        self.size = self.num_spinstates ** 2
+        self.num_spinstates = 2**num_sites
+        self.size = self.num_spinstates**2
         self.sectors = defaultdict(list)
         self.fillings = list(range(self.num_sites + 1))
         if init_sectors:
-            for state in range(2 ** num_sites):
+            for state in range(2**num_sites):
                 n = f"{state:b}".count("1")
                 self.sectors[n].append(state)
 
     def generate_states(self, n: int = None) -> Union[list, np.ndarray]:
         total = self.num_sites
         if n is None:
-            return list(range(2 ** total))
+            return list(range(2**total))
         elif n == 0:
             return [0]
         elif n == 1:
-            return list(2 ** b for b in range(total))
+            return list(2**b for b in range(total))
         bitvals = ["0" for _ in range(total - n)]
         bitvals += ["1" for _ in range(n)]
         states = set(int("".join(bits), 2) for bits in permutations(bitvals))
@@ -628,8 +654,10 @@ class Basis:
         return self.get_states(item)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(size: {self.size}, " \
-               f"num_sites: {self.num_sites}, fillings: {self.fillings})"
+        return (
+            f"{self.__class__.__name__}(size: {self.size}, "
+            f"num_sites: {self.num_sites}, fillings: {self.fillings})"
+        )
 
 
 def spinstate_label(state: int, digits: int = None) -> str:
@@ -651,24 +679,25 @@ class SpinBasis:
 
     def init(self, num_sites: int, init_sectors: bool = False):
         self.num_sites = num_sites
-        self.size = self.num_sites ** 2
-        self.spins = list(np.arange(-0.5*num_sites, +0.5*num_sites + 0.1, 1))
+        self.size = self.num_sites**2
+        self.spins = list(np.arange(-0.5 * num_sites, +0.5 * num_sites + 0.1, 1))
         if init_sectors:
-            for state in range(2 ** num_sites):
+            for state in range(2**num_sites):
                 state_str = f"{state:b}"
                 s = 0.5 * (state_str.count("1") - state_str.count("0"))
                 self.sectors[s].append(state)
 
     def generate_states(self, s: float = None) -> List[int]:
-        states = range(2 ** self.num_sites)
+        states = range(2**self.num_sites)
         if s is None:
             return list(states)
 
         n_up = self.num_sites / 2 + s
         n_dn = self.num_sites / 2 - s
-        if (n_up % 1 != 0.) or (n_dn % 1 != 0.):
-            raise ValueError(f"Total spin of {s} not realizable with "
-                             f"{self.num_sites} sites")
+        if (n_up % 1 != 0.0) or (n_dn % 1 != 0.0):
+            raise ValueError(
+                f"Total spin of {s} not realizable with " f"{self.num_sites} sites"
+            )
 
         def func(state):
             c1 = f"{state:b}".count("1")
@@ -694,5 +723,7 @@ class SpinBasis:
         return self.get_states(item)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(size: {self.size}, " \
-               f"num_sites: {self.num_sites}, spins: {self.spins})"
+        return (
+            f"{self.__class__.__name__}(size: {self.size}, "
+            f"num_sites: {self.num_sites}, spins: {self.spins})"
+        )

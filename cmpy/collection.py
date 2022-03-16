@@ -2,11 +2,7 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2021, Dylan Jones
-#
-# This code is licensed under the MIT License. The copyright notice in the
-# LICENSE file in the root directory and this permission notice shall
-# be included in all copies or substantial portions of the Software.
+# Copyright (c) 2022, Dylan Jones
 
 import numpy as np
 from typing import Union
@@ -114,7 +110,7 @@ def gaussian(x: np.ndarray, x0: float = 0.0, sigma: float = 1.0) -> np.ndarray:
     psi : (N, ) np.ndarray
     """
     # return np.exp(-np.power(x - x0, 2.) / (2 * np.power(sigma, 2.)))
-    psi = np.exp(-np.power(x - x0, 2.0) / (4 * sigma ** 2))
+    psi = np.exp(-np.power(x - x0, 2.0) / (4 * sigma**2))
     norm = np.sqrt(np.sqrt(2 * np.pi) * sigma)
     return psi / norm
 

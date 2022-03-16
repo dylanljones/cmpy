@@ -2,7 +2,7 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2021, Dylan Jones
+# Copyright (c) 2022, Dylan Jones
 
 import numpy as np
 
@@ -18,7 +18,7 @@ pauli = sigi, sigx, sigy, sigz
 
 def generate_spin_quantum_numbers(s=0.5):
     """Generates the spin quantum numbers `m=(-S, -S+1, ..., +S)` for the spin `S`."""
-    return np.arange(-s, s+0.01)[::-1]
+    return np.arange(-s, s + 0.01)[::-1]
 
 
 def generate_spin_basis(m_values):

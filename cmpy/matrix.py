@@ -2,11 +2,7 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2021, Dylan Jones
-#
-# This code is licensed under the MIT License. The copyright notice in the
-# LICENSE file in the root directory and this permission notice shall
-# be included in all copies or substantial portions of the Software.
+# Copyright (c) 2022, Dylan Jones
 
 """Methods and objects for handling dense and sparse matrices."""
 
@@ -65,10 +61,18 @@ class MidpointNormalize(colors.Normalize):
 
     def __call__(self, value, clip=None):
         # calculates the values of the colors vmin and vmax are assigned to
-        normalized_min = max(0, 1 / 2 * (1 - abs((self.midpoint - self.vmin) /
-                                                 (self.midpoint - self.vmax))))
-        normalized_max = min(1, 1 / 2 * (1 + abs((self.vmax - self.midpoint) /
-                                                 (self.midpoint - self.vmin))))
+        normalized_min = max(
+            0,
+            1
+            / 2
+            * (1 - abs((self.midpoint - self.vmin) / (self.midpoint - self.vmax))),
+        )
+        normalized_max = min(
+            1,
+            1
+            / 2
+            * (1 + abs((self.vmax - self.midpoint) / (self.midpoint - self.vmin))),
+        )
         normalized_mid = 0.5
         result, is_scalar = self.process_value(value)
         # data values
@@ -437,7 +441,6 @@ def reconstruct_svd(u, s, vh):
 
 
 class MatrixDecomposition(ABC):
-
     @classmethod
     @abstractmethod
     def decompose(cls, mat):
@@ -990,7 +993,7 @@ class Matrix(np.ndarray):
             size_x, size_y = array.shape
         except ValueError:
             size_x, size_y = array.shape[0], 1
-        self[i:i + size_x, j:j + size_y] = array
+        self[i : i + size_x, j : j + size_y] = array
 
     def add(self, i, j, array):
         """Add subarray starting at index (i, j)
@@ -1008,7 +1011,7 @@ class Matrix(np.ndarray):
             size_x, size_y = array.shape
         except ValueError:
             size_x, size_y = array.shape[0], 1
-        self[i:i + size_x, j:j + size_y] += array.astype(self.dtype)
+        self[i : i + size_x, j : j + size_y] += array.astype(self.dtype)
 
     def block(self, r, c, block=(2, 2)):
         """Returns a block of the matrix.

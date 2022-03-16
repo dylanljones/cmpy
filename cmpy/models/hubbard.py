@@ -2,11 +2,7 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2021, Dylan Jones
-#
-# This code is licensed under the MIT License. The copyright notice in the
-# LICENSE file in the root directory and this permission notice shall
-# be included in all copies or substantial portions of the Software.
+# Copyright (c) 2022, Dylan Jones
 
 from typing import Optional, Union, Sequence
 from .abc import AbstractModel
@@ -15,11 +11,14 @@ from .abc import AbstractModel
 class HubbardModel(AbstractModel):
     """Model class for the Hubbard model."""
 
-    def __init__(self, u: Union[float, Sequence[Union[float]]] = 2.0,
-                 eps: Union[float, Sequence[float]] = 0.0,
-                 t: Union[float, Sequence[float]] = 1.0,
-                 mu: Optional[float] = 0.0,
-                 temp: Optional[float] = 0.0):
+    def __init__(
+        self,
+        u: Union[float, Sequence[Union[float]]] = 2.0,
+        eps: Union[float, Sequence[float]] = 0.0,
+        t: Union[float, Sequence[float]] = 1.0,
+        mu: Optional[float] = 0.0,
+        temp: Optional[float] = 0.0,
+    ):
         """Initializes the ``HubbardModel``.
 
         u: float or Sequence, optional

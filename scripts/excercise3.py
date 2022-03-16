@@ -1,21 +1,20 @@
 # coding: utf-8
 #
 # This code is part of cmpy.
-# 
-# Copyright (c) 2021, Dylan Jones, Nico Unglert
+#
+# Copyright (c) 2022, Dylan Jones
 
 import numpy as np
 from scipy import sparse
 from bisect import bisect_left
-import matplotlib.pyplot as plt
 from typing import Iterable, Callable, Optional, Sequence
 from cmpy.models import ModelParameters
 from cmpy.basis import Basis, overlap, occupations, binstr
-from cmpy.matrix import Matrix
 
 
-def project_up(up_idx: (int, np.ndarray), num_dn_states: int,
-               dn_indices: np.ndarray) -> np.ndarray:
+def project_up(
+    up_idx: (int, np.ndarray), num_dn_states: int, dn_indices: np.ndarray
+) -> np.ndarray:
     """Projects spin-up states onto the full basis.
 
     Parameters
@@ -30,8 +29,9 @@ def project_up(up_idx: (int, np.ndarray), num_dn_states: int,
     return up_idx * num_dn_states + dn_indices
 
 
-def project_dn(dn_idx: (int, np.ndarray), num_dn_states: int,
-               up_indices: np.ndarray) -> np.ndarray:
+def project_dn(
+    dn_idx: (int, np.ndarray), num_dn_states: int, up_indices: np.ndarray
+) -> np.ndarray:
     """Projects spin-down states onto the full basis.
 
     Parameters
@@ -86,12 +86,12 @@ def project_onsite_energy(up_states, dn_states, eps):
 
     for up_idx, up in enumerate(up_states):
         weights = occupations(up)
-        energy = np.sum(eps[:weights.size] * weights)
+        energy = np.sum(eps[: weights.size] * weights)
         yield from project_elements_up(num_dn, up_idx, all_dn, energy)
 
     for dn_idx, dn in enumerate(dn_states):
         weights = occupations(dn)
-        energy = np.sum(eps[:weights.size] * weights)
+        energy = np.sum(eps[: weights.size] * weights)
         yield from project_elements_dn(num_dn, dn_idx, all_up, energy)
 
 
@@ -100,7 +100,7 @@ def project_interaction(up_states, dn_states, u):
     for up_idx, up in enumerate(up_states):
         for dn_idx, dn in enumerate(dn_states):
             weights = overlap(up, dn)
-            interaction = np.sum(u[:weights.size] * weights)
+            interaction = np.sum(u[: weights.size] * weights)
             yield from project_elements_up(num_dn, up_idx, dn_idx, interaction)
 
 
@@ -113,7 +113,7 @@ def _hopping_candidates(num_sites, state, pos):
     for pos2 in range(num_sites):
         if pos >= pos2:
             continue
-        op2 = (1 << pos2)
+        op2 = 1 << pos2
         occ2 = state & op2
         # Hopping from `pos` to `pos2` possible
         if occ and not occ2:
@@ -131,7 +131,7 @@ def _ordering_phase(state, pos1, pos2=0):
     if pos1 == pos2:
         return 0
     i0, i1 = sorted([pos1, pos2])
-    particles = binstr(state)[i0 + 1:i1].count("1")
+    particles = binstr(state)[i0 + 1 : i1].count("1")
     return +1 if particles % 2 == 0 else -1
 
 
@@ -149,8 +149,9 @@ def _compute_hopping(num_sites, states, pos, hopping):
                 yield i, j, value
 
 
-def project_site_hopping(up_states, dn_states, num_sites: int,
-                         hopping: (Callable, Iterable, float), pos: int):
+def project_site_hopping(
+    up_states, dn_states, num_sites: int, hopping: (Callable, Iterable, float), pos: int
+):
     num_dn = len(dn_states)
     all_up, all_dn = np.arange(len(up_states)), np.arange(num_dn)
 
@@ -161,7 +162,9 @@ def project_site_hopping(up_states, dn_states, num_sites: int,
         yield from project_elements_dn(num_dn, dn_idx, all_up, amp, target=target)
 
 
-def project_hopping(up_states, dn_states, num_sites, hopping: (Callable, Iterable, float)):
+def project_hopping(
+    up_states, dn_states, num_sites, hopping: (Callable, Iterable, float)
+):
     for pos in range(num_sites):
         yield from project_site_hopping(up_states, dn_states, num_sites, hopping, pos)
 
@@ -183,7 +186,9 @@ def siam_hamiltonian_data(up_states, dn_states, u, eps_imp, eps_bath, v):
 
 def siam_hamiltonian(up_states, dn_states, u, eps_imp, eps_bath, v):
     rows, cols, data = list(), list(), list()
-    for row, col, value in siam_hamiltonian_data(up_states, dn_states, u, eps_imp, eps_bath, v):
+    for row, col, value in siam_hamiltonian_data(
+        up_states, dn_states, u, eps_imp, eps_bath, v
+    ):
         rows.append(row)
         cols.append(col)
         data.append(value)
@@ -194,13 +199,15 @@ def siam_hamiltonian(up_states, dn_states, u, eps_imp, eps_bath, v):
 
 
 class SIAM(ModelParameters):
-
-    def __init__(self, u: (float, Sequence[float]) = 2.0,
-                 eps_imp: (float, Sequence[float]) = 0.0,
-                 eps_bath: (float, Sequence[float]) = 0.0,
-                 v: (float, Sequence[float]) = 1.0,
-                 mu: Optional[float] = 0.0,
-                 temp: Optional[float] = 0.0):
+    def __init__(
+        self,
+        u: (float, Sequence[float]) = 2.0,
+        eps_imp: (float, Sequence[float]) = 0.0,
+        eps_bath: (float, Sequence[float]) = 0.0,
+        v: (float, Sequence[float]) = 1.0,
+        mu: Optional[float] = 0.0,
+        temp: Optional[float] = 0.0,
+    ):
         r"""Initializes the single impurity Anderson model
 
         Parameters
@@ -239,7 +246,7 @@ class SIAM(ModelParameters):
     @classmethod
     def half_filled(cls, u, eps_imp, v, temp=0.0):
         """Initializes a single impurity Anderson model at half filling."""
-        return cls(u=u, eps_imp=eps_imp, eps_bath=u/2, v=v, mu=u/2, temp=temp)
+        return cls(u=u, eps_imp=eps_imp, eps_bath=u / 2, v=v, mu=u / 2, temp=temp)
 
     @property
     def num_bath(self) -> int:
@@ -278,8 +285,10 @@ class SIAM(ModelParameters):
         self.v = v  # noqa
 
     def pformat(self):
-        return f"U={self.u}, ε_i={self.eps_imp}, ε_b={self.eps_bath}, v={self.v}, " \
-               f"μ={self.mu}, T={self.temp}"
+        return (
+            f"U={self.u}, ε_i={self.eps_imp}, ε_b={self.eps_bath}, v={self.v}, "
+            f"μ={self.mu}, T={self.temp}"
+        )
 
     def hamiltonian(self, n_up=None, n_dn=None):
         sector = self.basis.get_sector(n_up, n_dn)
@@ -303,19 +312,19 @@ def main():
     print(siam)
 
     # Hamiltonian of full Fock-basis
-    #ham = siam.hamiltonian()
-    #ham = Matrix(ham.toarray())
-    #sector = siam.basis.get_sector()
+    # ham = siam.hamiltonian()
+    # ham = Matrix(ham.toarray())
+    # sector = siam.basis.get_sector()
     # ham.show(show=False, ticklabels=sector.state_labels(), values=True)
     # plt.show()
 
     # Compute groundstate explicitly
-    #eigvals, eigvecs = ham.eigh()
-    #i0 = np.argmin(eigvals)
-    #e_gs = eigvals[i0]
-    #gs = eigvecs[:, i0]
+    # eigvals, eigvecs = ham.eigh()
+    # i0 = np.argmin(eigvals)
+    # e_gs = eigvals[i0]
+    # gs = eigvecs[:, i0]
 
-    #print(f"Ground state (E={e_gs:.2f}):")
+    # print(f"Ground state (E={e_gs:.2f}):")
     # print(gs)
     print()
 
