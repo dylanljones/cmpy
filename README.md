@@ -157,6 +157,6 @@ HamiltonOperator(shape: (4, 4), dtype: float64)
 [black-url]: https://github.com/psf/black
 
 [git-release]: https://img.shields.io/github/v/release/dylanljones/cmpy?logo=Github&style=flat-square
-[tests-master]: https://img.shields.io/github/workflow/status/dylanljones/cmpy/Test/master?label=tests&logo=github&style=flat
+[tests-master]: https://img.shields.io/github/workflow/status/dylanljones/cmpy/Test/master?label=tests&logo=github&style=flat-square
 [license]: https://img.shields.io/github/license/dylanljones/cmpy?color=lightgrey&style=flat-square
 [black]: https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square
