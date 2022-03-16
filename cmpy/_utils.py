@@ -2,7 +2,7 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2021, Dylan Jones
+# Copyright (c) 2022, Dylan Jones
 
 import os
 import logging
@@ -35,7 +35,7 @@ logging.root.setLevel(logging.NOTSET)
 
 
 def save_figure(fig, *relpaths, dpi=600, frmt=None, rasterized=True):
-    print(f"Saving...", end="", flush=True)
+    print("Saving...", end="", flush=True)
     if rasterized:
         for ax in fig.get_axes():
             ax.set_rasterized(True)

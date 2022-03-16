@@ -1,8 +1,8 @@
 # coding: utf-8
 #
 # This code is part of cmpy.
-# 
-# Copyright (c) 2021, Dylan Jones
+#
+# Copyright (c) 2022, Dylan Jones
 
 import numpy as np
 from numpy.lib import scimath
@@ -14,7 +14,7 @@ from abc import abstractmethod, ABC
 
 def gf0_z_onedim(z, half_bandwidth):
     z_rel_inv = half_bandwidth / z
-    return 1. / half_bandwidth * z_rel_inv / scimath.sqrt(1 - z_rel_inv ** 2)
+    return 1.0 / half_bandwidth * z_rel_inv / scimath.sqrt(1 - z_rel_inv**2)
 
 
 def hilbert(xi, half_bandwidth):
@@ -32,7 +32,7 @@ def sample_eigvals(num_sites, con, eps, t=1.0, samples=10, bin_size=20):
         print(f"\rSampling {i+1}/{samples}", end="", flush=True)
         eps_rand = np.random.choice(vals, size=num_sites, p=con)
         eigvals = la.eigvalsh_tridiagonal(eps_rand, hopp)
-        hist, edges = np.histogram(eigvals, bins=num_sites//bin_size, density=True)
+        hist, edges = np.histogram(eigvals, bins=num_sites // bin_size, density=True)
         eigvals_hist.append(hist)
     print()
     bins = get_bins(edges, 0.5)
@@ -40,11 +40,11 @@ def sample_eigvals(num_sites, con, eps, t=1.0, samples=10, bin_size=20):
     return bins, hist
 
 
-def percentile(hist, p=50., axis=0):
+def percentile(hist, p=50.0, axis=0):
     return np.percentile(hist, p, axis=axis)
 
 
-def histogram_median(hist, dp=31.7/2):
+def histogram_median(hist, dp=31.7 / 2):
     median = percentile(hist, 50)
     hist_up = percentile(hist, 100 - dp)
     hist_dn = percentile(hist, dp)
@@ -52,8 +52,7 @@ def histogram_median(hist, dp=31.7/2):
 
 
 class SingleSiteApproximation(ABC):
-
-    def __init__(self, energies, concentrations, hop=1., label=""):
+    def __init__(self, energies, concentrations, hop=1.0, label=""):
         assert len(energies) == len(concentrations)
         self.eps = np.array(energies)
         self.con = np.array(concentrations)
@@ -70,8 +69,7 @@ class SingleSiteApproximation(ABC):
 
 
 class VCA(SingleSiteApproximation):
-
-    def __init__(self, energies, concentrations, hop=1.):
+    def __init__(self, energies, concentrations, hop=1.0):
         super().__init__(energies, concentrations, hop)
 
     def greens(self, z) -> np.array:
@@ -81,8 +79,7 @@ class VCA(SingleSiteApproximation):
 
 
 class ATA(SingleSiteApproximation):
-
-    def __init__(self, energies, concentrations, hop=1.):
+    def __init__(self, energies, concentrations, hop=1.0):
         super().__init__(energies, concentrations, hop)
 
     def greens(self, z) -> np.array:
@@ -93,8 +90,16 @@ class ATA(SingleSiteApproximation):
         gf0 = gf0_z_onedim(z - sigma_vca, self.half_bandwith)
 
         # Average T-matrix
-        tavrg_a = self.con[0] * (self.eps[0] - sigma_vca) / (1 - (self.eps[0] - sigma_vca) * gf0)
-        tavrg_b = self.con[1] * (self.eps[1] - sigma_vca) / (1 - (self.eps[1] - sigma_vca) * gf0)
+        tavrg_a = (
+            self.con[0]
+            * (self.eps[0] - sigma_vca)
+            / (1 - (self.eps[0] - sigma_vca) * gf0)
+        )
+        tavrg_b = (
+            self.con[1]
+            * (self.eps[1] - sigma_vca)
+            / (1 - (self.eps[1] - sigma_vca) * gf0)
+        )
         tavrg = tavrg_a + tavrg_b
 
         # Self energy
@@ -104,8 +109,7 @@ class ATA(SingleSiteApproximation):
 
 
 class CPA(SingleSiteApproximation):
-
-    def __init__(self, energies, concentrations, hop=1., thresh=1e-3, maxiter=1000):
+    def __init__(self, energies, concentrations, hop=1.0, thresh=1e-3, maxiter=1000):
         super().__init__(energies, concentrations, hop)
         self.maxiter = maxiter
         self.thresh = thresh
@@ -124,11 +128,15 @@ class CPA(SingleSiteApproximation):
             gf0_inv = sigma + gf_avrg_inv
 
             # Dyson equation
-            gf_a = 1 / (sigma - self.eps[0] + gf_avrg_inv)     # G_A = 1 / (E - H_0 - eps_A)
-            gf_b = 1 / (sigma - self.eps[1] + gf_avrg_inv)     # G_B = 1 / (E - H_0 - eps_B)
+            gf_a = 1 / (
+                sigma - self.eps[0] + gf_avrg_inv
+            )  # G_A = 1 / (E - H_0 - eps_A)
+            gf_b = 1 / (
+                sigma - self.eps[1] + gf_avrg_inv
+            )  # G_B = 1 / (E - H_0 - eps_B)
 
             gf_avrg = self.con[0] * gf_a + self.con[1] * gf_b  # <G> = c_A G_A + c_B G_B
-            sigma = gf0_inv - 1 / gf_avrg                      # Σ = G_0^{-1} - <G>^{-1}
+            sigma = gf0_inv - 1 / gf_avrg  # Σ = G_0^{-1} - <G>^{-1}
 
             diff = np.trapz(abs(sigma - sigma_old), z.real)
             self.errs.append(diff)
@@ -143,8 +151,7 @@ class CPA(SingleSiteApproximation):
 
 
 def main():
-    num_sites = 1e4
-    t = 1.
+    t = 1.0
     c = 0.1
 
     con = np.array([c, 1 - c])

@@ -13,14 +13,14 @@ Collection of tools for condensed matter physics written in Python.
 
 Install via `pip` from github:
 ```commandline
-pip install git+git://github.com/dylanljones/cmpy.git@v0.0.6
+pip install git+git://github.com/dylanljones/cmpy.git@VERSION
 ```
 
 or download/clone the package, navigate to the root directory and install via
 ````commandline
 pip install -e <folder path>
 ````
-or the setup.py script
+or the `setup.py` script
 ````commandline
 python setup.py install
 ````
@@ -146,3 +146,9 @@ The inlcuded models provide the method `hamilton_operator` to generate the
 >>> hamop = siam.hamilton_operator(1, 1)                # Hamiltonian of sector 1, 1
 HamiltonOperator(shape: (4, 4), dtype: float64)
 ```
+
+
+## To-Do
+
+- Increase test coverage
+- Documentation

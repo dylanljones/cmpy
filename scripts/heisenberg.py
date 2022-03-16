@@ -2,7 +2,7 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2021, Dylan Jones
+# Copyright (c) 2022, Dylan Jones
 
 import numpy as np
 from scipy import linalg as la
@@ -41,18 +41,18 @@ def plot_sz_corr(model, states, gs):
         corr[i] = sz_correl(states, gs, delta)
     fig, ax = plt.subplots()
     ax.plot(deltas, corr)
-    ax.plot(+0.25/deltas, color="k")
-    ax.plot(-0.25/deltas, color="k")
+    ax.plot(+0.25 / deltas, color="k")
+    ax.plot(-0.25 / deltas, color="k")
     ax.grid()
     plt.show()
 
 
 def sz_expval(states, gs, pos=0):
-    sz = 0.
+    sz = 0.0
     for ai, si in zip(gs, states):
         if ai:
-            b = (si >> pos) & 1   # Bit at index `pos`
-            sign = (-1) ** (b+1)  # Sign +1 if bit is 1, -1 if bit is 0
+            b = (si >> pos) & 1  # Bit at index `pos`
+            sign = (-1) ** (b + 1)  # Sign +1 if bit is 1, -1 if bit is 0
             sz += sign / 2 * ai * ai
     return sz
 
@@ -61,9 +61,9 @@ def sz_expval2(states, gs, pos=0):
     # Compute |ψ⟩ = S^z|GS⟩
     psi = gs.copy()
     for i, si in enumerate(states):
-        b = (si >> pos) & 1   # Bit at index `pos`
-        sign = (-1) ** (b+1)  # Sign +1 if bit is 1, -1 if bit is 0
-        psi[i] *= sign / 2    # Apply spin of site to state
+        b = (si >> pos) & 1  # Bit at index `pos`
+        sign = (-1) ** (b + 1)  # Sign +1 if bit is 1, -1 if bit is 0
+        psi[i] *= sign / 2  # Apply spin of site to state
     # Return scalar product ⟨GS|ψ⟩ = ⟨GS|S^z|GS⟩
     return np.dot(gs, psi)
 
@@ -73,15 +73,14 @@ def sz_expval3(states, gs, pos=0):
     size = len(states)
     op = np.zeros((size, size))
     for i, si in enumerate(states):
-        b = (si >> pos) & 1   # Bit at index `pos`
-        sign = (-1) ** (b+1)  # Sign +1 if bit is 1, -1 if bit is 0
-        op[i, i] = sign / 2    # Apply spin of site to state
+        b = (si >> pos) & 1  # Bit at index `pos`
+        sign = (-1) ** (b + 1)  # Sign +1 if bit is 1, -1 if bit is 0
+        op[i, i] = sign / 2  # Apply spin of site to state
     # Return product ⟨GS|S^z|GS⟩
     return np.dot(gs, np.dot(op, gs))
 
 
 class SzOperator(LinearOperator):
-
     def __init__(self, states, pos=0):
         size = len(states)
         super().__init__((size, size))
@@ -92,13 +91,12 @@ class SzOperator(LinearOperator):
         matvec = np.zeros((self.shape[0], *x.shape[1:]), dtype=x.dtype)
         for i, si in enumerate(self.states):
             b = (si >> self.pos) & 1  # Bit at index `pos`
-            sign = (-1) ** (b + 1)    # Sign +1 if bit is 1, -1 if bit is 0
+            sign = (-1) ** (b + 1)  # Sign +1 if bit is 1, -1 if bit is 0
             matvec[i] = sign * x[i] / 2
         return matvec
 
 
 class SpOperator(LinearOperator):
-
     def __init__(self, states, pos=0):
         size = len(states)
         super().__init__((size, size))
@@ -112,7 +110,6 @@ class SpOperator(LinearOperator):
 
 
 class SmOperator(LinearOperator):
-
     def __init__(self, states, pos=0):
         size = len(states)
         super().__init__((size, size))
@@ -133,9 +130,9 @@ def sz_expval4(states, gs, pos=0):
 def sz_correl(states, gs, delta, j=1):
     res = 0
     for ai, si in zip(gs, states):
-        b1 = (si >> 0) & 1                  # Bit at index `0`
-        b2 = (si >> delta) & 1              # Bit at index `δ`
-        sign = (-1) ** b1 * (-1) ** b2      # Sign +1 if bits are equal, -1 otherwise
+        b1 = (si >> 0) & 1  # Bit at index `0`
+        b2 = (si >> delta) & 1  # Bit at index `δ`
+        sign = (-1) ** b1 * (-1) ** b2  # Sign +1 if bits are equal, -1 otherwise
         res += ai * ai * sign * j / 4
     return res
 
@@ -169,8 +166,8 @@ def main():
     fig, ax = plt.subplots()
     ax.plot(deltas, corr1)
     ax.plot(deltas, corr2, ls="--")
-    ax.plot(+0.25/deltas, color="k")
-    ax.plot(-0.25/deltas, color="k")
+    ax.plot(+0.25 / deltas, color="k")
+    ax.plot(-0.25 / deltas, color="k")
     ax.grid()
     plt.show()
 

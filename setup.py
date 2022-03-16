@@ -2,41 +2,11 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2020, Dylan Jones
-#
-# This code is licensed under the MIT License. The copyright notice in the
-# LICENSE file in the root directory and this permission notice shall
-# be included in all copies or substantial portions of the Software.
+# Copyright (c) 2022, Dylan Jones
 
-from setuptools import setup, find_packages
-import versioneer
+import setuptools
 
 
-def requirements():
-    with open('requirements.txt') as f:
-        return f.read().splitlines()
-
-
-def long_description():
-    with open("README.md", "r") as f:
-        return f.read()
-
-
-setup(
-    name='cmpy',
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
-    author='Dylan Jones',
-    author_email='dylanljones94@gmail.com',
-    description='Collection of tools for condensed matter computational physics.',
-    long_description=long_description(),
-    long_description_content_type="text/markdown",
-    url='https://github.com/dylanljones/cmpy',
-    license='MIT License',
-    packages=find_packages(),
-    install_requires=requirements(),
-    extras_require={
-        'models': ["lattpy"]
-    },
-    python_requires='>=3.6',
-)
+if __name__ == "__main__":
+    # See `setup.cfg` and `pyproject.toml` for configuration.
+    setuptools.setup()

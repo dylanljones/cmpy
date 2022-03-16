@@ -1,12 +1,18 @@
 # coding: utf-8
 #
 # This code is part of cmpy.
-# 
-# Copyright (c) 2021, Dylan Jones
+#
+# Copyright (c) 2022, Dylan Jones
 
 import numpy as np
 from cmpy.models.anderson import SingleImpurityAndersonModel
-from .utils import IterationStats, self_energy, quasiparticle_weight, mix_values, bethe_gf_omega
+from .utils import (
+    IterationStats,
+    self_energy,
+    quasiparticle_weight,
+    mix_values,
+    bethe_gf_omega,
+)
 
 
 # ========================== REFERENCES =======================================
@@ -39,10 +45,18 @@ def impurity_params_ref(u: float, v: float):
     """
     sqrt16 = np.sqrt(u**2 + 16 * v**2)
     sqrt64 = np.sqrt(u**2 + 64 * v**2)
-    a1 = 1/4 * (1 - (u**2 - 32 * v**2) / np.sqrt((u**2 + 64 * v**2) * (u**2 + 16 * v**2)))
-    a2 = 1/2 - a1
-    e1 = 1/4 * (sqrt64 - sqrt16)
-    e2 = 1/4 * (sqrt64 + sqrt16)
+    a1 = (
+        1
+        / 4
+        * (
+            1
+            - (u**2 - 32 * v**2)
+            / np.sqrt((u**2 + 64 * v**2) * (u**2 + 16 * v**2))
+        )
+    )
+    a2 = 1 / 2 - a1
+    e1 = 1 / 4 * (sqrt64 - sqrt16)
+    e2 = 1 / 4 * (sqrt64 + sqrt16)
     return float(a1), float(a2), float(e1), float(e2)
 
 
@@ -86,20 +100,30 @@ def compute_self_energy(z, siam, ref=False):
     return self_energy(gf_imp0, gf_imp)
 
 
-def twosite_dmft_half_filling(z, u, t=1., beta=np.inf, mixing=1.0, vtol=1e-6, max_iter=1000,
-                              vthresh=1e-10, verbose=True, ref=True):
+def twosite_dmft_half_filling(
+    z,
+    u,
+    t=1.0,
+    beta=np.inf,
+    mixing=1.0,
+    vtol=1e-6,
+    max_iter=1000,
+    vthresh=1e-10,
+    verbose=True,
+    ref=True,
+):
 
     # Map the lattice model to the single impurity Anderson model at half filling
     u = u
     v = [t]
 
-    siam = SingleImpurityAndersonModel(u, v=v, mu=u / 2, temp=1/beta)
+    siam = SingleImpurityAndersonModel(u, v=v, mu=u / 2, temp=1 / beta)
 
     # Initial hybridization value must be different
     # from the current one or the error will be zero.
     v = siam.v[0] + 0.1
     # prepare m2 weight
-    m2 = t ** 2
+    m2 = t**2
 
     it = 0
     stats = IterationStats("Δv")

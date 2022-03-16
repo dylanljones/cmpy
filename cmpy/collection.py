@@ -2,20 +2,19 @@
 #
 # This code is part of cmpy.
 #
-# Copyright (c) 2021, Dylan Jones
-#
-# This code is licensed under the MIT License. The copyright notice in the
-# LICENSE file in the root directory and this permission notice shall
-# be included in all copies or substantial portions of the Software.
+# Copyright (c) 2022, Dylan Jones
 
 import numpy as np
 from typing import Union
 
-si = np.eye(2)
-sx = np.array([[0, 1], [1, 0]])
-sy = np.array([[0, -1j], [1j, 0]])
-sz = np.array([[1, 0], [0, -1]])
-pauli = si, sx, sy, sz
+sigi = np.eye(2)
+sigx = np.array([[0, 1], [1, 0]])
+sigy = np.array([[0, -1j], [1j, 0]])
+sigz = np.array([[1, 0], [0, -1]])
+sigp = 0.5 * (sigx + 1j * sigy)
+sigm = 0.5 * (sigx - 1j * sigy)
+
+pauli = sigi, sigx, sigy, sigz
 
 
 def kron(*args) -> np.ndarray:
@@ -46,6 +45,35 @@ def kron(*args) -> np.ndarray:
     for arg in args:
         x = np.kron(x, arg)
     return x
+
+
+def density_matrix(psi: np.ndarray) -> np.ndarray:
+    r"""Computes the density matrix ρ of a given state-vector |ψ>.
+    .. math::
+        ρ = |ψ><ψ|
+    Parameters
+    ----------
+    psi: (N) np.ndarray
+        The input state-vector ψ.
+    Returns
+    -------
+    rho : (N, N) np.ndarray
+        The density matrix ρ.
+    Examples
+    --------
+    >>> density_matrix(np.array([1, 0]))
+    array([[1, 0],
+           [0, 0]])
+    >>> density_matrix(np.array([1, 0]))
+    array([[1, 0],
+           [0, 0]])
+    >>> density_matrix(np.array([1j, 0]))
+    array([[1.+0.j, 0.+0.j],
+           [0.+0.j, 0.+0.j]])
+    """
+    psiv = np.atleast_2d(psi).T
+    # psiv = psi[:, np.newaxis]
+    return np.dot(psiv, np.conj(psiv.T))
 
 
 # =========================================================================
@@ -82,7 +110,7 @@ def gaussian(x: np.ndarray, x0: float = 0.0, sigma: float = 1.0) -> np.ndarray:
     psi : (N, ) np.ndarray
     """
     # return np.exp(-np.power(x - x0, 2.) / (2 * np.power(sigma, 2.)))
-    psi = np.exp(-np.power(x - x0, 2.0) / (4 * sigma ** 2))
+    psi = np.exp(-np.power(x - x0, 2.0) / (4 * sigma**2))
     norm = np.sqrt(np.sqrt(2 * np.pi) * sigma)
     return psi / norm
 

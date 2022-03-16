@@ -1,19 +1,19 @@
 # coding: utf-8
 #
 # This code is part of cmpy.
-# 
-# Copyright (c) 2021, Dylan Jones
+#
+# Copyright (c) 2022, Dylan Jones
 
 import numpy as np
 from scipy.sparse.linalg import onenormest
-from scipy.sparse.linalg.interface import IdentityOperator, LinearOperator # noqa
+from scipy.sparse.linalg.interface import IdentityOperator, LinearOperator  # noqa
 from scipy.sparse.linalg._expm_multiply import (
     _expm_multiply_interval_core_0,
     _expm_multiply_interval_core_1,
     _expm_multiply_interval_core_2,
     _expm_multiply_simple_core,
     _fragment_3_1,
-    LazyOperatorNormInfo
+    LazyOperatorNormInfo,
 )
 
 
@@ -32,8 +32,16 @@ def _identity_like(a):
 
 
 # noinspection PyPep8Naming
-def _expm_multiply_interval(A, B, start=None, stop=None, num=None,
-                            endpoint=None, balance=False, status_only=False):
+def _expm_multiply_interval(
+    A,
+    B,
+    start=None,
+    stop=None,
+    num=None,
+    endpoint=None,
+    balance=False,
+    status_only=False,
+):
     """Compute the action of the matrix exponential at multiple time points.
 
     Parameters
@@ -57,12 +65,14 @@ def _expm_multiply_interval(A, B, start=None, stop=None, num=None,
         Indicates whether or not to apply balancing.
     status_only : bool
         A flag that is set to True for some debugging and testing operations.
+
     Returns
     -------
     F : ndarray
         :math:`e^{t_k A} B`
     status : int
         An integer status for testing and debugging.
+
     Notes
     -----
     This is algorithm (5.2) in Al-Mohy and Higham (2011).
@@ -72,10 +82,11 @@ def _expm_multiply_interval(A, B, start=None, stop=None, num=None,
     if balance:
         raise NotImplementedError
     if len(A.shape) != 2 or A.shape[0] != A.shape[1]:
-        raise ValueError('expected A to be like a square matrix')
+        raise ValueError("expected A to be like a square matrix")
     if A.shape[1] != B.shape[0]:
-        raise ValueError('shapes of matrices A {} and B {} are incompatible'
-                         .format(A.shape, B.shape))
+        raise ValueError(
+            "shapes of matrices A {} and B {} are incompatible".format(A.shape, B.shape)
+        )
     ident = _identity_like(A)
     n = A.shape[0]
     if len(B.shape) == 1:
@@ -83,23 +94,23 @@ def _expm_multiply_interval(A, B, start=None, stop=None, num=None,
     elif len(B.shape) == 2:
         n0 = B.shape[1]
     else:
-        raise ValueError('expected B to be like a matrix or a vector')
+        raise ValueError("expected B to be like a matrix or a vector")
     u_d = 2**-53
     tol = u_d
     mu = _trace(A) / float(n)
 
     # Get the linspace samples, attempting to preserve the linspace defaults.
-    linspace_kwargs = {'retstep': True}
+    linspace_kwargs = {"retstep": True}
     if num is not None:
-        linspace_kwargs['num'] = num
+        linspace_kwargs["num"] = num
     if endpoint is not None:
-        linspace_kwargs['endpoint'] = endpoint
+        linspace_kwargs["endpoint"] = endpoint
     samples, step = np.linspace(start, stop, **linspace_kwargs)
 
     # Convert the linspace output to the notation used by the publication.
     nsamples = len(samples)
     if nsamples < 2:
-        raise ValueError('at least two time points are required')
+        raise ValueError("at least two time points are required")
     q = nsamples - 1
     h = step
     t_0 = samples[0]
@@ -114,8 +125,8 @@ def _expm_multiply_interval(A, B, start=None, stop=None, num=None,
     A = A - mu * ident
     A_1_norm = onenormest(A, t=10)
     ell = 2
-    norm_info = LazyOperatorNormInfo(t*A, A_1_norm=t*A_1_norm, ell=ell)
-    if t*A_1_norm == 0:
+    norm_info = LazyOperatorNormInfo(t * A, A_1_norm=t * A_1_norm, ell=ell)
+    if t * A_1_norm == 0:
         m_star, s = 0, 1
     else:
         m_star, s = _fragment_3_1(norm_info, n0, tol, ell=ell)
@@ -128,7 +139,9 @@ def _expm_multiply_interval(A, B, start=None, stop=None, num=None,
         if status_only:
             return 0
         else:
-            return _expm_multiply_interval_core_0(A, X, h, mu, q, norm_info, tol, ell, n0)
+            return _expm_multiply_interval_core_0(
+                A, X, h, mu, q, norm_info, tol, ell, n0
+            )
     elif not (q % s):
         if status_only:
             return 1
@@ -140,13 +153,14 @@ def _expm_multiply_interval(A, B, start=None, stop=None, num=None,
         else:
             return _expm_multiply_interval_core_2(A, X, h, mu, m_star, s, q, tol)
     else:
-        raise Exception('internal error')
+        raise Exception("internal error")
 
 
 # noinspection PyPep8Naming
 def _expm_multiply_simple(A, B, t=1.0, balance=False):
     """
     Compute the action of the matrix exponential at a single time point.
+
     Parameters
     ----------
     A : transposable linear operator
@@ -157,10 +171,12 @@ def _expm_multiply_simple(A, B, t=1.0, balance=False):
         A time point.
     balance : bool
         Indicates whether or not to apply balancing.
+
     Returns
     -------
     F : ndarray
         :math:`e^{t A} B`
+
     Notes
     -----
     This is algorithm (3.2) in Al-Mohy and Higham (2011).
@@ -168,10 +184,11 @@ def _expm_multiply_simple(A, B, t=1.0, balance=False):
     if balance:
         raise NotImplementedError
     if len(A.shape) != 2 or A.shape[0] != A.shape[1]:
-        raise ValueError('expected A to be like a square matrix')
+        raise ValueError("expected A to be like a square matrix")
     if A.shape[1] != B.shape[0]:
-        raise ValueError('shapes of matrices A {} and B {} are incompatible'
-                         .format(A.shape, B.shape))
+        raise ValueError(
+            "shapes of matrices A {} and B {} are incompatible".format(A.shape, B.shape)
+        )
     ident = _identity_like(A)
     n = A.shape[0]
     if len(B.shape) == 1:
@@ -179,17 +196,17 @@ def _expm_multiply_simple(A, B, t=1.0, balance=False):
     elif len(B.shape) == 2:
         n0 = B.shape[1]
     else:
-        raise ValueError('expected B to be like a matrix or a vector')
+        raise ValueError("expected B to be like a matrix or a vector")
     u_d = 2**-53
     tol = u_d
     mu = _trace(A) / float(n)
     A = A - mu * ident
     A_1_norm = onenormest(A, t=10)
-    if t*A_1_norm == 0:
+    if t * A_1_norm == 0:
         m_star, s = 0, 1
     else:
         ell = 2
-        norm_info = LazyOperatorNormInfo(t*A, A_1_norm=t*A_1_norm, ell=ell)
+        norm_info = LazyOperatorNormInfo(t * A, A_1_norm=t * A_1_norm, ell=ell)
         m_star, s = _fragment_3_1(norm_info, n0, tol, ell=ell)
     return _expm_multiply_simple_core(A, B, t, mu, m_star, s, tol, balance)
 
@@ -256,17 +273,22 @@ def expm_multiply(A, B, start=None, stop=None, num=None, endpoint=None):
     >>> A.todense()
     matrix([[1, 0],
             [0, 1]], dtype=int64)
+
     >>> B = np.array([np.exp(-1.), np.exp(-2.)])
     >>> B
     array([ 0.36787944,  0.13533528])
+
     >>> expm_multiply(A, B, start=1, stop=2, num=3, endpoint=True)
     array([[ 1.        ,  0.36787944],
            [ 1.64872127,  0.60653066],
            [ 2.71828183,  1.        ]])
+
     >>> expm(A).dot(B)                  # Verify 1st timestep
     array([ 1.        ,  0.36787944])
+
     >>> expm(1.5*A).dot(B)              # Verify 2nd timestep
     array([ 1.64872127,  0.60653066])
+
     >>> expm(2*A).dot(B)                # Verify 3rd timestep
     array([ 2.71828183,  1.        ])
     """
@@ -275,4 +297,3 @@ def expm_multiply(A, B, start=None, stop=None, num=None, endpoint=None):
     else:
         X, status = _expm_multiply_interval(A, B, start, stop, num, endpoint)
     return X
-
