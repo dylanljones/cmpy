@@ -62,4 +62,4 @@ jobs:
 
     - name: Run tests
       run: |
-        pytest lattpy/ --cov=lattpy --cov-report=xml -v
+        pytest cmpy/ --cov=cmpy --cov-report=xml -v
