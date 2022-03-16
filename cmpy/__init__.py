@@ -56,6 +56,4 @@ from .operators import (
 
 from .models.abc import ModelParameters, AbstractModel, AbstractManyBodyModel
 
-from . import _version
-
-__version__ = _version.get_versions()["version"]
+from ._version import version as __version__
