@@ -1,10 +1,9 @@
 # cmpy
 
-[![Test][tests-master]][link-tests]
-[![GitHub release (latest by date)][git-release]][git-repo]
-[![GitHub](https://img.shields.io/github/license/dylanljones/cmpy)][git-license]
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-
+[![GitHub release (latest by date)][git-release]][repo-url]
+[![Test][tests-master]][tests-url]
+[![GitHub][license]][license-url]
+[![Code style: black][black]][black-url]
 
 Collection of tools for condensed matter physics written in Python.
 
@@ -28,33 +27,33 @@ pip install .
 
 ### Main modules
 
-| Module | Description  |
-|:-------|:-----|
-| basis | Tools for many-body basis representations  |
-| collection | Collection of helpful methods and constants |
-| cpa | Coherent potantial approximation (on-site disorder) |
-| disorder | Methods for constructing disorder |
-| exactdiag | Exact diagonalization methods |
-| greens | Some implementations for the computation of Green's functions |
-| matrix | Matrix tools and np.ndarray-wrapper  |
-| operators | Abstract linear operator, sparse implementation and other tools |
+| Module     | Description                                                     |
+|:-----------|:----------------------------------------------------------------|
+| basis      | Tools for many-body basis representations                       |
+| collection | Collection of helpful methods and constants                     |
+| cpa        | Coherent potantial approximation (on-site disorder)             |
+| disorder   | Methods for constructing disorder                               |
+| exactdiag  | Exact diagonalization methods                                   |
+| greens     | Some implementations for the computation of Green's functions   |
+| matrix     | Matrix tools and np.ndarray-wrapper                             |
+| operators  | Abstract linear operator, sparse implementation and other tools |
 
 
 ### Models
 
 Collection of common condensed matter models (unstable, might change significantly)
 
-| Module | Description | Lattice support |
-|:-------|:-----|:-------|
-| abc | Model-Parameter container and abstract base classes  |  - |
-| anderson | Anderson imurity models | :x: |
-| ising | Ising model | :heavy_check_mark: |
-| heisenberg | Heisenberg model | :heavy_check_mark: |
-| hubbard | Hubbard model | :x: |
-| tightbinding | Thight-Binding model | :heavy_check_mark: |
+| Module       | Description                                         | Lattice support    |
+|:-------------|:----------------------------------------------------|:-------------------|
+| abc          | Model-Parameter container and abstract base classes | -                  |
+| anderson     | Anderson imurity models                             | :x:                |
+| ising        | Ising model                                         | :heavy_check_mark: |
+| heisenberg   | Heisenberg model                                    | :heavy_check_mark: |
+| hubbard      | Hubbard model                                       | :x:                |
+| tightbinding | Thight-Binding model                                | :heavy_check_mark: |
 
 
-## Usage
+## Quick-Start
 
 #### Basis
 
@@ -152,9 +151,12 @@ HamiltonOperator(shape: (4, 4), dtype: float64)
 - Documentation
 
 
-[git-repo]: https://github.com/dylanljones/cmpy
-[git-license]: https://github.com/dylanljones/cmpy/blob/master/LICENSE
+[repo-url]: https://github.com/dylanljones/cmpy
+[license-url]: https://github.com/dylanljones/cmpy/blob/master/LICENSE
+[tests-url]: https://github.com/dylanljones/cmpy/actions/workflows/test.yml
+[black-url]: https://github.com/psf/black
 
 [git-release]: https://img.shields.io/github/v/release/dylanljones/cmpy?logo=Github&style=flat-square
 [tests-master]: https://img.shields.io/github/workflow/status/dylanljones/cmpy/Test/master?label=tests&logo=github&style=flat
-[link-tests]: https://github.com/dylanljones/cmpy/actions/workflows/test.yml
+[license]: https://img.shields.io/github/license/dylanljones/cmpy?color=lightgrey&style=flat-square
+[black]: https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square
