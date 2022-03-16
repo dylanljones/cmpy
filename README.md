@@ -19,12 +19,9 @@ pip install git+git://github.com/dylanljones/cmpy.git@VERSION
 
 or download/clone the package, navigate to the root directory and install via
 ````commandline
-pip install -e <folder path>
+pip install .
 ````
-or the `setup.py` script
-````commandline
-python setup.py install
-````
+
 
 ## Contents
 
