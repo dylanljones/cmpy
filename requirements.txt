@@ -9,3 +9,4 @@ scipy>=1.7.1
 matplotlib>=3.0.0
 colorcet>=2.0.0
 gftool>=0.10.0
+lattpy>=0.7.0
