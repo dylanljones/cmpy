@@ -22,7 +22,7 @@ jobs:
           "CHANGELOG.md",
           "CONTRIBUTING.md",
           ".pre-commit-config.yaml",
-          ".readthedocs.yaml",
+          ".readthedocs.yaml"
           ]'
     outputs:
       should_skip: ${{ steps.skip_check.outputs.should_skip }}
