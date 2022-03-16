@@ -1,13 +1,14 @@
 # cmpy
 
-![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/dylanljones/cmpy)
-![GitHub](https://img.shields.io/github/license/dylanljones/cmpy)
+[![Test][tests-master]][link-tests]
+[![GitHub release (latest by date)][git-release]][git-repo]
+[![GitHub](https://img.shields.io/github/license/dylanljones/cmpy)][git-license]
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 
 Collection of tools for condensed matter physics written in Python.
 
-*NOTE*: This project is still under development and might contain errors or change significantly in the future!
-
+:warning: **WARNING**: This project is still under development and might contain errors or change significantly in the future!
 
 ## Installation
 
@@ -18,12 +19,9 @@ pip install git+git://github.com/dylanljones/cmpy.git@VERSION
 
 or download/clone the package, navigate to the root directory and install via
 ````commandline
-pip install -e <folder path>
+pip install .
 ````
-or the `setup.py` script
-````commandline
-python setup.py install
-````
+
 
 ## Contents
 
@@ -35,7 +33,7 @@ python setup.py install
 | basis | Tools for many-body basis representations  |
 | collection | Collection of helpful methods and constants |
 | cpa | Coherent potantial approximation (on-site disorder) |
-| disorder | Methods for constructing disorder | 
+| disorder | Methods for constructing disorder |
 | exactdiag | Exact diagonalization methods |
 | greens | Some implementations for the computation of Green's functions |
 | matrix | Matrix tools and np.ndarray-wrapper  |
@@ -137,7 +135,7 @@ Converting the operator to an array yields
  [0 0 0 1 0]]
 ````
 
-The inlcuded models provide the method `hamilton_operator` to generate the 
+The inlcuded models provide the method `hamilton_operator` to generate the
 `HamiltonOperator` for a specific particle sector or the full Hilber space, for example:
 ```python
 >>> from cmpy.models import SingleImpurityAndersonModel
@@ -152,3 +150,11 @@ HamiltonOperator(shape: (4, 4), dtype: float64)
 
 - Increase test coverage
 - Documentation
+
+
+[git-repo]: https://github.com/dylanljones/cmpy
+[git-license]: https://github.com/dylanljones/cmpy/blob/master/LICENSE
+
+[git-release]: https://img.shields.io/github/v/release/dylanljones/cmpy?logo=Github&style=flat-square
+[tests-master]: https://img.shields.io/github/workflow/status/dylanljones/cmpy/Test/master?label=tests&logo=github&style=flat
+[link-tests]: https://github.com/dylanljones/cmpy/actions/workflows/test.yml

@@ -17,14 +17,12 @@ jobs:
         with:
           paths_ignore: '[
           "docs/**",
-          ".github/**",
           ".social/**",
           "README.md",
           "CHANGELOG.md",
           "CONTRIBUTING.md",
           ".pre-commit-config.yaml",
-          ".readthedocs.yaml",
-          "pyproject.toml"
+          ".readthedocs.yaml"
           ]'
     outputs:
       should_skip: ${{ steps.skip_check.outputs.should_skip }}
