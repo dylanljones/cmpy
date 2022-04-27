@@ -84,7 +84,6 @@ class MidpointNormalize(colors.Normalize):
 
 def matshow(
     mat,
-    show=True,
     cmap=cc.m_coolwarm,
     colorbar=False,
     values=False,
@@ -96,14 +95,12 @@ def matshow(
     normcenter=0.0,
     ax=None,
 ):
-    """Plots a two dimensional array.
+    """Plots a two-dimensional array.
 
     Parameters
     ----------
     mat : array_like
         The matrix to plot.
-    show : bool, optional
-        if True, call plt.show(), default: True
     colorbar : bool, optional
         Show colorbar if True.
     values : bool, optional
@@ -169,9 +166,6 @@ def matshow(
             ax.set_yticklabels(yticklabels)
 
     fig.tight_layout()
-
-    if show:
-        plt.show()
 
     return ax
 
