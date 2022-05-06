@@ -13,7 +13,7 @@ Collection of tools for condensed matter physics written in Python.
 
 Install via `pip` from github:
 ```commandline
-pip install git+git://github.com/dylanljones/cmpy.git@VERSION
+pip install git+https://github.com/dylanljones/cmpy.git@VERSION
 ```
 
 or download/clone the package, navigate to the root directory and install via
