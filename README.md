@@ -122,7 +122,7 @@ Converting the operator to an array yields
  [0 0 0 1 0]]
 ````
 
-The inlcuded models provide the method `hamilton_operator` to generate the
+The included models provide the method `hamilton_operator` to generate the
 `HamiltonOperator` for a specific particle sector or the full Hilber space, for example:
 ```python
 >>> from cmpy.models import SingleImpurityAndersonModel
@@ -131,6 +131,33 @@ The inlcuded models provide the method `hamilton_operator` to generate the
 >>> hamop = siam.hamilton_operator(1, 1)                # Hamiltonian of sector 1, 1
 HamiltonOperator(shape: (4, 4), dtype: float64)
 ```
+
+Many-Body Hamiltonian matrices can also be constructed manually by projecting the
+elements onto a basis sector. First, the basis and matrix array have to be initialized:
+````python
+import numpy as np
+from cmpy import Basis
+
+basis = Basis(num_sites=2)
+sector = basis.get_sector()  # Full basis
+ham = np.zeros((sector.size, sector.size))
+````
+
+The Hubbard Hamiltonian, for example, can then be constructed as follows:
+````python
+from cmpy import project_hubbard_inter, project_hopping
+
+up_states = sector.up_states
+dn_states = sector.dn_states
+
+# Hubbard interaction
+for i, j, val in project_hubbard_inter(up_states, dn_states, u=[2.0, 2.0]):
+    ham[i, j] += val
+
+# Hopping term
+for i, j, val in project_hopping(up_states, dn_states, site1=0, site2=1, hop=1.0):
+    ham[i, j] += val
+````
 
 
 ## To-Do
