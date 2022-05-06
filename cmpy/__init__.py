@@ -35,7 +35,6 @@ from .matrix import (
     fill_diagonal,
     Decomposition,
     EigenState,
-    Matrix,
 )
 
 from .operators import (
