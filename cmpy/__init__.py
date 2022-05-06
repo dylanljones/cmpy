@@ -35,7 +35,6 @@ from .matrix import (
     fill_diagonal,
     Decomposition,
     EigenState,
-    Matrix,
 )
 
 from .operators import (
@@ -44,8 +43,7 @@ from .operators import (
     project_elements_up,
     project_elements_dn,
     project_onsite_energy,
-    project_interaction,
-    project_site_hopping,
+    project_hubbard_inter,
     project_hopping,
     LinearOperator,
     HamiltonOperator,
@@ -56,4 +54,7 @@ from .operators import (
 
 from .models.abc import ModelParameters, AbstractModel, AbstractManyBodyModel
 
-from ._version import version as __version__
+try:
+    from ._version import version as __version__
+except ImportError:
+    __version__ = "0.0.0"

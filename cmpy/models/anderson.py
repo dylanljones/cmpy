@@ -9,8 +9,8 @@ from typing import Union, Sequence
 from cmpy.basis import UP
 from cmpy.operators import (
     project_onsite_energy,
-    project_interaction,
-    project_site_hopping,
+    project_hubbard_inter,
+    project_hopping,
 )
 from cmpy.exactdiag import greens_function_lehmann
 from .abc import AbstractManyBodyModel
@@ -146,14 +146,14 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel):
 
     def _hamiltonian_data(self, up_states, dn_states):
         """Gets called by the `hamilton_operator`-method of the abstract base class."""
-        num_sites = self.num_sites
         u = np.append(self.u, np.zeros(self.num_bath))
         eps = np.append(self.eps_imp - self.mu, self.eps_bath)
         hopping = lambda i, j: self.v[j - 1] if i == 0 else 0  # noqa
 
         yield from project_onsite_energy(up_states, dn_states, eps)
-        yield from project_interaction(up_states, dn_states, u)
-        yield from project_site_hopping(up_states, dn_states, num_sites, hopping, pos=0)
+        yield from project_hubbard_inter(up_states, dn_states, u)
+        for j in range(self.num_bath):
+            yield from project_hopping(up_states, dn_states, 0, j + 1, self.v[j])
 
     def impurity_gf0(self, z):
         return 1 / (z + self.mu + self.eps_imp - self.hybridization_func(z))

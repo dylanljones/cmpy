@@ -17,6 +17,7 @@ __all__ = [
     "DN",
     "SPIN_CHARS",
     "state_label",
+    "bit_count",
     "binstr",
     "binarr",
     "binidx",
@@ -73,9 +74,15 @@ def state_label(up_num: int, dn_num: int, digits: int = None) -> str:
     return label
 
 
-# =========================================================================
-# Binary methods
-# =========================================================================
+# -- Binary methods --------------------------------------------------------------------
+
+
+def bit_count(num: int):
+    """Counts the number of bits with value 1."""
+    try:
+        return num.bit_count()  # Python 3.10 (~6 times faster)
+    except AttributeError:
+        return bin(num).count("1")
 
 
 def binstr(num: int, width: int = 0) -> str:
@@ -97,14 +104,19 @@ def binstr(num: int, width: int = 0) -> str:
     --------
     >>> binstr(0)
     '0'
+
     >>> binstr(3)
     '11'
+
     >>> binstr(4)
     '100'
+
     >>> binstr(0, width=4)
     '0000'
+
     >>> binstr(3, width=4)
     '0011'
+
     >>> binstr(4, width=4)
     '0100'
     """
@@ -133,14 +145,19 @@ def binarr(num: int, width: int = None, dtype: Union[int, str] = None) -> np.nda
     --------
     >>> binarr(0)           # binary:    0
     array([0], dtype=int64)
+
     >>> binarr(3)           # binary:   11
     array([1, 1], dtype=int64)
+
     >>> binarr(4)           # binary:  100
     array([0, 0, 1], dtype=int64)
+
     >>> binarr(0, width=4)  # binary: 0000
     array([0, 0, 0, 0], dtype=int64)
+
     >>> binarr(3, width=4)  # binary: 0011
     array([1, 1, 0, 0], dtype=int64)
+
     >>> binarr(4, width=4)  # binary: 0100
     array([0, 0, 1, 0], dtype=int64)
     """
@@ -168,14 +185,19 @@ def binidx(num, width: int = None) -> Iterable[int]:
     --------
     >>> binidx(0)           # binary:    0
     []
+
     >>> binidx(3)           # binary:   11
     [0, 1]
+
     >>> binidx(4)           # binary:  100
     [2]
+
     >>> binidx(0, width=4)  # binary: 0000
     []
+
     >>> binidx(3, width=4)  # binary: 0011
     [0, 1]
+
     >>> binidx(4, width=4)  # binary: 0100
     [2]
     """
@@ -205,12 +227,16 @@ def get_ibit(num: int, index: int, length: int = 1) -> int:
     --------
     >>> get_ibit(0, 0)              # binary:    0000
     0
+
     >>> get_ibit(7, 0)              # binary:    0111
     1
+
     >>> get_ibit(7, 1)              # binary:    0111
     1
+
     >>> get_ibit(7, 3)              # binary:    0111
     0
+
     >>> get_ibit(7, 0, length=2)    # binary:    0111
     3
     """
@@ -241,10 +267,13 @@ def set_ibit(num: int, index: int, value: int, length: int = 1) -> int:
     --------
     >>> set_ibit(0, 0, 1)           # binary:    0000
     1
+
     >>> set_ibit(2, 0, 1)           # binary:    0010
     3
+
     >>> set_ibit(2, 2, 1)           # binary:    0010
     6
+
     >>> set_ibit(4, 0, 3, length=2) # binary:    0100
     7
     """
@@ -279,10 +308,13 @@ def overlap(
     --------
     >>> overlap(0, 0)           # binary:    0,    0
     array([0], dtype=int64)
+
     >>> overlap(3, 1)           # binary:   11,    1
     array([1], dtype=int64)
+
     >>> overlap(0, 0, width=4)  # binary: 0000, 0000
     array([0, 0, 0, 0], dtype=int64)
+
     >>> overlap(3, 1, width=4)  # binary: 0011, 0001
     array([1, 0, 0, 0], dtype=int64)
     """
@@ -332,9 +364,11 @@ def create(num: int, pos: int) -> Union[int, None]:
     >>> new = create(0, pos=0)  # binary:  0000
     >>> binstr(new, width=4)
     '0001'
+
     >>> new = create(1, pos=0)  # binary:  0001
     >>> new is None
     True
+
     >>> new = create(1, pos=1)  # binary:  0001
     >>> binstr(new, width=4)
     '0011'
@@ -366,12 +400,15 @@ def annihilate(num: int, pos: int) -> Union[int, None]:
     >>> new = annihilate(0, pos=0)  # binary:  0000
     >>> new is None
     True
+
     >>> new = annihilate(1, pos=0)  # binary:  0001
     >>> binstr(new, width=4)
     '0000'
+
     >>> new = annihilate(3, pos=1)  # binary:  0011
     >>> binstr(new, width=4)
     '0001'
+
     """
     op = 1 << pos
     if op & num:
@@ -379,9 +416,7 @@ def annihilate(num: int, pos: int) -> Union[int, None]:
     return None
 
 
-# =========================================================================
-# State wrapper and container
-# =========================================================================
+# -- State wrapper and container -------------------------------------------------------
 
 
 class SpinState(int):
@@ -463,9 +498,7 @@ class State:
         return self.up == other.up and self.dn == other.dn
 
 
-# =========================================================================
-# Main basis objects
-# =========================================================================
+# -- Main basis objects ----------------------------------------------------------------
 
 
 def upper_sector(
@@ -571,7 +604,32 @@ class Sector:
 
 
 class Basis:
-    """Container class for all basis states of the full Hilbert space."""
+    """Container class for all basis states of the full Hilbert space.
+
+    Examples
+    --------
+    Get the full basis (sector):
+
+    >>> basis = Basis(num_sites=1)
+    >>> basis.get_sector().state_labels()
+    ['.', '↓', '↑', '⇅']
+
+    Get the sector with one spin-up particle
+
+    >>> basis = Basis(num_sites=2)
+    >>> basis.get_sector(n_up=1).state_labels()
+    ['↑.', '⇅.', '↑↓', '⇅↓', '.↑', '↓↑', '.⇅', '↓⇅']
+
+    Get the sector with one spin-down particle
+
+    >>> basis.get_sector(n_dn=1).state_labels()
+    ['↓.', '.↓', '⇅.', '↑↓', '↓↑', '.⇅', '⇅↑', '↑⇅']
+
+    Get the sector with one spin-up and one spin-down particle
+
+    >>> basis.get_sector(n_up=1, n_dn=1).state_labels()
+    ['⇅.', '↑↓', '↓↑', '.⇅']
+    """
 
     __slots__ = ["size", "num_sites", "num_spinstates", "sectors", "fillings"]
 

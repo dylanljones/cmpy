@@ -22,6 +22,7 @@ repos:
       types: [ python ]
       hooks:
         - id: black
+          additional_dependencies: ['click==8.0.4']
           args: [ --safe ]
 
     - repo: https://gitlab.com/pycqa/flake8

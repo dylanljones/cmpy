@@ -41,9 +41,12 @@ __all__ = [
 transpose = partial(np.swapaxes, axis1=-2, axis2=-1)
 
 
-# =============================================================================
-# Plotting
-# =============================================================================
+class EigenState(NamedTuple):
+
+    energy: float = np.infty
+    state: np.ndarray = None
+    n_up: int = None
+    n_dn: int = None
 
 
 class MidpointNormalize(colors.Normalize):
@@ -55,24 +58,23 @@ class MidpointNormalize(colors.Normalize):
     https://stackoverflow.com/a/50003503
     """
 
-    def __init__(self, vmin, vmax, midpoint=0, clip=False):
+    def __init__(self, vmin, vmax, midpoint=0.0, clip=False):
         self.midpoint = midpoint
         colors.Normalize.__init__(self, vmin, vmax, clip)
 
     def __call__(self, value, clip=None):
         # calculates the values of the colors vmin and vmax are assigned to
-        normalized_min = max(
-            0,
-            1
-            / 2
-            * (1 - abs((self.midpoint - self.vmin) / (self.midpoint - self.vmax))),
-        )
-        normalized_max = min(
-            1,
-            1
-            / 2
-            * (1 + abs((self.vmax - self.midpoint) / (self.midpoint - self.vmin))),
-        )
+        try:
+            vmin2 = 1 - abs((self.midpoint - self.vmin) / (self.midpoint - self.vmax))
+        except ZeroDivisionError:
+            vmin2 = -1
+        try:
+            vmax2 = 1 + abs((self.vmax - self.midpoint) / (self.midpoint - self.vmin))
+        except ZeroDivisionError:
+            vmax2 = 1
+
+        normalized_min = max(0, vmin2 / 2)
+        normalized_max = min(1, vmax2 / 2)
         normalized_mid = 0.5
         result, is_scalar = self.process_value(value)
         # data values
@@ -84,7 +86,6 @@ class MidpointNormalize(colors.Normalize):
 
 def matshow(
     mat,
-    show=True,
     cmap=cc.m_coolwarm,
     colorbar=False,
     values=False,
@@ -96,14 +97,12 @@ def matshow(
     normcenter=0.0,
     ax=None,
 ):
-    """Plots a two dimensional array.
+    """Plots a two-dimensional array.
 
     Parameters
     ----------
     mat : array_like
         The matrix to plot.
-    show : bool, optional
-        if True, call plt.show(), default: True
     colorbar : bool, optional
         Show colorbar if True.
     values : bool, optional
@@ -111,11 +110,11 @@ def matshow(
     cmap : str, optional
         colormap used in the plot
     xticklabels : list, optional
-        Optional labels of the right basis states of the matrix, default: None
+        Labels of the right basis states of the matrix, default: None
     yticklabels : list, optional
-        Optional labels of the left basis states of the matrix, default: None
+        Labels of the left basis states of the matrix, default: None
     ticklabels : list, optional
-        Optional ticklabels for setting both axis ticks instead of using
+        Ticklabels for setting both axis ticks instead of using
         x_ticklabels and x_ticklabels seperately. The default is None.
     xrotation : int, optional
         Amount of rotation of the x-labels, default: 45
@@ -170,15 +169,10 @@ def matshow(
 
     fig.tight_layout()
 
-    if show:
-        plt.show()
-
     return ax
 
 
-# =============================================================================
-# Methods
-# =============================================================================
+# -- Methods ---------------------------------------------------------------------------
 
 
 def hermitian(a):
@@ -279,9 +273,7 @@ def fill_diagonal(mat, val, offset=0):
         np.fill_diagonal(mat, val)
 
 
-# =============================================================================
-# Matrix decompositions
-# =============================================================================
+# -- Matrix decompositions -------------------------------------------------------------
 
 
 def decompose(arr, h=None):
@@ -714,340 +706,3 @@ class QR(MatrixDecomposition):
 
     def __iter__(self):
         return self.q, self.r
-
-
-# =============================================================================
-# Matrix object
-# =============================================================================
-
-
-class EigenState(NamedTuple):
-
-    energy: float = np.infty
-    state: np.ndarray = None
-    n_up: int = None
-    n_dn: int = None
-
-
-class Matrix(np.ndarray):
-    """Matrix-object based on ``np.ndarray``."""
-
-    def __new__(cls, inputarr, dtype=None) -> "Matrix":
-        """Initialize Matrix
-
-        Parameters
-        ----------
-        inputarr : array_like
-            Input array for the Matrix
-        dtype : str or np.dtype, optional
-            Optional datatype of the matrix
-        """
-        if isinstance(inputarr, scipy.sparse.spmatrix):
-            inputarr = inputarr.toarray()
-        self = np.asarray(inputarr, dtype).view(cls)
-        if len(self.shape) != 2:
-            raise ValueError(
-                f"Inputarray must be 2 dimensional, not {len(self.shape)}D!"
-            )
-        return self
-
-    @classmethod
-    def zeros(cls, *shape, dtype=None) -> "Matrix":
-        """Initializes the ``Matrix`` filled with zeros.
-
-        Parameters
-        ----------
-        shape : tuple or int
-            Positional shape arguments of the matrix. This can either be one or two
-            integers or a shape tuple. If only one value is given the resulting
-            matrix will be square.
-        dtype : str or np.dtype, optional
-            Optional datatype of the matrix
-        """
-        if len(shape) == 1:
-            shape = shape[0] if hasattr(shape[0], "__len__") else (shape[0], shape[0])
-        return cls(np.zeros(shape), dtype)
-
-    @classmethod
-    def zeros_like(cls, a, dtype=None) -> "Matrix":
-        """Initializes the ``Matrix`` filled with zeros based on the given array.
-
-        Parameters
-        ----------
-        a: array_like
-            The shape and dtype of this array will be copied.
-        dtype: str or np.dtype, optional
-            Optional datatype of the matrix
-        """
-        return cls(np.zeros_like(a), dtype)
-
-    @classmethod
-    def full(cls, *shape, value=1.0, dtype=None) -> "Matrix":
-        """Initializes the ``Matrix`` filled with a specific value
-
-        Parameters
-        ----------
-        shape : tuple or int
-            Positional shape arguments of the matrix. This can either be one or two
-            integers or a shape tuple. If only one value is given the resulting
-            matrix will be square.
-        value : float or complex, optional
-            The fill value of the matrix.
-        dtype : str or np.dtype, optional
-            Optional datatype of the matrix.
-        """
-        if len(shape) == 1:
-            shape = shape[0] if hasattr(shape[0], "__len__") else (shape[0], shape[0])
-        return cls(np.full(shape, value), dtype)
-
-    @classmethod
-    def eye(cls, n, dtype=None) -> "Matrix":
-        """Initializes the `` Matrix`` as identity matrix.
-
-        Parameters
-        ----------
-        n : int
-            Size of the square matrix
-        dtype : str or np.dtype, optional
-            Optional datatype of the matrix
-        """
-        return cls(np.eye(n), dtype)
-
-    @classmethod
-    def uniform(cls, *shape, low=0.0, high=1.0, dtype=None) -> "Matrix":
-        """Initialize the ``Matrix`` filled with random values.
-
-        Parameters
-        ----------
-        shape : tuple or int
-            Positional shape arguments of the matrix. This can either be one or two
-            integers or a shape tuple. If only one value is given the resulting
-            matrix will be square.
-        low : float, optional
-            Lower boundary of the output interval
-        high : float, optional
-            Upper boundary of the output interval
-        dtype : str or np.dtype, optional
-            Optional datatype of the matrix
-        """
-        if len(shape) == 1:
-            shape = shape[0] if hasattr(shape[0], "__len__") else (shape[0], shape[0])
-        return cls(np.random.uniform(low, high, shape), dtype)
-
-    def show(self, show=True, **kwargs) -> plt.Axes:
-        """Plot the matrix using the MatrixPlot object.
-
-        See Also
-        --------
-        matshow
-        """
-        return matshow(self, show, **kwargs)
-
-    def __str__(self):
-        prod = itertools.product(range(self.shape[0]), range(self.shape[0]))
-        x = max([len(str(self[i, j])) for i, j in prod])
-        string = ""
-        for i in range(self.shape[0]):
-            line = "["
-            for j in range(self.shape[1]):
-                val = self[i, j]
-                if np.imag(val) == 0:
-                    s = str(np.real(val)) + " "
-                elif np.real(val) == 0:
-                    s = str(np.imag(val)) + "j"
-                else:
-                    s = str(val)
-                line += f"{s:^{x}} "
-            string += line[:-1] + "]\n"
-        return string[:-1]
-
-    # =========================================================================
-
-    @property
-    def h(self) -> "Matrix":
-        """Returns the conplex conjugate of the mtrix."""
-        return np.conj(self).T
-
-    @property
-    def is_hermitian(self) -> bool:
-        """Checks if the matrix is hermitian"""
-        return self.almost_equal(np.conj(self).T)
-
-    def equal(self, other) -> bool:
-        """Checks if the matrix is equal to an other array."""
-        return np.array_equal(self, other)
-
-    def almost_equal(
-        self, other, rtol: float = 1e-5, atol: float = 1e-8, equal_nan: bool = False
-    ) -> bool:
-        """Checks if the matrix is almost equal to an other array."""
-        return np.allclose(self, other, rtol, atol, equal_nan)
-
-    def inv(self) -> "Matrix":
-        """Matrix: Inverse of the Matrix"""
-        return self.__class__(la.inv(self))
-
-    def diag(self, offset=0):
-        """Gets the diagonal elements (with an optional offset) of the matrix
-
-        Parameters
-        ----------
-        offset : int, optional
-            offset index of diagonal. An offset of 1 results
-            in the first upper offdiagonal of the matrix,
-            an offset of -1 in the first lower offdiagonal.
-
-        Returns
-        -------
-        np.ndarray
-        """
-        return diagonal(self, offset)
-
-    def fill_diag(self, val, offset=0):
-        """Fill the diagonal elements (with an optional offset) of the given array.
-
-        Parameters
-        ----------
-        val : scalar or array_like
-            Value to be written on the diagonal, its type must be compatible
-            with that of the array a.
-        offset: int or tuple, optional
-            Offset index of diagonal. An offset of 1 results
-            in the first upper offdiagonal of the matrix,
-            an offset of -1 in the first lower offdiagonal.
-        """
-        offset = np.atleast_1d(offset)
-        for off in offset:
-            fill_diagonal(self, val, off)
-
-    def eig(self, check_hermitian=True):
-        """Calculate eigenvalues and -vectors of the Matrix-instance.
-
-        Parameters
-        ----------
-        check_hermitian : bool, optional
-            If True and the instance of the the matrix is hermitian,
-            ``np.eigh`` is used as eigensolver.
-
-        Returns
-        -------
-        eigenvalues : np.ndarray
-            eigenvalues of the matrix
-        eigenvectors : np.ndarray
-            eigenvectors of the matrix
-        """
-        if check_hermitian and self.is_hermitian:
-            return la.eigh(self)
-        else:
-            return la.eig(self)
-
-    def eigh(self):
-        """Calculate eigenvalues and -vectors of the hermitian matrix.
-
-        Returns
-        -------
-        eigenvalues : np.ndarray
-            eigenvalues of the matrix
-        eigenvectors : np.ndarray
-            eigenvectors of the matrix
-        """
-        return la.eigh(self)
-
-    def eigvals(self, check_hermitian=True, num_range=None):
-        """np.ndarray: The eigenvalues of the matrix"""
-        if check_hermitian and self.is_hermitian:
-            return la.eigvalsh(self, eigvals=num_range)
-        else:
-            return la.eigvals(self)
-
-    def eigvecs(self, check_hermitian=True):
-        """np.ndarray: The eigenvectors of the matrix"""
-        return self.eig(check_hermitian)[1]
-
-    def decompose(self):
-        """Decomposes the matrix into it's eigen-decomposition.
-
-        Returns
-        -------
-        decomposition : Decomposition
-        """
-        return Decomposition.decompose(self)
-
-    @classmethod
-    def reconstruct(cls, decomposition, xi=None, method="full"):
-        return cls(decomposition.reconstrunct(xi, method))
-
-    def insert(self, i, j, array):
-        """Insert subarray starting at index (i, j)
-
-        Parameters
-        ----------
-        i: int
-            row index to start inserting the subarray
-        j: int
-            collumn index to start inserting the subarray
-        array: array_like
-            subarray to insert into matrix
-        """
-        try:
-            size_x, size_y = array.shape
-        except ValueError:
-            size_x, size_y = array.shape[0], 1
-        self[i : i + size_x, j : j + size_y] = array
-
-    def add(self, i, j, array):
-        """Add subarray starting at index (i, j)
-
-        Parameters
-        ----------
-        i: int
-            row index to start adding the subarray
-        j: int
-            collumn index to start adding the subarray
-        array: array_like
-            subarray to add to matrix
-        """
-        try:
-            size_x, size_y = array.shape
-        except ValueError:
-            size_x, size_y = array.shape[0], 1
-        self[i : i + size_x, j : j + size_y] += array.astype(self.dtype)
-
-    def block(self, r, c, block=(2, 2)):
-        """Returns a block of the matrix.
-
-        Parameters
-        ----------
-        r : int
-            Row of the block.
-        c : int
-            Column of the block.
-        block : tuple, optional
-            The shape of the blocks.
-
-        Returns
-        -------
-        block : np.ndarray
-        """
-        row = slice(r, r + block[0])
-        col = slice(c, c + block[0])
-        return self[row, col]
-
-    def blocks(self, block=(2, 2)):
-        """Returns the matrix as block-matrix.
-
-        Parameters
-        ----------
-        block : tuple, optional
-            The shape of the blocks.
-
-        Returns
-        -------
-        block_array: np.ndarray
-        """
-        shape = (int(self.shape[0] / block[0]), int(self.shape[1] / block[1])) + block
-        strides = (
-            block[0] * self.strides[0],
-            block[1] * self.strides[1],
-        ) + self.strides
-        return as_strided(self, shape=shape, strides=strides)  # noqa

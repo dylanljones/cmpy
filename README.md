@@ -35,7 +35,7 @@ pip install .
 | disorder   | Methods for constructing disorder                               |
 | exactdiag  | Exact diagonalization methods                                   |
 | greens     | Some implementations for the computation of Green's functions   |
-| matrix     | Matrix tools and np.ndarray-wrapper                             |
+| matrix     | Matrix methods                                                  |
 | operators  | Abstract linear operator, sparse implementation and other tools |
 
 
@@ -98,18 +98,6 @@ Each ``SpinState`` provides methods for optaining information about the state, f
 `````
 
 
-#### Matrix
-
-The ``matrix``-module provides usefull methods for dealing with matrices.
-All methods can also be accessed through the ``Matrix``-object, which is a wrapper of
-``np.ndarray``:
-
-````python
-from cmpy import Matrix
-
-mat = Matrix.zeros(3, 3)
-````
-
 #### Operators
 
 The ``operators``-module provides the base-class ``LinearOperator`` based on ``scipy.LinearOperator``.
@@ -134,21 +122,32 @@ Converting the operator to an array yields
  [0 0 0 1 0]]
 ````
 
-The inlcuded models provide the method `hamilton_operator` to generate the
-`HamiltonOperator` for a specific particle sector or the full Hilber space, for example:
-```python
->>> from cmpy.models import SingleImpurityAndersonModel
+Many-Body Hamiltonian matrices can be constructed by projecting the
+elements onto a basis sector. First, the basis and matrix array have to be initialized:
+````python
+import numpy as np
+from cmpy import Basis
 
->>> siam = SingleImpurityAndersonModel(u=2, mu=None)    # Half filling
->>> hamop = siam.hamilton_operator(1, 1)                # Hamiltonian of sector 1, 1
-HamiltonOperator(shape: (4, 4), dtype: float64)
-```
+basis = Basis(num_sites=2)
+sector = basis.get_sector()  # Full basis
+ham = np.zeros((sector.size, sector.size))
+````
 
+The Hubbard Hamiltonian, for example, can then be constructed as follows:
+````python
+from cmpy import project_hubbard_inter, project_hopping
 
-## To-Do
+up_states = sector.up_states
+dn_states = sector.dn_states
 
-- Increase test coverage
-- Documentation
+# Hubbard interaction
+for i, j, val in project_hubbard_inter(up_states, dn_states, u=[2.0, 2.0]):
+    ham[i, j] += val
+
+# Hopping term
+for i, j, val in project_hopping(up_states, dn_states, site1=0, site2=1, hop=1.0):
+    ham[i, j] += val
+````
 
 
 [repo-url]: https://github.com/dylanljones/cmpy
