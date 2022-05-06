@@ -6,7 +6,6 @@
 
 """Methods and objects for handling dense and sparse matrices."""
 
-import itertools
 import numpy as np
 from numpy.lib.stride_tricks import as_strided  # noqa
 from scipy import linalg as la
@@ -35,7 +34,6 @@ __all__ = [
     "QR",
     "SVD",
     "EigenState",
-    "Matrix",
 ]
 
 transpose = partial(np.swapaxes, axis1=-2, axis2=-1)
