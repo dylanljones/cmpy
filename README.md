@@ -35,7 +35,7 @@ pip install .
 | disorder   | Methods for constructing disorder                               |
 | exactdiag  | Exact diagonalization methods                                   |
 | greens     | Some implementations for the computation of Green's functions   |
-| matrix     | Matrix tools and np.ndarray-wrapper                             |
+| matrix     | Matrix methods                                                  |
 | operators  | Abstract linear operator, sparse implementation and other tools |
 
 
@@ -97,18 +97,6 @@ Each ``SpinState`` provides methods for optaining information about the state, f
 0
 `````
 
-
-#### Matrix
-
-The ``matrix``-module provides usefull methods for dealing with matrices.
-All methods can also be accessed through the ``Matrix``-object, which is a wrapper of
-``np.ndarray``:
-
-````python
-from cmpy import Matrix
-
-mat = Matrix.zeros(3, 3)
-````
 
 #### Operators
 
