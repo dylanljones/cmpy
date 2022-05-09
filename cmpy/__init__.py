@@ -33,7 +33,9 @@ from .matrix import (
     is_hermitian,
     diagonal,
     fill_diagonal,
-    Decomposition,
+    EigenDecomposition,
+    SVDDecomposition,
+    QRDecomposition,
     EigenState,
 )
 

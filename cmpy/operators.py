@@ -13,7 +13,7 @@ from bisect import bisect_left
 import scipy.sparse.linalg as sla
 from typing import Union, Callable, Iterable, Sequence
 from .basis import bit_count, occupations, overlap, UP, SPIN_CHARS
-from .matrix import Decomposition
+from .matrix import EigenDecomposition
 
 __all__ = [
     "LinearOperator",
@@ -783,14 +783,14 @@ class TimeEvolutionOperator(LinearOperator):
 
     def __init__(self, operator, t=0.0, t0=0.0, dtype=None):
         super().__init__(operator.shape, dtype=dtype)
-        self.decomposition = Decomposition.decompose(operator)
+        self.decomposition = EigenDecomposition.decompose(operator)
         self.t = t - t0
 
     def reconstruct(self, xi=None, method="full"):
         return self.decomposition.reconstruct(xi, method)
 
     def set_eigenbasis(self, operator):
-        self.decomposition = Decomposition.decompose(operator)
+        self.decomposition = EigenDecomposition.decompose(operator)
 
     def set_time(self, t, t0=0.0):
         self.t = t - t0
