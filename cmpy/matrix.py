@@ -24,11 +24,11 @@ __all__ = [
     "is_hermitian",
     "diagonal",
     "fill_diagonal",
-    "decompose",
-    "reconstruct",
+    "decompose_eig",
     "decompose_svd",
-    "reconstruct_svd",
     "decompose_qr",
+    "reconstruct_eig",
+    "reconstruct_svd",
     "reconstruct_qr",
     "EigenDecomposition",
     "QRDecomposition",
@@ -274,7 +274,7 @@ def fill_diagonal(mat, val, offset=0):
 # -- Matrix decompositions -------------------------------------------------------------
 
 
-def decompose(arr, h=None):
+def decompose_eig(arr, h=None):
     """Computes the eigen-decomposition of a matrix.
 
     Finds the eigenvalues and the left and right eigenvectors of a matrix. If the matrix
@@ -307,7 +307,7 @@ def decompose(arr, h=None):
     return vr, xi, vl
 
 
-def reconstruct(rv, xi, rv_inv, method="full"):
+def reconstruct_eig(rv, xi, rv_inv, method="full"):
     """Computes a matrix from an eigen-decomposition.
 
     The matrix is reconstructed using eigenvalues and left and right eigenvectors.
@@ -488,7 +488,7 @@ class EigenDecomposition(MatrixDecomposition):
         -------
         decomposition : EigenDecomposition
         """
-        rv, xi, rv_inv = decompose(arr, h)
+        rv, xi, rv_inv = decompose_eig(arr, h)
         return cls(rv, xi, rv_inv)
 
     def reconstruct(self, xi=None, method="full"):
@@ -510,7 +510,7 @@ class EigenDecomposition(MatrixDecomposition):
             The reconstructed matrix.
         """
         xi = self.xi if xi is None else xi
-        return reconstruct(self.rv, xi, self.rv_inv, method)
+        return reconstruct_eig(self.rv, xi, self.rv_inv, method)
 
     def normalize(self):
         """Normalizes the eigenstates and creates a new ``Decomposition``-instance."""
