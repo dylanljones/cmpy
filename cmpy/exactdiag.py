@@ -25,7 +25,7 @@ def solve_sector(model: AbstractManyBodyModel, sector: Sector, cache: dict = Non
         logger.debug("Loading eig  %d, %d", sector.n_up, sector.n_dn)
         eigvals, eigvecs = cache[sector_key]
     else:
-        logger.debug("Solving eig  %d, %d", sector.n_up, sector.n_dn)
+        logger.debug("Solving eig  %d, %d (%s)", sector.n_up, sector.n_dn, sector.size)
         ham = model.hamilton_operator(sector=sector).array()
         eigvals, eigvecs = np.linalg.eigh(ham)
         if cache is not None:
@@ -195,7 +195,7 @@ class GreensFunctionMeasurement:
 
 
 def greens_function_lehmann(model, z, beta, pos=0, sigma=UP, eig_cache=None):
-    logger.debug("Accumulating lehmann GF")
+    logger.debug("Accumulating Lehmann sum (pos=%s, sigma=%s)", pos, sigma)
     data = GreensFunctionMeasurement(z, beta, pos, sigma)
     eig_cache = eig_cache if eig_cache is not None else dict()
     for n_up, n_dn in model.iter_fillings():
@@ -205,8 +205,8 @@ def greens_function_lehmann(model, z, beta, pos=0, sigma=UP, eig_cache=None):
             eigvals, eigvecs = solve_sector(model, sector, cache=eig_cache)
             eigvals_p1, eigvecs_p1 = solve_sector(model, sector_p1, cache=eig_cache)
             data.accumulate(sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1)
-        else:
-            eig_cache.clear()
+        # else:
+        #     eig_cache.clear()
 
     logger.debug("-" * 40)
     logger.debug("gs-energy:  %+.4f", data.gs_energy)
