@@ -10,6 +10,7 @@ from itertools import product
 import scipy.linalg as la
 import scipy.sparse.linalg as sla
 import gftool as gt
+from numba import njit
 from .operators import CreationOperator, AnnihilationOperator, project_up, project_dn
 from .matrix import EigenState
 from .models import AbstractManyBodyModel
@@ -26,7 +27,7 @@ def solve_sector(model: AbstractManyBodyModel, sector: Sector, cache: dict = Non
         eigvals, eigvecs = cache[sector_key]
     else:
         logger.debug("Solving eig  %d, %d (%s)", sector.n_up, sector.n_dn, sector.size)
-        ham = model.hamilton_operator(sector=sector).array()
+        ham = model.hamiltonian(sector=sector)
         eigvals, eigvecs = np.linalg.eigh(ham)
         if cache is not None:
             cache[sector_key] = [eigvals, eigvecs]
@@ -41,7 +42,7 @@ def compute_groundstate(model, thresh=50):
         logger.debug("Sector (%d, %d), size: %d", n_up, n_dn, hamop.shape[0])
 
         if hamop.shape[0] <= thresh:
-            ham = hamop.array()
+            ham = hamop.toarray()
             energies, vectors = np.linalg.eigh(ham)
             idx = np.argmin(energies)
             energy, state = energies[idx], vectors[:, idx]
@@ -90,23 +91,26 @@ def double_occupation(sector, eigvals, eigvecs, beta, min_energy=0.0, pos=0):
     return occ
 
 
-def accumulate_gf(
-    gf, z, cdag, eigvals, eigvecs, eigvals_p1, eigvecs_p1, beta, min_energy=0.0
-):
-    cdag_vec = cdag.matmat(eigvecs)
-    overlap = abs(eigvecs_p1.T.conj() @ cdag_vec) ** 2
+@njit
+def _accumulate_sum(gf, z, overlap, evals, evals_p1, exp_evals, exp_evals_p1):
+    for m, eig_m in enumerate(evals_p1):
+        for n, eig_n in enumerate(evals):
+            weights = exp_evals[n] + exp_evals_p1[m]
+            gf += overlap[m, n] * weights / (z + eig_n - eig_m)
+
+
+def accumulate_gf(gf, z, cdag, evals, evecs, evals_p1, evecs_p1, beta, min_energy=0.0):
+    cdag_vec = cdag.matmat(evecs)
+    overlap = abs(evecs_p1.T.conj() @ cdag_vec) ** 2
 
     if np.isfinite(beta):
-        exp_eigvals = np.exp(-beta * (eigvals - min_energy))
-        exp_eigvals_p1 = np.exp(-beta * (eigvals_p1 - min_energy))
+        exp_evals = np.exp(-beta * (evals - min_energy))
+        exp_evals_p1 = np.exp(-beta * (evals_p1 - min_energy))
     else:
-        exp_eigvals = np.ones_like(eigvals)
-        exp_eigvals_p1 = np.ones_like(eigvals_p1)
+        exp_evals = np.ones_like(evals)
+        exp_evals_p1 = np.ones_like(evals_p1)
 
-    for m, eig_m in enumerate(eigvals_p1):
-        for n, eig_n in enumerate(eigvals):
-            weights = exp_eigvals[n] + exp_eigvals_p1[m]
-            gf += overlap[m, n] * weights / (z + eig_n - eig_m)
+    return _accumulate_sum(gf, z, overlap, evals, evals_p1, exp_evals, exp_evals_p1)
 
 
 class GreensFunctionMeasurement:
@@ -145,9 +149,7 @@ class GreensFunctionMeasurement:
         self._part *= factor
         self._part += np.sum(np.exp(-self.beta * (eigvals - self._gs_energy)))
 
-    def _acc_gf(
-        self, sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1, factor
-    ):
+    def _acc_gf(self, sector, sector_p1, evals, evecs, evals_p1, evecs_p1, factor):
         if factor != 1.0:
             self._gf *= factor
 
@@ -155,43 +157,32 @@ class GreensFunctionMeasurement:
         z = self.z
         beta = self.beta
         e0 = self._gs_energy
-        accumulate_gf(
-            self._gf, z, cdag, eigvals, eigvecs, eigvals_p1, eigvecs_p1, beta, e0
-        )
+        accumulate_gf(self._gf, z, cdag, evals, evecs, evals_p1, evecs_p1, beta, e0)
 
-    def _acc_occ(self, sector, eigvals, eigvecs, factor):
+    def _acc_occ(self, sector, evals, evecs, factor):
+        beta = self.beta
+        e0 = self._gs_energy
         self._occ *= factor
-        self._occ += occupation(
-            sector, eigvals, eigvecs, self.beta, self._gs_energy, self.pos, self.sigma
-        )
+        self._occ += occupation(sector, evals, evecs, beta, e0, self.pos, self.sigma)
 
-    def _acc_occ_double(self, sector, eigvals, eigvecs, factor):
+    def _acc_occ_double(self, sector, evals, evecs, factor):
+        beta = self.beta
+        e0 = self._gs_energy
         self._occ_double *= factor
-        self._occ_double += double_occupation(
-            sector, eigvals, eigvecs, self.beta, self._gs_energy, self.pos
-        )
+        self._occ_double += double_occupation(sector, evals, evecs, beta, e0, self.pos)
 
-    def _accumulate(
-        self, sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1, factor
-    ):
-        self._acc_gf(
-            sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1, factor
-        )
-        self._acc_occ(sector, eigvals, eigvecs, factor)
-        self._acc_occ_double(sector, eigvals, eigvecs, factor)
-
-    def accumulate(self, sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1):
-        min_energy = min(eigvals)
+    def accumulate(self, sector, sector_p1, evals, evecs, evals_p1, evecs_p1):
+        min_energy = min(evals)
         factor = 1
         if min_energy < self._gs_energy:
             factor = np.exp(-self.beta * (self._gs_energy - min_energy))
             self._gs_energy = min_energy
             logger.debug("Found new ground state energy: E_0=%.4f", min_energy)
 
-        self._acc_part(eigvals, factor)
-        self._accumulate(
-            sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1, factor
-        )
+        self._acc_part(evals, factor)
+        self._acc_gf(sector, sector_p1, evals, evecs, evals_p1, evecs_p1, factor)
+        self._acc_occ(sector, evals, evecs, factor)
+        self._acc_occ_double(sector, evals, evecs, factor)
 
 
 def greens_function_lehmann(model, z, beta, pos=0, sigma=UP, eig_cache=None):

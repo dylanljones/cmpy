@@ -10,6 +10,7 @@ import abc
 import warnings
 import numpy as np
 from bisect import bisect_left
+from scipy.sparse import csr_matrix
 import scipy.sparse.linalg as sla
 from typing import Union, Callable, Iterable, Sequence
 from .basis import bit_count, occupations, overlap, UP, SPIN_CHARS
@@ -580,8 +581,12 @@ class LinearOperator(sla.LinearOperator, abc.ABC):
     def __repr__(self):
         return f"{self.__class__.__name__}(shape: {self.shape}, dtype: {self.dtype})"
 
-    def array(self) -> np.ndarray:
-        """Returns the `LinearOperator` in form of a dense array."""
+    def toarray(self) -> np.ndarray:
+        """Returns the `LinearOperator` in form of a dense array.
+
+        This is a naive implementation for the sake of generality. Override for a more
+        efficient implementation!
+        """
         x = np.eye(self.shape[1], dtype=self.dtype)
         return self.matmat(x)
 
@@ -599,7 +604,7 @@ class LinearOperator(sla.LinearOperator, abc.ABC):
         scaled = super().__mul__(x)
         try:
             scaled.trace = lambda: x * self.trace()
-            scaled.array = lambda: x * self.array()
+            scaled.toarray = lambda: x * self.toarray()
         except AttributeError:
             pass
         return scaled
@@ -609,7 +614,7 @@ class LinearOperator(sla.LinearOperator, abc.ABC):
         scaled = super().__rmul__(x)
         try:
             scaled.trace = lambda: x * self.trace()
-            scaled.array = lambda: x * self.array()
+            scaled.toarray = lambda: x * self.toarray()
         except AttributeError:
             pass
         return scaled
@@ -622,8 +627,8 @@ class HamiltonOperator(LinearOperator):
     """Hamiltonian as LinearOperator."""
 
     def __init__(self, size, data, indices, dtype=None):
-        data = np.asarray(data)
-        indices = np.asarray(indices)
+        data = np.asanyarray(data)
+        indices = np.asanyarray(indices)
         if dtype is None:
             dtype = data.dtype
         super().__init__((size, size), dtype=dtype)
@@ -635,6 +640,11 @@ class HamiltonOperator(LinearOperator):
         for (row, col), val in zip(self.indices, self.data):
             matvec[col] += val * x[row]
         return matvec
+
+    def toarray(self):
+        arg1 = self.data, self.indices.T
+        csr = csr_matrix(arg1, shape=self.shape, dtype=self.dtype)
+        return csr.toarray()
 
     def _adjoint(self) -> "HamiltonOperator":
         """Hamiltonian is hermitian."""

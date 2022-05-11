@@ -200,7 +200,7 @@ class AbstractSpinModel(AbstractModel):
 
     def hamiltonian(self, s=None, states=None, dtype=None):
         hamop = self.hamilton_operator(s, states, dtype)
-        return hamop.array()
+        return hamop.toarray()
 
 
 class AbstractManyBodyModel(AbstractModel):
@@ -257,4 +257,4 @@ class AbstractManyBodyModel(AbstractModel):
 
     def hamiltonian(self, n_up=None, n_dn=None, sector=None, dtype=None):
         hamop = self.hamilton_operator(n_up, n_dn, sector, dtype)
-        return hamop.array()
+        return hamop.toarray()
