@@ -146,6 +146,7 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel):
 
     def _hamiltonian_data(self, up_states, dn_states):
         """Gets called by the `hamilton_operator`-method of the abstract base class."""
+        nsites = 0
         u = np.append(self.u, np.zeros(self.num_bath))
         eps = np.append(self.eps_imp - self.mu, self.eps_bath)
         hopping = lambda i, j: self.v[j - 1] if i == 0 else 0  # noqa
@@ -153,7 +154,8 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel):
         yield from project_onsite_energy(up_states, dn_states, eps)
         yield from project_hubbard_inter(up_states, dn_states, u)
         for j in range(self.num_bath):
-            yield from project_hopping(up_states, dn_states, 0, j + 1, self.v[j])
+            hyb = self.v[j]
+            yield from project_hopping(up_states, dn_states, nsites, 0, j + 1, hyb)
 
     def impurity_gf0(self, z):
         return 1 / (z + self.mu + self.eps_imp - self.hybridization_func(z))

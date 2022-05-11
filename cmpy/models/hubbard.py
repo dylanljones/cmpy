@@ -19,7 +19,7 @@ def _ham_data(up_states, dn_states, num_sites, neighbors, inter, eps, hop):
     yield from project_hubbard_inter(up_states, dn_states, interaction)
     for i, j in neighbors:
         if i < j:
-            yield from project_hopping(up_states, dn_states, i, j, hop)
+            yield from project_hopping(up_states, dn_states, num_sites, i, j, hop)
 
 
 def hubbard_hamiltonian(sector, neighbors, inter=0.0, eps=0.0, hop=1.0):

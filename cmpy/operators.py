@@ -7,13 +7,12 @@
 """This module contains tools for working with linear operators in sparse format."""
 
 import abc
-import warnings
+import bisect
 import numpy as np
-from bisect import bisect_left
+from numba import njit, int64, bool_
 from scipy.sparse import csr_matrix
 import scipy.sparse.linalg as sla
-from typing import Union, Callable, Iterable, Sequence
-from .basis import bit_count, occupations, overlap, UP, SPIN_CHARS
+from .basis import UP, SPIN_CHARS
 from .matrix import EigenDecomposition
 
 __all__ = [
@@ -27,15 +26,12 @@ __all__ = [
     "project_elements_dn",
     "project_hubbard_inter",
     "project_onsite_energy",
-    "project_site_hopping",
     "project_hopping",
     "TimeEvolutionOperator",
 ]
 
 
-def project_up(
-    up_idx: int, num_dn_states: int, dn_indices: Union[int, np.ndarray]
-) -> np.ndarray:
+def project_up(up_idx, num_dn_states, dn_indices):
     """Projects a spin-up state onto the full basis(-sector).
 
     Parameters
@@ -65,9 +61,7 @@ def project_up(
     return np.atleast_1d(up_idx * num_dn_states + dn_indices)
 
 
-def project_dn(
-    dn_idx: int, num_dn_states: int, up_indices: Union[int, np.ndarray]
-) -> np.ndarray:
+def project_dn(dn_idx, num_dn_states, up_indices):
     """Projects a spin-down state onto the full basis(-sector).
 
     Parameters
@@ -97,13 +91,8 @@ def project_dn(
     return np.atleast_1d(up_indices * num_dn_states + dn_idx)
 
 
-def project_elements_up(
-    up_idx: int,
-    num_dn_states: int,
-    dn_indices: Union[int, np.ndarray],
-    value: Union[complex, float, np.ndarray],
-    target: Union[int, np.ndarray] = None,
-):
+@njit(fastmath=True, nogil=True)
+def project_elements_up(up_idx, num_dn_states, dn_indices, value, target=None):
     """Projects a value for a spin-up state onto the full basis(-sector).
 
     Parameters
@@ -157,26 +146,18 @@ def project_elements_up(
            [ 6, 10,  1],
            [ 7, 11,  1]])
     """
-    if not value:
-        return
-
-    origins = project_up(up_idx, num_dn_states, dn_indices)
+    origins = np.atleast_1d(up_idx * num_dn_states + dn_indices)
     if target is None:
         targets = origins
     else:
-        targets = project_up(target, num_dn_states, dn_indices)
+        targets = np.atleast_1d(target * num_dn_states + dn_indices)
 
     for row, col in zip(origins, targets):
         yield row, col, value
 
 
-def project_elements_dn(
-    dn_idx: int,
-    num_dn_states: int,
-    up_indices: Union[int, np.ndarray],
-    value: Union[complex, float, np.ndarray],
-    target: Union[int, np.ndarray] = None,
-):
+@njit(fastmath=True, nogil=True)
+def project_elements_dn(dn_idx, num_dn_states, up_indices, value, target=None):
     """Projects a value for a spin-down state onto the full basis(-sector).
 
     Parameters
@@ -229,84 +210,97 @@ def project_elements_dn(
            [ 5,  6,  1],
            [ 9, 10,  1],
            [13, 14,  1]])
-
     """
-    if not value:
-        return
-
-    origins = project_dn(dn_idx, num_dn_states, up_indices)
+    origins = np.atleast_1d(up_indices * num_dn_states + dn_idx)
     if target is None:
         targets = origins
     else:
-        targets = project_dn(target, num_dn_states, up_indices)
+        targets = np.atleast_1d(up_indices * num_dn_states + target)
 
     for row, col in zip(origins, targets):
         yield row, col, value
 
 
-# -- Interacting Hamiltonian projectors ------------------------------------------------
+# -- Helper methods --------------------------------------------------------------------
 
 
-def project_onsite_energy(
-    up_states: Sequence[int], dn_states: Sequence[int], eps: Sequence[float]
-):
-    """Projects the on-site energy of a many-body Hamiltonian onto full basis(-sector).
+@njit(bool_[:](int64, int64), fastmath=True, nogil=True)
+def binarray(number, width):
+    """Returns the bits of an integer as a binary array.
 
     Parameters
     ----------
-    up_states : array_like
-        An array of all spin-up states in the basis(-sector).
-    dn_states : array_like
-        An array of all spin-down states in the basis(-sector).
-    eps : array_like
-        The on-site energy.
+    number : int
+        The number representing the binary state.
+    width : int
+        Number N of digits used.
 
-    Yields
-    ------
-    row : int
-        The row-index of the on-site energy.
-    col : int
-        The column-index of the on-site energy.
-    value : float
-        The on-site energy.
-
-    Examples
-    --------
-    >>> from cmpy import Basis
-    >>> basis = Basis(num_sites=2)
-    >>> sector = basis.get_sector(n_up=1, n_dn=1)
-    >>> up_states, dn_states = sector.up_states, sector.dn_states
-    >>> energies = [1.0, 2.0]
-    >>> ham = np.zeros((sector.size, sector.size))
-    >>> for i, j, val in project_onsite_energy(up_states, dn_states, energies):
-    ...     ham[i, j] += val
-    >>> ham
-    array([[2., 0., 0., 0.],
-           [0., 3., 0., 0.],
-           [0., 0., 3., 0.],
-           [0., 0., 0., 4.]])
-
-    >>> from cmpy import matshow
-    >>> matshow(ham, ticklabels=sector.state_labels(), values=True)
+    Returns
+    -------
+    binarr : (N, ) bool np.ndarray
+        The binary array representing the given number.
 
     """
-    num_dn = len(dn_states)
-    all_up, all_dn = np.arange(len(up_states)), np.arange(num_dn)
-
-    for up_idx, up in enumerate(up_states):
-        weights = occupations(up)
-        energy = np.sum(eps[: weights.size] * weights)
-        yield from project_elements_up(up_idx, num_dn, all_dn, energy)
-
-    for dn_idx, dn in enumerate(dn_states):
-        weights = occupations(dn)
-        energy = np.sum(eps[: weights.size] * weights)
-        yield from project_elements_dn(dn_idx, num_dn, all_up, energy)
+    binarr = np.zeros(width, dtype=np.bool_)
+    for i in range(width):
+        binarr[i] = bool(number & (1 << i))
+    return binarr
 
 
-def project_hubbard_inter(
-    up_states: Sequence[int], dn_states: Sequence[int], u: Sequence[float]
-):
+@njit(int64(int64, int64), fastmath=True, nogil=True)
+def bit_count(number, width):
+    """Counts the number of bits with value 1.
+
+    Parameters
+    ----------
+    number : int
+        The number representing the binary state.
+    width : int
+        Number N of digits used.
+
+    Returns
+    -------
+    count : int
+        The number of bits set to 1.
+    """
+    count = 0
+    for i in range(width):
+        if bool(number & (1 << i)):
+            count += 1
+    return count
+
+
+@njit(fastmath=True, nogil=True)
+def bisect_left(a, x):
+    """Locate the insertion point for x in `a` to maintain a sorted order.
+
+    Parameters
+    ----------
+    a : (N, ) int np.ndarray
+        The input array.
+    x : int
+        The value to insert into the input array.
+
+    Returns
+    -------
+    i : int
+        The insertion point of `x` in `a`.
+    """
+    lo, hi = 0, len(a)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if a[mid] < x:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo
+
+
+# -- Hamiltonian projectors ------------------------------------------------------------
+
+
+@njit(fastmath=True, nogil=True)
+def project_hubbard_inter(up_states, dn_states, u):
     """Projects the on-site interaction of a many-body Hamiltonian onto the full basis.
 
     Parameters
@@ -345,24 +339,96 @@ def project_hubbard_inter(
 
     >>> from cmpy import matshow
     >>> matshow(ham, ticklabels=sector.state_labels(), values=True)
-
     """
+    num_sites = len(u)
     num_dn = len(dn_states)
+
     for up_idx, up in enumerate(up_states):
         for dn_idx, dn in enumerate(dn_states):
-            weights = overlap(up, dn)
-            interaction = np.sum(u[: weights.size] * weights)
-            yield from project_elements_up(up_idx, num_dn, dn_idx, interaction)
+            weights = binarray(up & dn, num_sites)
+            energy = np.sum(u * weights)
+            if energy:
+                origin = up_idx * num_dn + dn_idx
+                yield origin, origin, energy
 
 
-def _hopping_sign(initial_state, site1, site2):
-    mask = int(sum(1 << x for x in range(site1 + 1, site2)))
-    jump_overs = bit_count(initial_state & mask)
+@njit(fastmath=True, nogil=True)
+def project_onsite_energy(up_states, dn_states, eps):
+    """Projects the on-site energy of a many-body Hamiltonian onto full basis(-sector).
+
+    Parameters
+    ----------
+    up_states : array_like
+        An array of all spin-up states in the basis(-sector).
+    dn_states : array_like
+        An array of all spin-down states in the basis(-sector).
+    eps : array_like
+        The on-site energy.
+
+    Yields
+    ------
+    row : int
+        The row-index of the on-site energy.
+    col : int
+        The column-index of the on-site energy.
+    value : float
+        The on-site energy.
+
+    Examples
+    --------
+    >>> from cmpy import Basis
+    >>> basis = Basis(num_sites=2)
+    >>> sector = basis.get_sector(n_up=1, n_dn=1)
+    >>> up_states, dn_states = sector.up_states, sector.dn_states
+    >>> energies = [1.0, 2.0]
+    >>> ham = np.zeros((sector.size, sector.size))
+    >>> for i, j, val in project_onsite_energy(up_states, dn_states, energies):
+    ...     ham[i, j] += val
+    >>> ham
+    array([[2., 0., 0., 0.],
+           [0., 3., 0., 0.],
+           [0., 0., 3., 0.],
+           [0., 0., 0., 4.]])
+
+    >>> from cmpy import matshow
+    >>> matshow(ham, ticklabels=sector.state_labels(), values=True)
+    """
+    num_sites = len(eps)
+    num_dn = len(dn_states)
+    all_up, all_dn = np.arange(len(up_states)), np.arange(num_dn)
+
+    # Spin-up elements
+    for up_idx, up in enumerate(up_states):
+        weights = binarray(up, num_sites)
+        energy = np.sum(eps * weights)
+        if energy:
+            origins = up_idx * num_dn + all_dn
+            for origin in origins:
+                yield origin, origin, energy
+
+    # Spin-dn elements
+    for dn_idx, dn in enumerate(dn_states):
+        weights = binarray(dn, num_sites)
+        energy = np.sum(eps * weights)
+        if energy:
+            origins = all_up * num_dn + dn_idx
+            for origin in origins:
+                yield origin, origin, energy
+
+
+@njit(fastmath=True, nogil=True)
+def _hopping_sign(initial_state, width, site1, site2):
+    """Computes the fermionic sign change of a hopping element."""
+    mask = 0
+    for i in range(site1 + 1, site2):
+        mask += 1 << i
+    jump_overs = bit_count(initial_state & mask, width)
     sign = (-1) ** jump_overs
     return sign
 
 
-def _compute_hopping_term(states, site1, site2, hop):
+@njit(fastmath=True, nogil=True)
+def _compute_hopping_term(states, width, site1, site2, hop):
     assert site1 < site2
 
     for i, ini in enumerate(states):
@@ -377,23 +443,19 @@ def _compute_hopping_term(states, site1, site2, hop):
         # ToDo: Account for hop-overs of other spin flavour
         if occ1 and not occ2:
             # Hopping from `site1` to `site2` possible
-            sign = _hopping_sign(ini, site1, site2)
+            sign = _hopping_sign(ini, width, site1, site2)
             j = bisect_left(states, new)
             yield i, j, sign * hop
+
         elif occ2 and not occ1:
             # Hopping from `site2` to `site1` possible
-            sign = _hopping_sign(ini, site1, site2)
+            sign = _hopping_sign(ini, width, site1, site2)
             j = bisect_left(states, new)
             yield i, j, sign * hop
 
 
-def project_hopping(
-    up_states: Sequence[int],
-    dn_states: Sequence[int],
-    site1: int,
-    site2: int,
-    hop: float,
-):
+@njit(fastmath=True, nogil=True)
+def project_hopping(up_states, dn_states, num_sites, site1, site2, hop):
     """Projects the hopping between two sites onto full basis.
 
     Parameters
@@ -402,6 +464,8 @@ def project_hopping(
         An array of all spin-up states in the basis(-sector).
     dn_states : array_like
         An array of all spin-down states in the basis(-sector).
+    num_sites : int
+        The number of sites of the system.
     site1 : int
         The first site of the hopping pair. This has to be the lower index of the two
         sites.
@@ -425,9 +489,10 @@ def project_hopping(
     >>> from cmpy import Basis
     >>> basis = Basis(num_sites=2)
     >>> sector = basis.get_sector(n_up=1, n_dn=1)
+    >>> nsites = sector.num_sites
     >>> up, dn = sector.up_states, sector.dn_states
     >>> ham = np.zeros((sector.size, sector.size))
-    >>> for i, j, val in project_hopping(up, dn, site1=0, site2=1, hop=1.0):
+    >>> for i, j, val in project_hopping(up, dn, nsites, site1=0, site2=1, hop=1.0):
     ...     ham[i, j] += val
     >>> ham
     array([[0., 1., 1., 0.],
@@ -437,106 +502,23 @@ def project_hopping(
 
     >>> from cmpy import matshow
     >>> matshow(ham, ticklabels=sector.state_labels(), values=True)
-
     """
-    if site1 > site2:
-        raise ValueError("The first site index must be smaller than the second one!")
-
     num_dn = len(dn_states)
     all_up, all_dn = np.arange(len(up_states)), np.arange(num_dn)
 
-    for idx, target, amp in _compute_hopping_term(up_states, site1, site2, hop):
-        yield from project_elements_up(idx, num_dn, all_dn, amp, target=target)
+    # Spin-up hopping
+    for o, t, a in _compute_hopping_term(up_states, num_sites, site1, site2, hop):
+        origins = o * num_dn + all_dn
+        targets = t * num_dn + all_dn
+        for i, j in zip(origins, targets):
+            yield i, j, a
 
-    for idx, target, amp in _compute_hopping_term(dn_states, site1, site2, hop):
-        yield from project_elements_dn(idx, num_dn, all_up, amp, target=target)
-
-
-def _hopping_candidates(num_sites, state, pos):
-    results = []
-    op = 1 << pos
-    occ = state & op
-    sign_to = 1
-    sign_from = 1
-    tmp = state ^ op  # Annihilate or create electron at `pos`
-    for pos2 in range(num_sites):
-        if pos >= pos2:
-            continue
-        op2 = 1 << pos2
-        occ2 = state & op2
-
-        # Hopping from `pos` to `pos2` possible
-        if occ and not occ2:
-            new = tmp ^ op2
-            results.append((pos2, new, sign_to))
-        else:  # state filled, no hopping but sign change
-            sign_to *= -1
-
-        # Hopping from `pos2` to `pos` possible
-        if not occ and occ2:
-            new = tmp ^ op2
-            results.append((pos2, new, sign_from))
-            sign_from *= -1  # if this site is jumped over sign changes
-    return results
-
-
-def _compute_hopping(num_sites, states, pos, hopping):
-    for i, state in enumerate(states):
-        for pos2, new, sign in _hopping_candidates(num_sites, state, pos):
-            try:
-                t = hopping(pos, pos2)
-            except TypeError:
-                t = hopping
-            if t:
-                j = bisect_left(states, new)
-                value = sign * t
-                yield i, j, value
-
-
-def project_site_hopping(
-    up_states: Sequence[int],
-    dn_states: Sequence[int],
-    num_sites: int,
-    hopping: Union[Callable, Iterable, float],
-    pos: int,
-):
-    """Projects the hopping of a single site of a many-body Hamiltonian onto full basis.
-
-    Parameters
-    ----------
-    up_states : array_like
-        An array of all spin-up states in the basis(-sector).
-    dn_states : array_like
-        An array of all spin-down states in the basis(-sector).
-    num_sites : int
-        The number of sites in the model.
-    hopping : callable or array_like
-        An iterable or callable defining the hopping energy. If a callable is used
-        the two positions of the hopping elements are passed to the method. Otherwise,
-        the positions are used as indices.
-    pos : int
-        The index of the position considered in the hopping processes.
-
-    Yields
-    ------
-    row: int
-        The row-index of the hopping element.
-    col: int
-        The column-index of the hopping element.
-    value: float
-        The hopping energy.
-    """
-    warnings.warn(
-        "This method is deprecated! Use 'project_hopping' istead!", DeprecationWarning
-    )
-    num_dn = len(dn_states)
-    all_up, all_dn = np.arange(len(up_states)), np.arange(num_dn)
-
-    for up_idx, target, amp in _compute_hopping(num_sites, up_states, pos, hopping):
-        yield from project_elements_up(up_idx, num_dn, all_dn, amp, target=target)
-
-    for dn_idx, target, amp in _compute_hopping(num_sites, dn_states, pos, hopping):
-        yield from project_elements_dn(dn_idx, num_dn, all_up, amp, target=target)
+    # Spin-down hopping
+    for o, t, a in _compute_hopping_term(dn_states, num_sites, site1, site2, hop):
+        origins = all_up * num_dn + o
+        targets = all_up * num_dn + t
+        for i, j in zip(origins, targets):
+            yield i, j, a
 
 
 # =========================================================================
@@ -750,7 +732,7 @@ class AnnihilationOperator(LinearOperator):
         for up_idx, up in enumerate(self.sector.up_states):
             if up & op:
                 new = up ^ op
-                idx_new = bisect_left(self.sector_m1.up_states, new)
+                idx_new = bisect.bisect_left(self.sector_m1.up_states, new)
                 origins = project_up(up_idx, num_dn, all_dn)
                 targets = project_up(idx_new, num_dn, all_dn)
                 if isinstance(origins, int):
@@ -765,7 +747,7 @@ class AnnihilationOperator(LinearOperator):
         for dn_idx, dn in enumerate(self.sector.dn_states):
             if dn & op:
                 new = dn ^ op
-                idx_new = bisect_left(self.sector_m1.dn_states, new)
+                idx_new = bisect.bisect_left(self.sector_m1.dn_states, new)
                 origins = project_dn(dn_idx, num_dn, all_up)
                 targets = project_dn(idx_new, num_dn, all_up)
                 if isinstance(origins, int):
