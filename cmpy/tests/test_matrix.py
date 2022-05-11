@@ -25,18 +25,18 @@ def test_reconstruct(arr):
     assume(matrix.is_hermitian(arr))
     vr, xi, vl = matrix.decompose_eig(arr, h=True)
     rec = matrix.reconstruct_eig(vr, xi, vl).astype(np.float64)
-    assert_allclose(arr, rec)
+    assert_allclose(arr, rec, atol=1e-20)
 
 
 @given(mats)
 def test_reconstruct_qr(arr):
     q, r = matrix.decompose_qr(arr)
     rec = matrix.reconstruct_qr(q, r)
-    assert_allclose(arr, rec)
+    assert_allclose(arr, rec, atol=1e-20)
 
 
 @given(mats)
 def test_reconstruct_svd(arr):
     u, s, vh = matrix.decompose_svd(arr)
     rec = matrix.reconstruct_svd(u, s, vh)
-    assert_allclose(arr, rec)
+    assert_allclose(arr, rec, atol=1e-20)
