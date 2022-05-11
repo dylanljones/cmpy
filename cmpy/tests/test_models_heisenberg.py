@@ -28,7 +28,7 @@ def xxz_hamiltonian(num_sites, j=1.0, jz=1.0):
 @given(st.integers(3, 5))
 def test_hamiltonian_1d(num_sites):
     latt = simple_chain()
-    latt.build(num_sites, relative=True)
+    latt.build(num_sites, primitive=True)
     model = HeisenbergModel(latt, j=1.0, jz=1.0)
     ham = model.hamiltonian()
     expected = xxz_hamiltonian(num_sites, model.j, model.jz)
