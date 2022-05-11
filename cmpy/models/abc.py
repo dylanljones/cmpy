@@ -11,6 +11,9 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from collections.abc import MutableMapping
 from typing import Any, Dict, Optional, List, Iterator
+
+import numpy as np
+
 from cmpy.basis import Basis, SpinBasis
 from cmpy.operators import HamiltonOperator
 
@@ -242,7 +245,7 @@ class AbstractManyBodyModel(AbstractModel):
             rows.append(row)
             cols.append(col)
             data.append(val)
-        return data, (rows, cols)
+        return data, np.array([rows, cols], dtype=np.int64)
 
     def hamilton_operator(self, n_up=None, n_dn=None, sector=None, dtype=None):
         if sector is None:
