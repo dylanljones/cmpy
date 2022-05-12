@@ -18,6 +18,8 @@ from .operators import CreationOperator, AnnihilationOperator
 
 logger = logging.getLogger(__name__)
 
+_jitkw = dict(fastmath=True, nogil=True, parallel=True)
+
 
 def compute_groundstate(model, thresh=50):
     gs = EigenState()
@@ -55,8 +57,8 @@ def solve_sector(model: AbstractManyBodyModel, sector: Sector, cache: dict = Non
     return eigvals, eigvecs
 
 
-@njit(fastmath=True, nogil=True, parallel=True)
-def occupation_up(up_states, dn_states, evals, evecs, beta, emin=0.0, pos=0):
+@njit("f8(i8[:], i8[:], f8[:], f8[:, :], f8, f8, i8)", **_jitkw)
+def occupation_up(up_states, dn_states, evals, evecs, beta, emin, pos):
     num_dn = len(dn_states)
     all_dn = np.arange(num_dn)
     occ = 0.0
@@ -69,8 +71,8 @@ def occupation_up(up_states, dn_states, evals, evecs, beta, emin=0.0, pos=0):
     return occ
 
 
-@njit(fastmath=True, nogil=True, parallel=True)
-def occupation_dn(up_states, dn_states, evals, evecs, beta, emin=0.0, pos=0):
+@njit("f8(i8[:], i8[:], f8[:], f8[:, :], f8, f8, i8)", **_jitkw)
+def occupation_dn(up_states, dn_states, evals, evecs, beta, emin, pos):
     num_dn = len(dn_states)
     all_up = np.arange(len(up_states))
     occ = 0.0
@@ -90,8 +92,8 @@ def occupation(up_states, dn_states, evals, evecs, beta, emin=0.0, pos=0, sigma=
         return occupation_dn(up_states, dn_states, evals, evecs, beta, emin, pos)
 
 
-@njit(fastmath=True, nogil=True, parallel=True)
-def double_occupation(up_states, dn_states, evals, evecs, beta, emin=0.0, pos=0):
+@njit("f8(i8[:], i8[:], f8[:], f8[:, :], f8, f8, i8)", **_jitkw)
+def double_occupation(up_states, dn_states, evals, evecs, beta, emin, pos):
     occ = 0.0
     idx = 0
     for up_idx in prange(len(up_states)):
@@ -105,7 +107,7 @@ def double_occupation(up_states, dn_states, evals, evecs, beta, emin=0.0, pos=0)
     return occ
 
 
-@njit(fastmath=True, nogil=True, parallel=True)
+@njit("void(c16[:], c16[:], f8[:], f8[:], f8[:, :], f8[:, :], f8, f8)", **_jitkw)
 def _accumulate_sum(gf, z, evals, evals_p1, evecs_p1, cdag_evec, beta, emin):
     overlap = np.abs(evecs_p1.T.conj() @ cdag_evec) ** 2
 
