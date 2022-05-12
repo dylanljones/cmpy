@@ -23,6 +23,11 @@ def tight_binding_hamiltonian(latt, eps=0.0, hop=1.0):
 
 @mark.parametrize("num_sites", [2, 3, 4, 5])
 def test_gf_lehmann_hubbard_non_interacting(num_sites):
+    """Test the non-interacting Hubbard Green's function at half filling.
+
+    The many-body Green's function should be equivalent to the tight-binding
+    Green's function with the same on-site and hopping energy.
+    """
     eps = 0.0
     pos = 0
     z = np.linspace(-6, +6, 1001) + 0.05j
@@ -42,6 +47,10 @@ def test_gf_lehmann_hubbard_non_interacting(num_sites):
 
 @mark.parametrize("num_sites", [2, 3, 4, 5])
 def test_gf_lehmann_hubbard_atomic_limit(num_sites):
+    """Test the Hubbard Green's function at half filling with no hopping.
+
+    The many-body Green's function should only have two peaks at -u/2 and +u/2.
+    """
     u = 2.0
     pos = 0
     z = np.linspace(-4, +4, 1001) + 0.05j
