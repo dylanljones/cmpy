@@ -135,11 +135,13 @@ def accumulate_gf(gf, z, cdag, evals, evecs, evals_p1, evecs_p1, beta, emin=0.0)
 
 
 class GreensFunctionMeasurement:
-    def __init__(self, z, beta, pos=0, sigma=UP, dtype=None):
+    def __init__(self, z, beta, pos=0, sigma=UP, dtype=None, measure_occ=True):
         self.z = z
         self.beta = beta
         self.pos = pos
         self.sigma = sigma
+        self._measure_occ = measure_occ
+
         self._part = 0
         self._gs_energy = np.infty
         self._gf = np.zeros_like(z, dtype=dtype)
@@ -205,17 +207,18 @@ class GreensFunctionMeasurement:
         dn = np.array(sector.dn_states, dtype=np.int64)
         self._acc_part(evals, factor)
         self._acc_gf(sector, sector_p1, evals, evecs, evals_p1, evecs_p1, factor)
-        self._acc_occ(up, dn, evals, evecs, factor)
-        self._acc_occ_double(up, dn, evals, evecs, factor)
+        if self._measure_occ:
+            self._acc_occ(up, dn, evals, evecs, factor)
+            self._acc_occ_double(up, dn, evals, evecs, factor)
 
 
-def greens_function_lehmann(model, z, beta, pos=0, sigma=UP, eig_cache=None):
+def greens_function_lehmann(model, z, beta, pos=0, sigma=UP, eig_cache=None, occ=True):
     basis = model.basis
 
     logger.info("Accumulating Lehmann sum (pos=%s, sigma=%s)", pos, sigma)
     logger.debug("Sites: %s (%s states)", basis.num_sites, basis.size)
 
-    data = GreensFunctionMeasurement(z, beta, pos, sigma)
+    data = GreensFunctionMeasurement(z, beta, pos, sigma, measure_occ=occ)
     eig_cache = eig_cache if eig_cache is not None else dict()
 
     fillings = list(basis.iter_fillings())
