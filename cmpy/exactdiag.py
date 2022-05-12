@@ -9,7 +9,7 @@ import numpy as np
 import scipy.linalg as la
 import scipy.sparse.linalg as sla
 import gftool as gt
-from numba import njit
+from numba import njit, prange
 from .basis import Sector, UP
 from .matrix import EigenState
 from .linalg import expm_multiply
@@ -101,7 +101,7 @@ def double_occupation(up_states, dn_states, evals, evecs, beta, emin=0.0, pos=0)
     return occ
 
 
-@njit(fastmath=True, nogil=True)
+@njit(fastmath=True, nogil=True, parallel=True)
 def _accumulate_sum(gf, z, evals, evals_p1, evecs_p1, cdag_evec, beta, emin):
     overlap = np.abs(evecs_p1.T.conj() @ cdag_evec) ** 2
 
@@ -112,8 +112,12 @@ def _accumulate_sum(gf, z, evals, evals_p1, evecs_p1, cdag_evec, beta, emin):
         exp_evals = np.ones_like(evals)
         exp_evals_p1 = np.ones_like(evals_p1)
 
-    for m, eig_m in enumerate(evals_p1):
-        for n, eig_n in enumerate(evals):
+    num_m = len(evals_p1)
+    num_n = len(evals)
+    for m in prange(num_m):
+        for n in prange(num_n):
+            eig_m = evals_p1[m]
+            eig_n = evals[n]
             weights = exp_evals[n] + exp_evals_p1[m]
             gf += overlap[m, n] * weights / (z + eig_n - eig_m)
 
@@ -191,12 +195,13 @@ class GreensFunctionMeasurement:
         if min_energy < self._gs_energy:
             factor = np.exp(-self.beta * (self._gs_energy - min_energy))
             self._gs_energy = min_energy
-            logger.debug("Found new ground state energy: E_0=%.4f", min_energy)
+            logger.debug("New ground state: E_0=%.4f", min_energy)
 
+        logger.debug("accumulating")
         self._acc_part(evals, factor)
         self._acc_gf(sector, sector_p1, evals, evecs, evals_p1, evecs_p1, factor)
-        self._acc_occ(sector, evals, evecs, factor)
-        self._acc_occ_double(sector, evals, evecs, factor)
+        # self._acc_occ(sector, evals, evecs, factor)
+        # self._acc_occ_double(sector, evals, evecs, factor)
 
 
 def greens_function_lehmann(model, z, beta, pos=0, sigma=UP, eig_cache=None):
