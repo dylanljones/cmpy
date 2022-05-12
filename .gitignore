@@ -11,6 +11,10 @@ _data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
+__numba__/
+__cython__/
+__pythran__/
+
 *.py[cod]
 *$py.class
 

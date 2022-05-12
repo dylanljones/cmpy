@@ -9,7 +9,7 @@ import numpy as np
 import scipy.linalg as la
 import scipy.sparse.linalg as sla
 import gftool as gt
-from numba import njit
+from numba import njit, prange
 from .basis import Sector, UP
 from .matrix import EigenState
 from .linalg import expm_multiply
@@ -17,6 +17,8 @@ from .models import AbstractManyBodyModel
 from .operators import CreationOperator, AnnihilationOperator
 
 logger = logging.getLogger(__name__)
+
+_jitkw = dict(fastmath=True, nogil=True, parallel=True)
 
 
 def compute_groundstate(model, thresh=50):
@@ -44,7 +46,7 @@ def compute_groundstate(model, thresh=50):
 def solve_sector(model: AbstractManyBodyModel, sector: Sector, cache: dict = None):
     sector_key = (sector.n_up, sector.n_dn)
     if cache is not None and sector_key in cache:
-        logger.debug("Loading eig  %d, %d", sector.n_up, sector.n_dn)
+        logger.debug("Loading eig  %d, %d (%s)", sector.n_up, sector.n_dn, sector.size)
         eigvals, eigvecs = cache[sector_key]
     else:
         logger.debug("Solving eig  %d, %d (%s)", sector.n_up, sector.n_dn, sector.size)
@@ -55,12 +57,13 @@ def solve_sector(model: AbstractManyBodyModel, sector: Sector, cache: dict = Non
     return eigvals, eigvecs
 
 
-@njit(fastmath=True, nogil=True)
-def occupation_up(up_states, dn_states, evals, evecs, beta, emin=0.0, pos=0):
+@njit("f8(i8[:], i8[:], f8[:], f8[:, :], f8, f8, i8)", **_jitkw)
+def occupation_up(up_states, dn_states, evals, evecs, beta, emin, pos):
     num_dn = len(dn_states)
     all_dn = np.arange(num_dn)
     occ = 0.0
-    for up_idx, up in enumerate(up_states):
+    for up_idx in prange(len(up_states)):
+        up = up_states[up_idx]
         if up & (1 << pos):  # state occupied
             indices = up_idx * num_dn + all_dn
             overlap = np.sum(np.abs(evecs[indices, :]) ** 2, axis=0)
@@ -68,12 +71,13 @@ def occupation_up(up_states, dn_states, evals, evecs, beta, emin=0.0, pos=0):
     return occ
 
 
-@njit(fastmath=True, nogil=True)
-def occupation_dn(up_states, dn_states, evals, evecs, beta, emin=0.0, pos=0):
+@njit("f8(i8[:], i8[:], f8[:], f8[:, :], f8, f8, i8)", **_jitkw)
+def occupation_dn(up_states, dn_states, evals, evecs, beta, emin, pos):
     num_dn = len(dn_states)
     all_up = np.arange(len(up_states))
     occ = 0.0
-    for dn_idx, dn in enumerate(dn_states):
+    for dn_idx in prange(num_dn):
+        dn = dn_states[dn_idx]
         if dn & (1 << pos):  # state occupied
             indices = all_up * num_dn + dn_idx
             overlap = np.sum(np.abs(evecs[indices, :]) ** 2, axis=0)
@@ -88,12 +92,14 @@ def occupation(up_states, dn_states, evals, evecs, beta, emin=0.0, pos=0, sigma=
         return occupation_dn(up_states, dn_states, evals, evecs, beta, emin, pos)
 
 
-@njit(fastmath=True, nogil=True)
-def double_occupation(up_states, dn_states, evals, evecs, beta, emin=0.0, pos=0):
+@njit("f8(i8[:], i8[:], f8[:], f8[:, :], f8, f8, i8)", **_jitkw)
+def double_occupation(up_states, dn_states, evals, evecs, beta, emin, pos):
     occ = 0.0
     idx = 0
-    for up in up_states:
-        for dn in dn_states:
+    for up_idx in prange(len(up_states)):
+        for dn_idx in range(len(dn_states)):
+            up = up_states[up_idx]
+            dn = dn_states[dn_idx]
             if up & dn & (1 << pos):
                 overlap = np.abs(evecs[idx, :]) ** 2
                 occ += np.sum(np.exp(-beta * (evals - emin)) * overlap)
@@ -101,7 +107,7 @@ def double_occupation(up_states, dn_states, evals, evecs, beta, emin=0.0, pos=0)
     return occ
 
 
-@njit(fastmath=True, nogil=True)
+@njit("void(c16[:], c16[:], f8[:], f8[:], f8[:, :], f8[:, :], f8, f8)", **_jitkw)
 def _accumulate_sum(gf, z, evals, evals_p1, evecs_p1, cdag_evec, beta, emin):
     overlap = np.abs(evecs_p1.T.conj() @ cdag_evec) ** 2
 
@@ -112,10 +118,15 @@ def _accumulate_sum(gf, z, evals, evals_p1, evecs_p1, cdag_evec, beta, emin):
         exp_evals = np.ones_like(evals)
         exp_evals_p1 = np.ones_like(evals_p1)
 
-    for m, eig_m in enumerate(evals_p1):
-        for n, eig_n in enumerate(evals):
+    num_m = len(evals_p1)
+    num_n = len(evals)
+    for m in prange(num_m):
+        eig_m = evals_p1[m]
+        z_m = z - eig_m
+        for n in range(num_n):
+            eig_n = evals[n]
             weights = exp_evals[n] + exp_evals_p1[m]
-            gf += overlap[m, n] * weights / (z + eig_n - eig_m)
+            gf += overlap[m, n] * weights / (z_m + eig_n)
 
 
 def accumulate_gf(gf, z, cdag, evals, evecs, evals_p1, evecs_p1, beta, emin=0.0):
@@ -169,17 +180,13 @@ class GreensFunctionMeasurement:
         e0 = self._gs_energy
         accumulate_gf(self._gf, z, cdag, evals, evecs, evals_p1, evecs_p1, beta, e0)
 
-    def _acc_occ(self, sector, evals, evecs, factor):
-        up = sector.up_states
-        dn = sector.dn_states
+    def _acc_occ(self, up, dn, evals, evecs, factor):
         beta = self.beta
         e0 = self._gs_energy
         self._occ *= factor
         self._occ += occupation(up, dn, evals, evecs, beta, e0, self.pos, self.sigma)
 
-    def _acc_occ_double(self, sector, evals, evecs, factor):
-        up = sector.up_states
-        dn = sector.dn_states
+    def _acc_occ_double(self, up, dn, evals, evecs, factor):
         beta = self.beta
         e0 = self._gs_energy
         self._occ_double *= factor
@@ -191,32 +198,47 @@ class GreensFunctionMeasurement:
         if min_energy < self._gs_energy:
             factor = np.exp(-self.beta * (self._gs_energy - min_energy))
             self._gs_energy = min_energy
-            logger.debug("Found new ground state energy: E_0=%.4f", min_energy)
+            logger.debug("New ground state: E_0=%.4f", min_energy)
 
+        logger.debug("Accumulating")
+        up = np.array(sector.up_states, dtype=np.int64)
+        dn = np.array(sector.dn_states, dtype=np.int64)
         self._acc_part(evals, factor)
         self._acc_gf(sector, sector_p1, evals, evecs, evals_p1, evecs_p1, factor)
-        self._acc_occ(sector, evals, evecs, factor)
-        self._acc_occ_double(sector, evals, evecs, factor)
+        self._acc_occ(up, dn, evals, evecs, factor)
+        self._acc_occ_double(up, dn, evals, evecs, factor)
 
 
 def greens_function_lehmann(model, z, beta, pos=0, sigma=UP, eig_cache=None):
-    logger.debug("Accumulating Lehmann sum (pos=%s, sigma=%s)", pos, sigma)
+    basis = model.basis
+
+    logger.info("Accumulating Lehmann sum (pos=%s, sigma=%s)", pos, sigma)
+    logger.debug("Sites: %s (%s states)", basis.num_sites, basis.size)
+
     data = GreensFunctionMeasurement(z, beta, pos, sigma)
     eig_cache = eig_cache if eig_cache is not None else dict()
-    for n_up, n_dn in model.iter_fillings():
+
+    fillings = list(basis.iter_fillings())
+    num = len(fillings)
+    w = len(str(num))
+    for i, (n_up, n_dn) in enumerate(fillings):
         sector = model.get_sector(n_up, n_dn)
-        sector_p1 = model.basis.upper_sector(n_up, n_dn, sigma)
+        logger.info("[%s/%s] Sector %s, %s", f"{i+1:>{w}}", num, n_up, n_dn)
+
+        sector_p1 = basis.upper_sector(n_up, n_dn, sigma)
         if sector_p1 is not None:
             eigvals, eigvecs = solve_sector(model, sector, cache=eig_cache)
             eigvals_p1, eigvecs_p1 = solve_sector(model, sector_p1, cache=eig_cache)
             data.accumulate(sector, sector_p1, eigvals, eigvecs, eigvals_p1, eigvecs_p1)
-        # else: eig_cache.clear()
+        else:
+            logger.debug("No upper sector, skipping")
+            # eig_cache.clear()
 
-    logger.debug("-" * 40)
-    logger.debug("gs-energy:  %+.4f", data.gs_energy)
-    logger.debug("occupation:  %.4f", data.occ)
-    logger.debug("double-occ:  %.4f", data.occ_double)
-    logger.debug("-" * 40)
+    logger.info("-" * 40)
+    logger.info("gs-energy:  %+.4f", data.gs_energy)
+    logger.info("occupation:  %.4f", data.occ)
+    logger.info("double-occ:  %.4f", data.occ_double)
+    logger.info("-" * 40)
     return data
 
 
