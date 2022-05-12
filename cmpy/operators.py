@@ -7,7 +7,6 @@
 """This module contains tools for working with linear operators in sparse format."""
 
 import abc
-import bisect
 import numpy as np
 from numba import njit, int64, bool_
 from scipy.sparse import csr_matrix
@@ -643,6 +642,60 @@ class HamiltonOperator(LinearOperator):
 # -- Creation- and Annihilation-Operators ----------------------------------------------
 
 
+@njit(fastmath=True, nogil=True)
+def _apply_creation_up(matvec, x, num_dn, up_states, up_states_p1, pos):
+    op = 1 << pos
+    all_dn = np.arange(num_dn)
+    for up_idx, up in enumerate(up_states):
+        if not (up & op):
+            new = up ^ op
+            idx_new = bisect_left(up_states_p1, new)
+            origins = up_idx * num_dn + all_dn
+            targets = idx_new * num_dn + all_dn
+            matvec[targets] = x[origins]
+
+
+@njit(fastmath=True, nogil=True)
+def _apply_creation_dn(matvec, x, num_up, dn_states, dn_states_p1, pos):
+    op = 1 << pos
+    num_dn = len(dn_states)
+    all_up = np.arange(num_up)
+    for dn_idx, dn in enumerate(dn_states):
+        if not (dn & op):
+            new = dn ^ op
+            idx_new = bisect_left(dn_states_p1, new)
+            origins = all_up * num_dn + dn_idx
+            targets = all_up * num_dn + idx_new
+            matvec[targets] = x[origins]
+
+
+@njit(fastmath=True, nogil=True)
+def _apply_annihilation_up(matvec, x, num_dn, up_states, up_states_m1, pos):
+    op = 1 << pos
+    all_dn = np.arange(num_dn)
+    for up_idx, up in enumerate(up_states):
+        if up & op:
+            new = up ^ op
+            idx_new = bisect_left(up_states_m1, new)
+            origins = up_idx * num_dn + all_dn
+            targets = idx_new * num_dn + all_dn
+            matvec[targets] = x[origins]
+
+
+@njit(fastmath=True, nogil=True)
+def _apply_annihilation_dn(matvec, x, num_up, dn_states, dn_states_m1, pos):
+    op = 1 << pos
+    num_dn = len(dn_states)
+    all_up = np.arange(num_up)
+    for dn_idx, dn in enumerate(dn_states):
+        if dn & op:
+            new = dn ^ op
+            idx_new = bisect_left(dn_states_m1, new)
+            origins = all_up * num_dn + dn_idx
+            targets = all_up * num_dn + idx_new
+            matvec[targets] = x[origins]
+
+
 class CreationOperator(LinearOperator):
     """Fermionic creation operator as LinearOperator."""
 
@@ -664,34 +717,16 @@ class CreationOperator(LinearOperator):
         return f"{name}(shape: {self.shape}, dtype: {self.dtype})"
 
     def _build_up(self, matvec, x):
-        op = 1 << self.pos
-        num_dn = len(self.sector.dn_states)
-        all_dn = np.arange(num_dn)
-        for up_idx, up in enumerate(self.sector.up_states):
-            if not (up & op):
-                new = up ^ op
-                idx_new = bisect_left(self.sector_p1.up_states, new)
-                origins = project_up(up_idx, num_dn, all_dn)
-                targets = project_up(idx_new, num_dn, all_dn)
-                if isinstance(origins, int):
-                    origins, targets = [origins], [targets]
-                for origin, target in zip(origins, targets):
-                    matvec[target] = x[origin]
+        num_dn = self.sector.num_dn
+        up_states = self.sector.up_states
+        up_states_p1 = self.sector_p1.up_states
+        _apply_creation_up(matvec, x, num_dn, up_states, up_states_p1, self.pos)
 
     def _build_dn(self, matvec, x):
-        op = 1 << self.pos
-        num_dn = self.sector.num_dn
-        all_up = np.arange(self.sector.num_up)
-        for dn_idx, dn in enumerate(self.sector.dn_states):
-            if not (dn & op):
-                new = dn ^ op
-                idx_new = bisect_left(self.sector_p1.dn_states, new)
-                origins = project_dn(dn_idx, num_dn, all_up)
-                targets = project_dn(idx_new, num_dn, all_up)
-                if isinstance(origins, int):
-                    origins, targets = [origins], [targets]
-                for origin, target in zip(origins, targets):
-                    matvec[target] = x[origin]
+        num_up = self.sector.num_up
+        dn_states = self.sector.dn_states
+        dn_states_p1 = self.sector_p1.dn_states
+        _apply_creation_dn(matvec, x, num_up, dn_states, dn_states_p1, self.pos)
 
     def _matvec(self, x):
         matvec = np.zeros((self.shape[0], *x.shape[1:]), dtype=x.dtype)
@@ -726,34 +761,16 @@ class AnnihilationOperator(LinearOperator):
         return f"{name}(shape: {self.shape}, dtype: {self.dtype})"
 
     def _build_up(self, matvec, x):
-        op = 1 << self.pos
-        num_dn = len(self.sector.dn_states)
-        all_dn = np.arange(num_dn)
-        for up_idx, up in enumerate(self.sector.up_states):
-            if up & op:
-                new = up ^ op
-                idx_new = bisect.bisect_left(self.sector_m1.up_states, new)
-                origins = project_up(up_idx, num_dn, all_dn)
-                targets = project_up(idx_new, num_dn, all_dn)
-                if isinstance(origins, int):
-                    origins, targets = [origins], [targets]
-                for origin, target in zip(origins, targets):
-                    matvec[target] = x[origin]
+        num_dn = self.sector.num_dn
+        up_states = self.sector.up_states
+        up_states_m1 = self.sector_m1.up_states
+        _apply_annihilation_up(matvec, x, num_dn, up_states, up_states_m1, self.pos)
 
     def _build_dn(self, matvec, x):
-        op = 1 << self.pos
-        num_dn = self.sector.num_dn
-        all_up = np.arange(self.sector.num_up)
-        for dn_idx, dn in enumerate(self.sector.dn_states):
-            if dn & op:
-                new = dn ^ op
-                idx_new = bisect.bisect_left(self.sector_m1.dn_states, new)
-                origins = project_dn(dn_idx, num_dn, all_up)
-                targets = project_dn(idx_new, num_dn, all_up)
-                if isinstance(origins, int):
-                    origins, targets = [origins], [targets]
-                for origin, target in zip(origins, targets):
-                    matvec[target] = x[origin]
+        num_up = self.sector.num_up
+        dn_states = self.sector.dn_states
+        dn_states_m1 = self.sector_m1.dn_states
+        _apply_annihilation_dn(matvec, x, num_up, dn_states, dn_states_m1, self.pos)
 
     def _matvec(self, x):
         matvec = np.zeros((self.shape[0], *x.shape[1:]), dtype=x.dtype)
