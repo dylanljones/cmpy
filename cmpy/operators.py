@@ -238,12 +238,38 @@ def binarray(number, width):
     -------
     binarr : (N, ) bool np.ndarray
         The binary array representing the given number.
-
     """
     binarr = np.zeros(width, dtype=np.bool_)
     for i in range(width):
         binarr[i] = bool(number & (1 << i))
     return binarr
+
+
+@njit("f8(i8, f8[:])", fastmath=True, nogil=True)
+def weighted_element(state, values):
+    """Computes the value of a specific matrix element of a many-body Hamiltonian.
+
+    Maps the values to the state of each site and computes the sum. This is equivalent
+    of multiplying the value array with the bit-values of a state number.
+
+    Parameters
+    ----------
+    state : int
+        The number representing the binary state.
+    values : (N, ) float np.ndarray
+        The values of the Hamiltonian of an N site lattice model. This can be, for
+        example, an array filled with the on-site energies or the interaction energies.
+
+    Returns
+    -------
+    value : float
+        The weighted values.
+    """
+    value = 0.0
+    for i in range(values.shape[0]):
+        if state & (1 << i):
+            value += values[i]
+    return value
 
 
 @njit(int64(int64, int64), fastmath=True, nogil=True)
@@ -339,13 +365,14 @@ def project_hubbard_inter(up_states, dn_states, u):
     >>> from cmpy import matshow
     >>> matshow(ham, ticklabels=sector.state_labels(), values=True)
     """
-    num_sites = len(u)
+    # num_sites = len(u)
     num_dn = len(dn_states)
 
     for up_idx, up in enumerate(up_states):
         for dn_idx, dn in enumerate(dn_states):
-            weights = binarray(up & dn, num_sites)
-            energy = np.sum(u * weights)
+            # weights = binarray(up & dn, num_sites)
+            # energy = np.sum(u * weights
+            energy = weighted_element(up & dn, u)
             if energy:
                 origin = up_idx * num_dn + dn_idx
                 yield origin, origin, energy
@@ -392,14 +419,15 @@ def project_onsite_energy(up_states, dn_states, eps):
     >>> from cmpy import matshow
     >>> matshow(ham, ticklabels=sector.state_labels(), values=True)
     """
-    num_sites = len(eps)
+    # num_sites = len(eps)
     num_dn = len(dn_states)
     all_up, all_dn = np.arange(len(up_states)), np.arange(num_dn)
 
     # Spin-up elements
     for up_idx, up in enumerate(up_states):
-        weights = binarray(up, num_sites)
-        energy = np.sum(eps * weights)
+        # weights = binarray(up, num_sites)
+        # energy = np.sum(eps * weights)
+        energy = weighted_element(up, eps)
         if energy:
             origins = up_idx * num_dn + all_dn
             for origin in origins:
@@ -407,8 +435,9 @@ def project_onsite_energy(up_states, dn_states, eps):
 
     # Spin-dn elements
     for dn_idx, dn in enumerate(dn_states):
-        weights = binarray(dn, num_sites)
-        energy = np.sum(eps * weights)
+        # weights = binarray(dn, num_sites)
+        # energy = np.sum(eps * weights)
+        energy = weighted_element(dn, eps)
         if energy:
             origins = all_up * num_dn + dn_idx
             for origin in origins:
