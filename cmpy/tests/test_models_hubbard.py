@@ -4,7 +4,10 @@
 #
 # Copyright (c) 2022, Dylan Jones
 
+from pytest import mark
 from numpy.testing import assert_array_equal
+import lattpy as lp
+from cmpy.matrix import is_hermitian
 from cmpy.models import HubbardModel
 
 
@@ -20,3 +23,42 @@ def test_hubbard_sector_1_1():
     ]
     ham = model.hamiltonian(1, 1)
     assert_array_equal(ham, expected)
+
+
+@mark.parametrize("num_sites", [1, 2, 3, 4, 5, 6, 7])
+def test_hamiltonian_hermitian_1d(num_sites):
+    latt = lp.finite_hypercubic(num_sites)
+    neighbors, _ = latt.neighbor_pairs(unique=True)
+    model = HubbardModel(num_sites, neighbors, inter=2.0, mu=1.0, hop=1.0)
+    for n_up, n_dn in model.basis.iter_fillings():
+        ham = model.hamiltonian(n_up, n_dn)
+        assert is_hermitian(ham)
+
+
+@mark.parametrize("num_sites", [1, 2, 3, 4, 5, 6, 7])
+def test_hamiltonian_hermitian_1d_periodic(num_sites):
+    latt = lp.finite_hypercubic(num_sites, periodic=True)
+    neighbors, _ = latt.neighbor_pairs(unique=True)
+    model = HubbardModel(num_sites, neighbors, inter=2.0, mu=1.0, hop=1.0)
+    for n_up, n_dn in model.basis.iter_fillings():
+        ham = model.hamiltonian(n_up, n_dn)
+        assert is_hermitian(ham)
+
+
+@mark.parametrize("size", [2, 3])
+def test_hamiltonian_hermitian_2d(size):
+    latt = lp.finite_hypercubic((size, size))
+    neighbors, _ = latt.neighbor_pairs(unique=True)
+    model = HubbardModel(latt.num_sites, neighbors, inter=2.0, mu=1.0, hop=1.0)
+    for n_up, n_dn in model.basis.iter_fillings():
+        ham = model.hamiltonian(n_up, n_dn)
+        assert is_hermitian(ham)
+
+
+def test_hamiltonian_hermitian_2d_periodic():
+    latt = lp.finite_hypercubic((3, 3), periodic=True)
+    neighbors, _ = latt.neighbor_pairs(unique=True)
+    model = HubbardModel(latt.num_sites, neighbors, inter=2.0, mu=1.0, hop=1.0)
+    for n_up, n_dn in model.basis.iter_fillings():
+        ham = model.hamiltonian(n_up, n_dn)
+        assert is_hermitian(ham)
