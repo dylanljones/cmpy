@@ -24,15 +24,15 @@ __all__ = [
     "is_hermitian",
     "diagonal",
     "fill_diagonal",
-    "decompose",
-    "reconstruct",
+    "decompose_eig",
     "decompose_svd",
-    "reconstruct_svd",
     "decompose_qr",
+    "reconstruct_eig",
+    "reconstruct_svd",
     "reconstruct_qr",
-    "Decomposition",
-    "QR",
-    "SVD",
+    "EigenDecomposition",
+    "QRDecomposition",
+    "SVDDecomposition",
     "EigenState",
 ]
 
@@ -274,7 +274,7 @@ def fill_diagonal(mat, val, offset=0):
 # -- Matrix decompositions -------------------------------------------------------------
 
 
-def decompose(arr, h=None):
+def decompose_eig(arr, h=None):
     """Computes the eigen-decomposition of a matrix.
 
     Finds the eigenvalues and the left and right eigenvectors of a matrix. If the matrix
@@ -307,7 +307,7 @@ def decompose(arr, h=None):
     return vr, xi, vl
 
 
-def reconstruct(rv, xi, rv_inv, method="full"):
+def reconstruct_eig(rv, xi, rv_inv, method="full"):
     """Computes a matrix from an eigen-decomposition.
 
     The matrix is reconstructed using eigenvalues and left and right eigenvectors.
@@ -452,7 +452,7 @@ class MatrixDecomposition(ABC):
         return f"{self.__class__.__name__}[{shapestr}]"
 
 
-class Decomposition(MatrixDecomposition):
+class EigenDecomposition(MatrixDecomposition):
     """Eigen-decomposition of a matrix.
 
     Parameters
@@ -486,9 +486,9 @@ class Decomposition(MatrixDecomposition):
 
         Returns
         -------
-        decomposition : Decomposition
+        decomposition : EigenDecomposition
         """
-        rv, xi, rv_inv = decompose(arr, h)
+        rv, xi, rv_inv = decompose_eig(arr, h)
         return cls(rv, xi, rv_inv)
 
     def reconstruct(self, xi=None, method="full"):
@@ -510,7 +510,7 @@ class Decomposition(MatrixDecomposition):
             The reconstructed matrix.
         """
         xi = self.xi if xi is None else xi
-        return reconstruct(self.rv, xi, self.rv_inv, method)
+        return reconstruct_eig(self.rv, xi, self.rv_inv, method)
 
     def normalize(self):
         """Normalizes the eigenstates and creates a new ``Decomposition``-instance."""
@@ -534,7 +534,7 @@ class Decomposition(MatrixDecomposition):
         return self.rv, self.xi, self.rv_inv
 
 
-class SVD(MatrixDecomposition):
+class SVDDecomposition(MatrixDecomposition):
     """Singular Value Decomposition of a matrix.
 
     Parameters
@@ -584,7 +584,7 @@ class SVD(MatrixDecomposition):
 
         Returns
         -------
-        decomposition : SVD
+        decomposition : SVDDecomposition
         """
         u, s, vh = np.linalg.svd(arr, full_matrices=full_matrices)
         return cls(u, s, vh)
@@ -603,7 +603,7 @@ class SVD(MatrixDecomposition):
         return self.u, self.s, self.vh
 
 
-class QR(MatrixDecomposition):
+class QRDecomposition(MatrixDecomposition):
     """QR decomposition of a matrix.
 
     Parameters
@@ -640,7 +640,7 @@ class QR(MatrixDecomposition):
 
         Returns
         -------
-        decomposition : QR
+        decomposition : QRDecomposition
         """
         args = la.qr(arr, pivoting=pivoting)
         return cls(*args)
@@ -674,11 +674,11 @@ class QR(MatrixDecomposition):
 
         Returns
         -------
-        qr : QR
+        qr : QRDecomposition
             The updated QR-decomposition.
         """
         q, r = la.qr_update(self.q, self.r, u, v, check_finite=check_finite)
-        return QR(q, r)
+        return QRDecomposition(q, r)
 
     def insert(self, u, k, which="row", check_finite=True):
         """Rank-k QR update of the QR-decomposition.
@@ -696,11 +696,11 @@ class QR(MatrixDecomposition):
 
         Returns
         -------
-        qr : QR
+        qr : QRDecomposition
             The updated QR-decomposition.
         """
         q, r = la.qr_insert(self.q, self.r, u, k, which, check_finite=check_finite)
-        return QR(q, r)
+        return self.__class__(q, r)
 
     def __iter__(self):
         return self.q, self.r
