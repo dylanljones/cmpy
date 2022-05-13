@@ -76,3 +76,21 @@ def test_gf_lehmann_hubbard_atomic_limit(num_sites, u):
 
         assert abs(energy0 - (-u / 2)) < 0.1
         assert abs(energy1 - (+u / 2)) < 0.1
+
+
+@mark.parametrize("num_sites", [2, 3, 4, 5])
+@mark.parametrize("u", [1.0, 2.0, 3.0, 4.0])
+def test_gf_lehmann_hubbard_occupation(num_sites, u):
+    """Test the occupation of the Hubabrd model.
+
+    At half filling this should always be 0.5
+    """
+    z = np.linspace(-4, +4, 1001) + 0.05j
+
+    latt = lp.finite_hypercubic(num_sites)
+    neighbors, _ = latt.neighbor_pairs(unique=True)
+    model = HubbardModel(num_sites, neighbors, inter=u, mu=u / 2, hop=1.0)
+    for pos in range(num_sites):
+        gf_meas = gf_lehmann(model, z, beta=10, pos=pos, occ=True)
+        occ = gf_meas.occ
+        assert abs(occ - 0.5) < 1e-3
