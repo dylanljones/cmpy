@@ -25,7 +25,7 @@ def main():
     siam = SingleImpurityAndersonModel(u, eps_imp, eps_bath, v, mu=None)
 
     z = np.linspace(-10, +10, 1000) + 0.01j
-    data = ed.greens_function_lehmann(siam, z, beta)
+    data = ed.gf_lehmann(siam, z, beta)
     gf = data.gf
 
     fig, ax = plt.subplots()

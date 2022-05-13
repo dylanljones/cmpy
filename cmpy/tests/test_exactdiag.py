@@ -9,7 +9,7 @@ from numpy.testing import assert_allclose
 import numpy as np
 import lattpy as lp
 from cmpy.greens import gf0_lehmann
-from cmpy.exactdiag import greens_function_lehmann
+from cmpy.exactdiag import gf_lehmann
 from cmpy.models import HubbardModel
 
 
@@ -40,7 +40,7 @@ def test_gf_lehmann_hubbard_non_interacting(num_sites):
     gf0_z_diag = gf0_lehmann(ham0, z=z)
 
     gf0_z = gf0_z_diag[:, pos]
-    gf_meas = greens_function_lehmann(model, z, beta=10, pos=pos, occ=False)
+    gf_meas = gf_lehmann(model, z, beta=10, pos=pos, occ=False)
     gf_z = gf_meas.gf
 
     assert_allclose(gf_z, gf0_z, rtol=1e-4, atol=1e-3)
@@ -59,7 +59,7 @@ def test_gf_lehmann_hubbard_atomic_limit(num_sites, u):
     neighbors, _ = latt.neighbor_pairs(unique=True)
     model = HubbardModel(num_sites, neighbors, inter=u, mu=u / 2, hop=0.0)
     for pos in range(num_sites):
-        gf_meas = greens_function_lehmann(model, z, beta=10, pos=pos, occ=False)
+        gf_meas = gf_lehmann(model, z, beta=10, pos=pos, occ=False)
         gf_z = gf_meas.gf
 
         c = len(z) // 2
