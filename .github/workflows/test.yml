@@ -7,6 +7,9 @@ on:
     types: [opened]
   workflow_dispatch:
 
+env:
+  NUMBA_DISABLE_JIT: 1
+
 jobs:
 
   code-change:
@@ -64,3 +67,9 @@ jobs:
     - name: Run tests
       run: |
         pytest cmpy/ --cov=cmpy --cov-report=xml -v
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v2
+      with:
+        env_vars: OS,PYTHON
+        verbose: True
