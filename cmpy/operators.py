@@ -8,7 +8,7 @@
 
 import abc
 import numpy as np
-from numba import njit, int64, bool_
+from numba import njit, int64
 from scipy.sparse import csr_matrix
 import scipy.sparse.linalg as sla
 from .basis import UP, SPIN_CHARS
@@ -221,28 +221,6 @@ def project_elements_dn(dn_idx, num_dn_states, up_indices, value, target=None):
 
 
 # -- Helper methods --------------------------------------------------------------------
-
-
-@njit(bool_[:](int64, int64), fastmath=True, nogil=True)
-def binarray(number, width):
-    """Returns the bits of an integer as a binary array.
-
-    Parameters
-    ----------
-    number : int
-        The number representing the binary state.
-    width : int
-        Number N of digits used.
-
-    Returns
-    -------
-    binarr : (N, ) bool np.ndarray
-        The binary array representing the given number.
-    """
-    binarr = np.zeros(width, dtype=np.bool_)
-    for i in range(width):
-        binarr[i] = bool(number & (1 << i))
-    return binarr
 
 
 @njit("f8(i8, f8[:])", fastmath=True, nogil=True)
