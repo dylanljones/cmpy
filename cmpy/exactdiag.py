@@ -212,7 +212,7 @@ class GreensFunctionMeasurement:
             self._acc_occ_double(up, dn, evals, evecs, factor)
 
 
-def greens_function_lehmann(model, z, beta, pos=0, sigma=UP, eig_cache=None, occ=True):
+def gf_lehmann(model, z, beta, pos=0, sigma=UP, eig_cache=None, occ=True):
     basis = model.basis
 
     logger.info("Accumulating Lehmann sum (pos=%s, sigma=%s)", pos, sigma)
@@ -245,7 +245,7 @@ def greens_function_lehmann(model, z, beta, pos=0, sigma=UP, eig_cache=None, occ
     return data
 
 
-def greens_greater(model, gs, start, stop, num=1000, pos=0, sigma=UP):
+def gf_greater(model, gs, start, stop, num=1000, pos=0, sigma=UP):
     n_up, n_dn = gs.n_up, gs.n_dn
     sector = model.basis.get_sector(n_up, n_dn)
     logger.debug("Computing greater GF (Sector: %d, %d; num: %d)", n_up, n_dn, num)
@@ -273,7 +273,7 @@ def greens_greater(model, gs, start, stop, num=1000, pos=0, sigma=UP):
     return times, overlaps
 
 
-def greens_lesser(model, gs, start, stop, num=1000, pos=0, sigma=UP):
+def gf_lesser(model, gs, start, stop, num=1000, pos=0, sigma=UP):
     n_up, n_dn = gs.n_up, gs.n_dn
     sector = model.basis.get_sector(n_up, n_dn)
     logger.debug("Computing lesser GF (Sector: %d, %d; num: %d)", n_up, n_dn, num)
@@ -301,11 +301,11 @@ def greens_lesser(model, gs, start, stop, num=1000, pos=0, sigma=UP):
     return times, overlaps
 
 
-def greens_function_tevo(model, start, stop, num=1000, pos=0, sigma=UP):
+def gf_tevo(model, start, stop, num=1000, pos=0, sigma=UP):
     gs = compute_groundstate(model)
-    times, gf_greater = greens_greater(model, gs, start, stop, num, pos, sigma)
-    times, gf_lesser = greens_lesser(model, gs, start, stop, num, pos, sigma)
-    return times, gf_greater - gf_lesser
+    times, gf_g = gf_greater(model, gs, start, stop, num, pos, sigma)
+    times, gf_l = gf_lesser(model, gs, start, stop, num, pos, sigma)
+    return times, gf_g - gf_l
 
 
 def fourier_t2z(times, gf_t, omegas, delta=1e-2, eta=None):

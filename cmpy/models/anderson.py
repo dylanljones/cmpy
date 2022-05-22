@@ -12,7 +12,7 @@ from cmpy.operators import (
     project_hubbard_inter,
     project_hopping,
 )
-from cmpy.exactdiag import greens_function_lehmann
+from cmpy.exactdiag import gf_lehmann
 from .abc import AbstractManyBodyModel
 
 
@@ -161,9 +161,7 @@ class SingleImpurityAndersonModel(AbstractManyBodyModel):
         return 1 / (z + self.mu + self.eps_imp - self.hybridization_func(z))
 
     def impurity_gf(self, z, sigma=UP):
-        return greens_function_lehmann(
-            self, z, beta=1 / self.temp, pos=0, sigma=sigma
-        ).gf
+        return gf_lehmann(self, z, beta=1 / self.temp, pos=0, sigma=sigma).gf
 
     def pformat(self):
         return (
