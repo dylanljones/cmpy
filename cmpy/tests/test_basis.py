@@ -88,7 +88,8 @@ def test_annihilate(num, pos, result):
     assert basis.annihilate(num, pos) == result
 
 
-@given(st.integers(0, 15), st.integers(0, 15))
+@mark.parametrize("n_up", list(range(15)))
+@mark.parametrize("n_dn", list(range(15)))
 def test_upper_sector(n_up, n_dn):
     num_sites = 15
     # Test spin-up
@@ -99,7 +100,8 @@ def test_upper_sector(n_up, n_dn):
     assert basis.upper_sector(n_up, n_dn, basis.DN, num_sites) == res
 
 
-@given(st.integers(0, 15), st.integers(0, 15))
+@mark.parametrize("n_up", list(range(15)))
+@mark.parametrize("n_dn", list(range(15)))
 def test_lower_sector(n_up, n_dn):
     # Test spin-up
     res = None if n_up == 0 else (n_up - 1, n_dn)
