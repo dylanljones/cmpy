@@ -35,23 +35,37 @@ def hubbard_hamiltonian(sector, neighbors, inter=0.0, eps=0.0, hop=1.0):
 
 
 class HubbardModel(AbstractManyBodyModel):
-    """Model class for the Hubbard model."""
+    """Model class for the Hubbard model.
 
-    def __init__(self, num_sites, neighbors, inter=0.0, eps=0.0, hop=1.0, mu=0.0):
+    The Hamiltonian of the Hubbard model is defined as
+    .. math::
+        H = U Σ_i n_{i↑}n_{i↓} + Σ_{iσ} ε_i c^†_{iσ}c_{iσ} + t Σ_{i,j,σ} c^†_{iσ}c_{jσ}
 
-        """Initializes the ``HubbardModel``.
+    Attributes
+    ----------
+    inter : float or Sequence, optional
+        The onsite interaction energy of the model. The default value is ``2``.
+    eps : float or Sequence, optional
+        The onsite energy of the model. The default value is ``0``.
+    eps_bath : float or Sequence, optional
+        The onsite energy of the model. The default value is ``0``.
+    hop : float or Sequence, optional
+        The hopping parameter of the model. The default value is ``1``.
+    mu : float, optional
+        The chemical potential. The default is ``0``.
+    """
 
-        u : float or Sequence, optional
-            The onsite interaction energy of the model. The default value is ``2``.
-        eps : float or Sequence, optional
-            The onsite energy of the model. The default value is ``0``.
-        eps_bath : float or Sequence, optional
-            The onsite energy of the model. The default value is ``0``.
-        hop : float or Sequence, optional
-            The hopping parameter of the model. The default value is ``1``.
-        mu : float, optional
-            The chemical potential. The default is ``0``.
-        """
+    def __init__(self, *args, inter=0.0, eps=0.0, hop=1.0, mu=0.0):
+        """Initializes the ``HubbardModel``."""
+        if len(args) == 1:
+            # Argument is a lattice instance
+            latt = args[0]
+            num_sites = latt.num_sites
+            neighbors = latt.neighbor_pairs(True)[0]
+        else:
+            # Aurgument is the number of sites and the neighbor data
+            num_sites, neighbors = args
+
         super().__init__(num_sites, inter=inter, eps=eps, hop=hop, mu=mu)
         self.neighbors = neighbors
 
