@@ -70,7 +70,7 @@ class HubbardModel(AbstractManyBodyModel):
         self.neighbors = neighbors
 
     def pformat(self):
-        return f"U={self.u}, ε={self.eps}, t={self.hop}, μ={self.mu}"
+        return f"U={self.inter}, ε={self.eps}, t={self.hop}, μ={self.mu}"
 
     def _hamiltonian_data(self, up_states, dn_states):
         inter = self.inter
