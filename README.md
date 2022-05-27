@@ -7,6 +7,11 @@
 
 Collection of tools for condensed matter physics written in Python.
 
+
+| ❗  | Most of the code is beeing migrated to the [exactdiag] repository and will be removed soon! |
+|----|:--------------------------------------------------------------------------------------------|
+
+
 :warning: **WARNING**: This project is still under development and might contain errors or change significantly in the future!
 
 ## Installation
@@ -149,6 +154,7 @@ for i, j, val in project_hopping(up_states, dn_states, site1=0, site2=1, hop=1.0
     ham[i, j] += val
 ````
 
+[exactdiag]: https://github.com/dylanljones/exactdiag
 
 [repo-url]: https://github.com/dylanljones/cmpy
 [license-url]: https://github.com/dylanljones/cmpy/blob/master/LICENSE
